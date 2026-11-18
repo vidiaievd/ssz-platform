@@ -1,0 +1,1882 @@
+{
+  "1A": [
+    {
+      "key": "it-1a-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 1A (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — Stillingsannonsen",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor fant Taras stillingsannonsen?",
+            "options": [
+              {
+                "id": "a",
+                "text": "På Finn.no",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "På LinkedIn",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Hos en venn",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva lover firmaet om skytjenester?",
+            "options": [
+              {
+                "id": "a",
+                "text": "At de lærer deg opp underveis",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "At du må kunne Azure fra før",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "At de ikke bruker sky",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva tilbyr Erik å gjøre?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Å lese gjennom søknaden",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Å skrive søknaden for Taras",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Å ringe Silje Berg",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "1A",
+          "title": "Lytt — Stillingsannonsen",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Han scroller gjennom stillingsannonser på Finn.no.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… men vi lærer deg gjerne opp underveis.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«Jeg kan lese gjennom den for deg etterpå.»",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "1B": [
+    {
+      "key": "it-1b-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 1B (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — CV og søknad",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lang er en CV ofte i hjemlandet til Taras?",
+            "options": [
+              {
+                "id": "a",
+                "text": "To-tre sider",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Én side",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Fem sider",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvilket eksempel på en konkret formulering gir Erik?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Et API som håndterer 10 000 forespørsler i timen",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Fem års erfaring med Java",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Et team på seks utviklere",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Når sender Taras søknaden?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Med en gang, samme kveld",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Dagen etter",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Etter helgen",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "1B",
+          "title": "Lytt — CV og søknad",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "I hjemlandet er CV-en gjerne to-tre sider lang.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«utviklet et API som håndterer 10 000 forespørsler i timen»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "Taras sender søknaden med en gang.",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "1C": [
+    {
+      "key": "it-1c-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 1C (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — Jobbintervjuet",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor foregår intervjuet?",
+            "options": [
+              {
+                "id": "a",
+                "text": "På kontoret til Nordly Tech",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "På Teams",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "På telefon",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva har Taras gjort med trege spørringer?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Optimalisert dem",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Slettet dem",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Sendt dem til en kollega",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor mange kandidater til skal Silje snakke med?",
+            "options": [
+              {
+                "id": "a",
+                "text": "To",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Tre",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Ingen",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "1C",
+          "title": "Lytt — Jobbintervjuet",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Taras velger å møte opp personlig.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… jeg har optimalisert flere spørringer som var trege.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "De skal snakke med to kandidater til.",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "1D": [
+    {
+      "key": "it-1d-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 1D (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — Tilbudet",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor mange uker ferie får Taras?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Fem",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Fire",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Seks",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvilken lønn håpet Taras på?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Rundt 660 000",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Rundt 620 000",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Rundt 700 000",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Når sender Silje kontrakten?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Samme dag",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Neste uke",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Etter fire måneder",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "1D",
+          "title": "Lytt — Tilbudet",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "I tillegg får du fem uker ferie.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… håpet jeg på noe nærmere 660 000.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«Da sender jeg kontrakten i dag.»",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-1d-dict",
+      "template": "dictation",
+      "instruction": "Диктант по словам урока 1: слушайте и записывайте по одному предложению.",
+      "content": {
+        "audio": {
+          "enabled": true,
+          "source": "asset",
+          "assetId": "",
+          "title": "Diktat — leksjon 1"
+        },
+        "title": "Diktat — leksjon 1",
+        "instruction": "Lytt og skriv det du hører, setning for setning.",
+        "mode": "segments",
+        "language": "nb",
+        "segments": [
+          {
+            "id": "d1"
+          },
+          {
+            "id": "d2"
+          },
+          {
+            "id": "d3"
+          },
+          {
+            "id": "d4"
+          },
+          {
+            "id": "d5"
+          }
+        ],
+        "marking": {
+          "caseSensitive": false,
+          "punctuation": false,
+          "near": "flag",
+          "extraCost": 1
+        },
+        "settings": {
+          "attempts": 3,
+          "threshold": 80,
+          "showWordCount": false,
+          "revealKey": true,
+          "hints": true
+        }
+      },
+      "expectedAnswers": {
+        "segments": {
+          "d1": {
+            "text": "Vi jobber smidig med Scrum.",
+            "why": "smidig — med én d og -ig.",
+            "focus": [
+              {
+                "id": "d1-f1",
+                "wordIndex": 2,
+                "why": ""
+              }
+            ]
+          },
+          "d2": {
+            "text": "Jeg har kjennskap til skytjenester.",
+            "why": "kjennskap — kj-lyd og dobbel n; skytjenester i ett ord.",
+            "focus": [
+              {
+                "id": "d2-f1",
+                "wordIndex": 2,
+                "why": ""
+              },
+              {
+                "id": "d2-f2",
+                "wordIndex": 4,
+                "why": ""
+              }
+            ]
+          },
+          "d3": {
+            "text": "Han har optimalisert en treg spørring.",
+            "why": "spørring — dobbel r.",
+            "focus": [
+              {
+                "id": "d3-f1",
+                "wordIndex": 2,
+                "why": ""
+              },
+              {
+                "id": "d3-f2",
+                "wordIndex": 5,
+                "why": ""
+              }
+            ]
+          },
+          "d4": {
+            "text": "Jeg lurte på om det ville være mulig.",
+            "why": "Leddsetning etter «om»: det ville være.",
+            "focus": [
+              {
+                "id": "d4-f1",
+                "wordIndex": 1,
+                "why": ""
+              }
+            ]
+          },
+          "d5": {
+            "text": "Firmaet tilbyr hjemmekontor to dager i uka.",
+            "why": "hjemmekontor — stum h, dobbel m, i ett ord.",
+            "focus": [
+              {
+                "id": "d5-f1",
+                "wordIndex": 2,
+                "why": ""
+              }
+            ]
+          }
+        },
+        "orphans": []
+      }
+    }
+  ],
+  "2A": [
+    {
+      "key": "it-2a-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 2A (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — første dag",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Når møter Silje Taras i resepsjonen?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Klokka ni",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Klokka åtte",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Klokka ti",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva setter Ingrid og Taras opp først?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Utviklingsmiljøet",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Et møte med kunden",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Azure-oppsettet",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lenge er Ingrid buddyen hans?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Tre uker",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Tre måneder",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Én uke",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "2A",
+          "title": "Lytt — første dag",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Silje møter ham klokka ni.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«Først setter vi opp utviklingsmiljøet ditt.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«… de neste tre ukene.»",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "2B": [
+    {
+      "key": "it-2b-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 2B (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — lunsj med teamet",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lenge har Taras bodd i Norge?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Snart to år",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Fem år",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Tre uker",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva legger Taras merke til ved Norge?",
+            "options": [
+              {
+                "id": "a",
+                "text": "At det er stille, og at folk er mye ute",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "At maten er dyr",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "At alle jobber sent",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvilken dag prøver alle å spise lunsj sammen?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Mandag",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Fredag",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Onsdag",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "2B",
+          "title": "Lytt — lunsj med teamet",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "«… har bodd i Norge i snart to år nå.»",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… hvor stille det er, og hvor mye folk er ute i naturen.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«… lunsjen på mandager prøver alle å være med på.»",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "2C": [
+    {
+      "key": "it-2c-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 2C (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — kontorkultur",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Når kommer folk på jobb?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Mellom åtte og ti",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Presis klokka åtte",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Etter ti",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva spurte Taras Silje om?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Budsjettet for et prosjekt",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Mer ferie",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Ny PC",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvordan håndterer man uenighet?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Direkte og saklig",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "I gangen etter møtet",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Skriftlig til sjefen",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "2C",
+          "title": "Lytt — kontorkultur",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Folk kommer mellom åtte og ti.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "Han sendte en forespørsel om budsjettet.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«… uenighet håndterer man helst direkte og saklig.»",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "2D": [
+    {
+      "key": "it-2d-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 2D (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — oppfølgingsmøtet",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lenge har Taras jobbet når han har møtet?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Tre uker",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Seks uker",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Seks måneder",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvem har hjulpet Taras?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Ingrid og Mohammed",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Erik",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Kristian",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvordan føler Taras seg etter møtet?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Lettet",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Skuffet",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Nervøs",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "2D",
+          "title": "Lytt — oppfølgingsmøtet",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Etter tre uker har han et oppfølgingsmøte.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… god hjelp fra Ingrid og Mohammed.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "Taras går ut av møtet lettet.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-2d-dict",
+      "template": "dictation",
+      "instruction": "Диктант по словам урока 2: слушайте и записывайте по одному предложению.",
+      "content": {
+        "audio": {
+          "enabled": true,
+          "source": "asset",
+          "assetId": "",
+          "title": "Diktat — leksjon 2"
+        },
+        "title": "Diktat — leksjon 2",
+        "instruction": "Lytt og skriv det du hører, setning for setning.",
+        "mode": "segments",
+        "language": "nb",
+        "segments": [
+          {
+            "id": "d1"
+          },
+          {
+            "id": "d2"
+          },
+          {
+            "id": "d3"
+          },
+          {
+            "id": "d4"
+          },
+          {
+            "id": "d5"
+          }
+        ],
+        "marking": {
+          "caseSensitive": false,
+          "punctuation": false,
+          "near": "flag",
+          "extraCost": 1
+        },
+        "settings": {
+          "attempts": 3,
+          "threshold": 80,
+          "showWordCount": false,
+          "revealKey": true,
+          "hints": true
+        }
+      },
+      "expectedAnswers": {
+        "segments": {
+          "d1": {
+            "text": "Taras har fått tilgang til kodebasen.",
+            "why": "tilgang — med én l; kodebasen i ett ord.",
+            "focus": [
+              {
+                "id": "d1-f1",
+                "wordIndex": 3,
+                "why": ""
+              },
+              {
+                "id": "d1-f2",
+                "wordIndex": 5,
+                "why": ""
+              }
+            ]
+          },
+          "d2": {
+            "text": "Han tar gradvis på seg egne oppgaver.",
+            "why": "gradvis — med d.",
+            "focus": [
+              {
+                "id": "d2-f1",
+                "wordIndex": 2,
+                "why": ""
+              }
+            ]
+          },
+          "d3": {
+            "text": "Prøvetiden varer i seks måneder.",
+            "why": "prøvetiden — ø, i ett ord.",
+            "focus": [
+              {
+                "id": "d3-f1",
+                "wordIndex": 0,
+                "why": ""
+              }
+            ]
+          },
+          "d4": {
+            "text": "Dokumentasjonen er ikke alltid oppdatert.",
+            "why": "oppdatert — dobbel p.",
+            "focus": [
+              {
+                "id": "d4-f1",
+                "wordIndex": 0,
+                "why": ""
+              },
+              {
+                "id": "d4-f2",
+                "wordIndex": 4,
+                "why": ""
+              }
+            ]
+          },
+          "d5": {
+            "text": "Jeg har levert det jeg har lovet.",
+            "why": "Perfektum: har levert, har lovet.",
+            "focus": [
+              {
+                "id": "d5-f1",
+                "wordIndex": 2,
+                "why": ""
+              },
+              {
+                "id": "d5-f2",
+                "wordIndex": 6,
+                "why": ""
+              }
+            ]
+          }
+        },
+        "orphans": []
+      }
+    }
+  ],
+  "3A": [
+    {
+      "key": "it-3a-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 3A (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — smidig eller foss?",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor har Taras jobbet med fossefallsmetoden?",
+            "options": [
+              {
+                "id": "a",
+                "text": "I sitt forrige firma",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "På studiet",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Hos Nordly Tech",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvilke kolonner har Kanban-tavla?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Ikke startet, Pågår og Ferdig",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Mandag, onsdag og fredag",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Krav, design og test",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvorfor passer Scrum for Nordly Tech?",
+            "options": [
+              {
+                "id": "a",
+                "text": "De trenger regelmessig tilbakemelding fra kunden",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Det er billigst",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Kunden krever det",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "3A",
+          "title": "Lytt — smidig eller foss?",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "«… i mitt forrige firma.»",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«Ikke startet», «Pågår» og «Ferdig».",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "«… fordi vi trenger regelmessig tilbakemelding fra kunden.»",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "3B": [
+    {
+      "key": "it-3b-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 3B (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — roller i prosjektet",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvem tar Taras med på en gjennomgang av rollene?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Ingrid",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Silje",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Mohammed",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva heter produkteieren?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Kristian",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Erik",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Mohammed",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva handler Scrum om, forstår Taras?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Klare roller og samarbeid",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Mange møter",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Tavler og kolonner",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "3B",
+          "title": "Lytt — roller i prosjektet",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "Ingrid tar Taras med.",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«Det er Kristian.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "… om klare roller og et samarbeid der alle vet hva som forventes.",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "3C": [
+    {
+      "key": "it-3c-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 3C (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — standupen",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvem starter standupen?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Ingrid",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Taras",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Mohammed",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva skal Taras begynne på i dag?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Et nytt felt i API-et",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Testing av betalingsmodulen",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Innloggingssiden",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lenge varer standupen denne dagen?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Tolv minutter",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Femten minutter",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Ni minutter",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "3C",
+          "title": "Lytt — standupen",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "«Ingrid, vil du starte?»",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "«… å legge til et nytt felt i API-et.»",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "Standupen er ferdig på tolv minutter.",
+            "options": {}
+          }
+        }
+      }
+    }
+  ],
+  "3D": [
+    {
+      "key": "it-3d-listen",
+      "template": "multiple_choice",
+      "instruction": "Послушайте текст 3D (без опоры на текст) и ответьте на вопросы.",
+      "content": {
+        "title": "Lytt — planlegging og retrospektiv",
+        "instruction": "Lytt til teksten uten å lese, og svar på spørsmålene.",
+        "questions": [
+          {
+            "id": "q1",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hvor lang tid tar testingen, tror Mohammed?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Tre dager",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "To uker",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Én dag",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q2",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva prioriteres først i sprinten?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Betalingsmodulen",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Innloggingssiden",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Dokumentasjonen",
+                "fixed": false
+              }
+            ]
+          },
+          {
+            "id": "q3",
+            "kind": "listening",
+            "context": "",
+            "stem": "Hva blir teamet enige om i retrospektivet?",
+            "options": [
+              {
+                "id": "a",
+                "text": "Å starte testing tidligere",
+                "fixed": false
+              },
+              {
+                "id": "b",
+                "text": "Å ha lengre sprinter",
+                "fixed": false
+              },
+              {
+                "id": "c",
+                "text": "Å droppe standupen",
+                "fixed": false
+              }
+            ]
+          }
+        ],
+        "settings": {
+          "letters": true,
+          "layout": "list",
+          "shuffle": true,
+          "shuffleQuestions": false,
+          "instant": false,
+          "retry": "one",
+          "eliminate": false,
+          "showWhyWrong": true,
+          "explainOnCorrect": true,
+          "progress": true
+        },
+        "audio": {
+          "enabled": true,
+          "source": "lesson",
+          "lessonKey": "3D",
+          "title": "Lytt — planlegging og retrospektiv",
+          "settings": {
+            "layout": "gate",
+            "plays": 2,
+            "seek": false,
+            "speed": true,
+            "gate": "first",
+            "transcriptWhen": "after"
+          }
+        }
+      },
+      "expectedAnswers": {
+        "questions": {
+          "q1": {
+            "correctOptionId": "a",
+            "why": "«Sannsynligvis tre dager.»",
+            "options": {}
+          },
+          "q2": {
+            "correctOptionId": "a",
+            "why": "Kunden har en frist, så betalingsmodulen prioriteres først.",
+            "options": {}
+          },
+          "q3": {
+            "correctOptionId": "a",
+            "why": "Testing starter så snart en funksjon er klar.",
+            "options": {}
+          }
+        }
+      }
+    },
+    {
+      "key": "it-3d-dict",
+      "template": "dictation",
+      "instruction": "Диктант по словам урока 3: слушайте и записывайте по одному предложению.",
+      "content": {
+        "audio": {
+          "enabled": true,
+          "source": "asset",
+          "assetId": "",
+          "title": "Diktat — leksjon 3"
+        },
+        "title": "Diktat — leksjon 3",
+        "instruction": "Lytt og skriv det du hører, setning for setning.",
+        "mode": "segments",
+        "language": "nb",
+        "segments": [
+          {
+            "id": "d1"
+          },
+          {
+            "id": "d2"
+          },
+          {
+            "id": "d3"
+          },
+          {
+            "id": "d4"
+          },
+          {
+            "id": "d5"
+          }
+        ],
+        "marking": {
+          "caseSensitive": false,
+          "punctuation": false,
+          "near": "flag",
+          "extraCost": 1
+        },
+        "settings": {
+          "attempts": 3,
+          "threshold": 80,
+          "showWordCount": false,
+          "revealKey": true,
+          "hints": true
+        }
+      },
+      "expectedAnswers": {
+        "segments": {
+          "d1": {
+            "text": "Oppgavene estimeres i story points.",
+            "why": "s-passiv: estimeres.",
+            "focus": [
+              {
+                "id": "d1-f1",
+                "wordIndex": 1,
+                "why": ""
+              }
+            ]
+          },
+          "d2": {
+            "text": "Jeg har ingen blokkeringer i dag.",
+            "why": "blokkeringer — dobbel k.",
+            "focus": [
+              {
+                "id": "d2-f1",
+                "wordIndex": 3,
+                "why": ""
+              }
+            ]
+          },
+          "d3": {
+            "text": "Sprinten ble planlagt på mandag.",
+            "why": "bli-passiv: ble planlagt.",
+            "focus": [
+              {
+                "id": "d3-f1",
+                "wordIndex": 2,
+                "why": ""
+              }
+            ]
+          },
+          "d4": {
+            "text": "Ingrid skal ferdigstille innloggingssiden.",
+            "why": "ferdigstille — i ett ord, dobbel l.",
+            "focus": [
+              {
+                "id": "d4-f1",
+                "wordIndex": 2,
+                "why": ""
+              },
+              {
+                "id": "d4-f2",
+                "wordIndex": 3,
+                "why": ""
+              }
+            ]
+          },
+          "d5": {
+            "text": "Kravene til funksjonaliteten er uklare.",
+            "why": "funksjonaliteten — ks skrives ks.",
+            "focus": [
+              {
+                "id": "d5-f1",
+                "wordIndex": 2,
+                "why": ""
+              },
+              {
+                "id": "d5-f2",
+                "wordIndex": 4,
+                "why": ""
+              }
+            ]
+          }
+        },
+        "orphans": []
+      }
+    }
+  ]
+}
