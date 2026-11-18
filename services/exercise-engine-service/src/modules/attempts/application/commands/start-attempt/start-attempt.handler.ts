@@ -116,6 +116,7 @@ import {
 } from '../../../../../shared/application/ports/content-client.port.js';
 import { OpenAttemptExistsError } from '../../../domain/exceptions/attempt.errors.js';
 import { EVENT_PUBLISHER, type IEventPublisher } from '../../../../../shared/application/ports/event-publisher.port.js';
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { ReviewContextResolver } from '../../services/review-context-resolver.js';
 import { attemptShuffle, seedFrom } from '../../../../../shared/application/services/multiple-choice-attempt.js';
 import { withStudentAudio } from '@ssz/shared-kernel/audio';
@@ -747,6 +748,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
     // The server's time for an online start; a replayed one is dated by `resolveClientTime`.
     @Optional() @Inject(CLOCK) private readonly clock: IClock = new SystemClock(),
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
   ) {}
 
   async execute(
@@ -767,6 +770,8 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   private async start(
     command: StartAttemptCommand,
   ): Promise<Result<StartAttemptResult, StartAttemptError>> {
+    await this.schoolGate?.assertExerciseOpen(command.exerciseId);
+
     // A whole board is scored by its first check and so is never `IN_PROGRESS` between checks;
     // an open one is looked for first, or a reload would start over with a fresh budget.
     const board = await this.attempts.findOpenBoard(command.userId, command.exerciseId);

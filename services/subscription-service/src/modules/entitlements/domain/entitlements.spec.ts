@@ -1,5 +1,5 @@
 import type { PlanFeature } from '../../plans/domain/plan.js';
-import { resolveEntitlements, type EntitlementInputs, type ResolvablePlan } from './entitlements.js';
+import { resolveEntitlements, studentSeatLimit, type EntitlementInputs, type ResolvablePlan } from './entitlements.js';
 
 const NOW = new Date('2026-10-21T12:00:00Z');
 const DAY = 24 * 3600 * 1000;
@@ -47,6 +47,7 @@ function onTutorPro(periodEnd: Date | null = null): EntitlementInputs['subscript
 function grant(featureKey: string, monthlyCredits: string | null, over: Partial<EntitlementInputs['grants'][number]> = {}) {
   return {
     featureKey,
+    enabled: true,
     monthlyCredits,
     limits: {},
     startsAt: new Date(NOW.getTime() - DAY),
@@ -207,6 +208,86 @@ describe('resolveEntitlements', () => {
     it('is the end of a subscription cut short inside its cycle', () => {
       const end = new Date('2026-10-25T00:00:00Z');
       expect(resolveEntitlements(inputs({ subscription: onTutorPro(end) })).validUntil).toEqual(end);
+    });
+  });
+
+  describe('a grant switching a key off (plan 90, phase 3)', () => {
+    const off = (featureKey: string, over: Partial<EntitlementInputs['grants'][number]> = {}) =>
+      grant(featureKey, null, { enabled: false, ...over });
+
+    it('switches off a key the plan carries, credits and limits gone', () => {
+      const e = resolveEntitlements(inputs({ subscription: onTutorPro(), grants: [off('ai.student_assist')] }));
+      expect(e.features['ai.student_assist']).toEqual({ enabled: false, monthlyCredits: null, limits: {} });
+      expect(e.features['ai.review_draft']).toEqual({ enabled: true, monthlyCredits: '1000', limits: {} });
+    });
+
+    it('wins over a grant switching the same key on, in either order', () => {
+      for (const grants of [
+        [grant('ai.review_direct', '50'), off('ai.review_direct')],
+        [off('ai.review_direct'), grant('ai.review_direct', '50')],
+      ]) {
+        expect(resolveEntitlements(inputs({ grants })).features['ai.review_direct']).toEqual({
+          enabled: false,
+          monthlyCredits: null,
+          limits: {},
+        });
+      }
+    });
+
+    it('is not listed among the grants that give a key', () => {
+      const e = resolveEntitlements(inputs({ grants: [off('ai.review_draft'), grant('ai.practice', '5')] }));
+      expect(e.grants.map((g) => g.featureKey)).toEqual(['ai.practice']);
+    });
+
+    it('counts only while active: scheduled, revoked or ended leave the plan alone', () => {
+      for (const over of [
+        { startsAt: new Date(NOW.getTime() + DAY) },
+        { revokedAt: new Date(NOW.getTime() - 1) },
+        { endsAt: NOW },
+      ]) {
+        const e = resolveEntitlements(inputs({ grants: [off('ai.review_draft', over)] }));
+        expect(e.features['ai.review_draft']).toEqual({ enabled: true, monthlyCredits: '50', limits: {} });
+      }
+    });
+
+    it('moves validUntil to its end, when the plan comes back', () => {
+      const ends = new Date(NOW.getTime() + 2 * DAY);
+      expect(resolveEntitlements(inputs({ grants: [off('ai.review_draft', { endsAt: ends })] })).validUntil).toEqual(ends);
+    });
+  });
+
+  describe('student seats (plan 90, phase 4)', () => {
+    const SCHOOL: ResolvablePlan = { code: 'school', name: 'School', version: 2, features: [f('seats.students', true, null, { max: 100 })] };
+    const onSchool = (): EntitlementInputs['subscription'] => ({
+      id: 'sub-2',
+      status: 'active',
+      periodStart: new Date('2026-09-10T00:00:00Z'),
+      periodEnd: null,
+      plan: SCHOOL,
+    });
+    const seats = (max: number, over: Partial<EntitlementInputs['grants'][number]> = {}) =>
+      grant('seats.students', null, { limits: { max }, ...over });
+
+    it("reads the plan's max", () => {
+      expect(studentSeatLimit(resolveEntitlements(inputs({ subscription: onSchool() })).features)).toBe(100);
+    });
+
+    it('has no limit when the plan does not mention the key', () => {
+      expect(studentSeatLimit(resolveEntitlements(inputs()).features)).toBeNull();
+    });
+
+    it('lets a grant raise the max, never lower it', () => {
+      const raised = resolveEntitlements(inputs({ subscription: onSchool(), grants: [seats(150)] }));
+      expect(studentSeatLimit(raised.features)).toBe(150);
+      const lowered = resolveEntitlements(inputs({ subscription: onSchool(), grants: [seats(10)] }));
+      expect(studentSeatLimit(lowered.features)).toBe(100);
+    });
+
+    it('ignores a seats grant on a plan without a limit (no limit is more than any max)', () => {
+      const e = resolveEntitlements(inputs({ grants: [seats(20)] }));
+      expect(e.features['seats.students']).toBeUndefined();
+      expect(studentSeatLimit(e.features)).toBeNull();
+      expect(e.grants).toEqual([]);
     });
   });
 });

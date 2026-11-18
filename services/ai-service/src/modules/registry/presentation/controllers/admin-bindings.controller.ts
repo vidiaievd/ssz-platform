@@ -12,10 +12,10 @@ import {
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
+import { CurrentAdmin } from '../../../../common/decorators/current-admin.decorator.js';
 import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
-import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { AdminActor } from '../../../../shared/application/admin-audit.js';
 import { PutBindingCommand } from '../../application/commands/put-binding/put-binding.command.js';
 import { GetBindingHistoryQuery } from '../../application/queries/get-binding-history/get-binding-history.query.js';
 import { GetBindingQuery } from '../../application/queries/get-binding/get-binding.query.js';
@@ -68,7 +68,8 @@ export class AdminBindingsController {
     description:
       'Both models must exist, not be disabled, sit on a configured provider, meet the capability\'s ' +
       'required features and allow maxOutputTokens. A switched-off provider is accepted — the router ' +
-      'steps over it to the fallback. Every write is kept in the history.',
+      'steps over it to the fallback. Every write is kept in the history. `reason` is required; the write goes ' +
+      'to the admin trail as `binding.changed` (before/after with the version).',
   })
   @ApiParam(CAPABILITY_PARAM)
   @ApiOkResponse({ type: BindingResponseDto })
@@ -78,15 +79,16 @@ export class AdminBindingsController {
   put(
     @Param('capability') capability: string,
     @Body() body: PutBindingDto,
-    @CurrentUser() user: AuthenticatedUser,
+    @CurrentAdmin() admin: AdminActor,
   ): Promise<AiBinding> {
-    const { expectedVersion, ...rest } = body;
+    const { expectedVersion, reason, ...rest } = body;
     return this.commandBus.execute(
       new PutBindingCommand(
         capability,
         { ...rest, fallbackModelId: rest.fallbackModelId ?? null, temperature: rest.temperature ?? null },
         expectedVersion,
-        user.userId,
+        admin,
+        reason,
       ),
     );
   }

@@ -8,6 +8,9 @@ import type { ISchoolRepository } from '../../../domain/repositories/school.repo
 import type { ISchoolMembershipRepository } from '../../../domain/repositories/school-membership.repository.interface.js';
 import type { IEventPublisher } from '../../../../../shared/application/ports/event-publisher.interface.js';
 import type { IProfileServicePort, ProfileSummary } from '../../../../../shared/application/ports/profile-service.interface.js';
+import type { StudentSeatGate } from '../../services/student-seat-gate.service.js';
+import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
+import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
 
 function makeSchool(): School {
   return School.create({ id: 's-1', name: 'Test School', slug: 'test-school', ownerId: 'owner-1' }, 'evt-1');
@@ -43,6 +46,7 @@ describe('AddMemberHandler', () => {
     getProfileSummary: jest.Mock<() => Promise<ProfileSummary | null>>;
     getTeachingLanguages: jest.Mock;
   };
+  let seatGate: { claim: jest.Mock<() => Promise<SeatUsage | null>> };
   let handler: AddMemberHandler;
 
   beforeEach(() => {
@@ -53,11 +57,14 @@ describe('AddMemberHandler', () => {
       getProfileSummary: jest.fn<() => Promise<ProfileSummary | null>>(),
       getTeachingLanguages: jest.fn(),
     };
+    seatGate = { claim: jest.fn<() => Promise<SeatUsage | null>>() };
+    seatGate.claim.mockResolvedValue({ used: 3, limit: 5, ceiling: 6, state: 'ok' });
     handler = new AddMemberHandler(
       schoolRepo as unknown as ISchoolRepository,
       membershipRepo as unknown as ISchoolMembershipRepository,
       eventPublisher as unknown as IEventPublisher,
       profileService as unknown as IProfileServicePort,
+      seatGate as unknown as StudentSeatGate,
     );
 
     schoolRepo.findById.mockResolvedValue(makeSchool());
@@ -115,5 +122,38 @@ describe('AddMemberHandler', () => {
     const saved = membershipRepo.save.mock.calls[0]![0] as SchoolMembership;
     expect(saved.id).not.toBe('m-old');
     expect(saved.status).toBe('active');
+  });
+
+  describe('student seats (plan 90, phase 4)', () => {
+    it('takes a seat for a learner with the same row the aggregate holds, before saving', async () => {
+      const result = await handler.execute(new AddMemberCommand('owner-1', 's-1', 'st-1', MemberRole.STUDENT));
+
+      expect(seatGate.claim).toHaveBeenCalledWith(
+        's-1',
+        expect.objectContaining({ kind: 'insert', userId: 'st-1', memberId: expect.any(String) }),
+      );
+      expect(seatGate.claim.mock.invocationCallOrder[0]!).toBeLessThan(schoolRepo.save.mock.invocationCallOrder[0]!);
+      expect(result).toEqual({ seats: { used: 3, limit: 5, ceiling: 6, state: 'ok' } });
+    });
+
+    it('staff take no seat', async () => {
+      const result = await handler.execute(new AddMemberCommand('owner-1', 's-1', 'te-1', MemberRole.TEACHER));
+
+      expect(seatGate.claim).not.toHaveBeenCalled();
+      expect(result).toEqual({ seats: null });
+    });
+
+    it('no seat → SEATS_EXHAUSTED, nothing saved, nothing announced', async () => {
+      seatGate.claim.mockRejectedValue(
+        new SeatsExhaustedException('s-1', { used: 6, limit: 5, ceiling: 6, state: 'full' }),
+      );
+
+      await expect(
+        handler.execute(new AddMemberCommand('owner-1', 's-1', 'st-1', MemberRole.STUDENT)),
+      ).rejects.toBeInstanceOf(SeatsExhaustedException);
+      expect(schoolRepo.save).not.toHaveBeenCalled();
+      expect(membershipRepo.save).not.toHaveBeenCalled();
+      expect(eventPublisher.publish).not.toHaveBeenCalled();
+    });
   });
 });

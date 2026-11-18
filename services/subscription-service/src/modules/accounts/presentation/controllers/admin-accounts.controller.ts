@@ -112,8 +112,11 @@ export class AdminAccountsController {
   @RequireAdminLevel('admin')
   @Post('grants')
   @ApiOperation({
-    summary: 'Grant a key or credits on top of the plan',
-    description: 'Switches the key on for the term even where the plan has it off; credits add to the plan\'s',
+    summary: 'Grant a key or credits on top of the plan, or switch a key off',
+    description:
+      "enabled: true (default) switches the key on for the term even where the plan has it off; credits add to the plan's. " +
+      'enabled: false switches it off for the term even where the plan or another grant has it on; it carries no credits ' +
+      'or limits. Revoking the grant gives the key back to the plan.',
   })
   @ApiCreatedResponse({ type: AccountOverviewResponseDto })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Unknown key, bad credits/limits, no reason, bad term' })
@@ -128,6 +131,7 @@ export class AdminAccountsController {
         p.externalId,
         {
           featureKey: body.featureKey,
+          enabled: body.enabled ?? true,
           monthlyCredits: body.monthlyCredits ?? null,
           limits: body.limits ?? {},
           startsAt: body.startsAt,

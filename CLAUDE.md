@@ -134,12 +134,21 @@ Journal: table `admin_audit` in `auth_db` (same transaction; id = eventId) and e
 `version` 1). Payload `{ service: 'auth', actorId?, actorLevel?, action, targetType, targetId, reason?, before?, after? }`;
 actions `admin.granted` / `admin.level_changed` / `admin.revoked`. Published after commit; broker failure is logged only.
 Shared rule and event types live in `packages/contracts` (`AdminLevel`, `adminLevelAtLeast()`, `ADMIN_EVENT_TYPES`).
+Token lifetimes (plan 90, phase 8, step 2): `GET/PUT api/v1/auth/admin/token-lifetimes` — `GET` for any admin level
+(policy `AdminSupport` = role + any `admin_level`), `PUT` `super` only (`AdminOnly` is gone, so a `platform_admin` web token
+without a level gets 403). `PUT { policies, reason }` — `reason` required (≤ 500). One `admin_audit` row per changed
+(role, client) pair (action `token_lifetime.changed`, targetType `token_lifetime`, targetId `<role>:<client>`, `before` /
+`after { hours }`; a new pair has no `before`; a pair with the same value writes nothing and leaves `updatedBy`) in the same
+transaction, then `admin.action.performed` after commit, one event per row. Applies to tokens issued or refreshed afterwards.
 
 ### 2. User Profile Service (NestJS)
 User profiles separated from auth. Student profiles (level, target language, progress summary),
 tutor profiles (qualifications, languages, schedule).
 Follows Clean Architecture.
 Database: `profiles_db`
+Internal `GET internal/profiles/:userId/contact` (`x-service-token`) → `{ userId, email, displayName, uiLocale }` from the
+`user_email_index` projection and the profile; 404 without an address. Used by notification for school-owner letters (plan 90,
+phase 5, step 9).
 
 ### 3. Organization Service (NestJS)
 Schools as entities: creation, teacher invitations, groups/classes management.
@@ -149,10 +158,10 @@ AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `p
 Follows Clean Architecture.
 Database: `organizations_db`
 Platform admin reads (plan 90, phase 1; module `modules/admin-schools`; verifier reads `admin_level`; level `support`
-on every route through `AdminLevelGuard` + `@RequireAdminLevel`; no admin journal here until phases 3/5):
-`GET admin/schools?search=&kind=SCHOOL|SOLO&status=active|inactive|deleted&sort=-createdAt|createdAt|name|-name&page=&limit=`
-(limit 1–100, default 25; ties by id) → `{ items, total, page, limit }`. `status` is derived from `isActive` / `deletedAt`
-until phase 5 adds a stored status; without `status` deleted schools are listed too. Row counts `students` (active
+on every route through `AdminLevelGuard` + `@RequireAdminLevel`; its own journal is `admin_audit`, see the school lifecycle below):
+`GET admin/schools?search=&kind=SCHOOL|SOLO&status=active|suspended|closed|purged&sort=-createdAt|createdAt|name|-name&page=&limit=`
+(limit 1–100, default 25; ties by id) → `{ items, total, page, limit }`. `status` is the stored lifecycle status (phase 5;
+`inactive` / `deleted` → 400); without `status` closed and purged schools are listed too. Row counts `students` (active
 STUDENT in roster) and `teachers` (TEACHER) come from one groupBy; the owner is not in the roster and is counted nowhere.
 `GET admin/schools/:id` — card (deleted ones too; non-UUID → 404 without a DB query): contacts, `owner` from
 profile-service (failure → `null`, the card still answers), `counts` (+ `archivedStudents`, `staff`, `pendingApplications`,
@@ -161,6 +170,54 @@ profile-service (failure → `null`, the card still answers), `counts` (+ `archi
 `from > to` → 400) → `{ from, to, schools { total, byStatus, byKind, createdInPeriod }, students, teachers, daily[] }`.
 People are counted once per platform (student = active STUDENT row; teacher = TEACHER row or SOLO owner); `daily` has
 every day of the period, zeros included.
+Admin roster and settings (plan 90, phase 3, step 5; `AdminSchoolRosterPrismaReader`, level `support`, gateway covered by
+`location /api/v1/admin/schools`): `GET admin/schools/:id/members?role=&status=&groupId=&page=&limit=` (limit 1–200,
+default 50; newest first) — `role` `student` / `teacher` / `staff` (`rosterRole` keeps the exact role), `status`
+`active` / `archived`, `groupId` = in the group today (active membership or unfinished teacher assignment; a foreign
+school's group → empty); a row has `groups[]` (`as` student/trial/observer/teacher, `isDefault` = the hidden SOLO group)
+and the denormalised `name` (null before sync). No email, no activity. `GET admin/schools/:id/settings` — review
+policy, `reviewAi`, `assistant`, `aiPrecheck` in one answer, as saved (no tariff check; review effort by template is not
+in). Non-UUID / unknown school → 404 (deleted ones are found).
+
+Batch read (plan 90, phase 7, step 17): `GET admin/schools?ids=<uuid>,<uuid>` (1–100 UUIDs of any version, non-UUID or > 100
+→ 400; unknown ids are simply absent; combines with the other filters) — the panel names the schools of the AI spend table.
+
+Student seats (plan 90, phase 4): `GET schools/:id/seats` (owner / admin / manager) → `{ used, limit, ceiling, state }`; panel
+reads the plan limit from the `school_seat_limits` projection only. `admin/schools` rows carry `seats { used, limit }` and
+filter `seats=near|over` (near = ≥ 90 % of the limit, not over; over = above it); the card has full `seats`;
+`admin/stats` has `seats { used, limit, schoolsLimited, near, over }` with `{ total, items[≤100], truncated }` lists.
+Seat check (plan 90, phase 4, steps 2–3): a seat is a STUDENT row in `school_members` with `status active`; invitations
+waiting for a seat hold none. The limit is a projection `school_seat_limits` (`max_seats`, `version`, `valid_until`) fed by
+`subscription.entitlements.changed` (workspace payers only; queue `organization_service.subscription.entitlements_changed`;
+a stale snapshot never overwrites a newer one). `ProjectedSeatLimitReader` (port `SEAT_LIMIT_READER`): fresh row → it; none
+or expired → `internal/entitlements` and a write-back; read failed → the expired row, else `{ known: false }`. Domain
+`admitOneStudent(used, limit)` → `ok` / `warning` (within limit + 10 %, rounded up) / `full` (at the ceiling → `409
+SEATS_EXHAUSTED` with `error.seats`). `StudentSeatGate` reads the limit before the lock; `StudentSeatPrismaRepository.claim`
+counts and writes the roster row in one transaction under `pg_advisory_xact_lock(hashtextextended('school-seats:<id>'))`.
+Unknown limit → admit, `seats: null`. Covered paths: `AddMember`, `AcceptInvitation`, `UpdateStudent` (`archived → active`),
+`SendInvitation` (refused at once when full), `ApproveMembership` (409); auto-approval without a seat keeps the request
+`pending` with `blockedReason: 'no_seats'` (column `school_memberships.blocked_reason`) instead of swallowing the error.
+Successful add / approve / accept / PATCH students answer 200 `{ seats }` (not 204). An existing roster above the limit stays.
+
+School lifecycle (plan 90, phase 5, steps 1–3): stored `status` `active → suspended → closed → purged` (domain rule
+`SchoolLifecycle`; `isActive` ⇔ `active`; `deletedAt` mirrors `closed`, set on close and cleared on restore). Admin moves
+`POST admin/schools/:id/{suspend,reactivate,close,restore,purge}` `{ reason }`: suspend / reactivate — `admin`; close (at
+once), restore, early purge — `super`; a wrong move → 409 `SCHOOL_TRANSITION_NOT_ALLOWED`, a level too low → 403. The
+owner's `DELETE schools/:id` is a move to `closed` (no admin journal). Each admin move writes `admin_audit` in
+`organizations_db` in the same transaction and publishes `admin.action.performed` through the outbox. Domain events on
+`organization.events`: `school.suspended` / `school.reactivated` / `school.closed` / `school.restored` / `school.purged`
+(payload `SchoolLifecyclePayload`: `status`, `previousStatus`, `by`, `changedAt`, `closesAt`, `purgeAt`). Timer
+(`SCHOOL_LIFECYCLE_INTERVAL_MS`, default 10 min, `pg_try_advisory_xact_lock`, ≤ 50 schools per kind per run):
+`suspended` → `closed` after `SCHOOL_SUSPEND_DAYS` (30); `closed` → `purged` after `SCHOOL_ARCHIVE_DAYS` (183). Purge
+leaves a tombstone row (name, owner, dates; contacts, description, avatar, assistant lists wiped; slug stays taken) and
+deletes groups, invitations, applications, roster, settings and the seat projection. `school.purge.reminder { daysLeft:
+30 | 7 }` goes once each (reset by any status change). `admin/stats` has `lifecycle { closingSoon, purgingSoon }`.
+Not `active` → read only: `ActiveSchoolGuard` + `school-access.policy` answer 409 `SCHOOL_NOT_ACTIVE { status }` on every
+non-GET under a school id (except the owner's `DELETE`); paths without a school id use `School.assertWritable()`; seat
+`claim` reads the status `FOR SHARE`. Public lists and applications are `active` only. `closed`: no staff or student
+role is answered (`members/:userId/role`, `members-batch` → 404); `GET schools/:id` is visible to the owner only.
+`GET internal/schools/:id/status` → `{ schoolId, status }` (any status; unknown → 404). Admin reads answer on the stored
+status (`admin/schools`, card with `closesAt` / `purgeAt`).
 
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.
@@ -180,6 +237,21 @@ Step 14.3: `nb:kj` and `nb:y` keep only words on which Azure tells the sound fro
 Reference clips (step 13.2c): `prisma/tools/reference-sound-atoms.ts` asks media-service for every drill word and writes
 `sound_reference_clips` (clip or refusal; 503 left for the next run; one word at a time — Azure F0 answers bursts with 429).
 
+School lifecycle (plan 90, phase 5, steps 4a–4c): `containers.maintenance_status` `maintained` / `unmaintained` / `obsolete`,
+`maintenance_source` `author` / `school`, snapshot `owner_school_name` (written on `closed`). `PUT containers/:id/maintenance
+{ status }` (courses only; edit rights; school not active → 409 `SCHOOL_NOT_ACTIVE`; journal `content_audit_log`). `GET
+containers` hides `obsolete` unless `includeObsolete=true` (student progress and upcoming lists pass it); owners still see
+their own. `internal/containers/:id/access-tier` → `{ accessTier, maintenanceStatus }`; learning refuses enrolment in an
+`obsolete` course with 409 `COURSE_OBSOLETE`. Module `school-lifecycle` (queue `content-service.school-lifecycle`, prefetch
+1, `processed_events` key `school-lifecycle`): `closed` → the school's courses `unmaintained` / `school`; `restored` → back to
+`maintained` only what the school set; `purged` → courses that others still hold become `obsolete` / `school`, the rest is
+deleted. Held = active learner (ACTIVE enrolment or open assignment, activity within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90),
+a live `content_share`, or another owner's item pointing inside; whatever a held course reaches is held too. Purge retry:
+table `school_purges`; `ContentCleanupJob` (`CONTENT_CLEANUP_INTERVAL_MS`, 1 h, `pg_try_advisory_xact_lock`) finishes
+unfinished purges (after `CONTENT_PURGE_RETRY_AFTER_MS`, 30 min) and deletes `obsolete` courses older than
+`CONTENT_OBSOLETE_GRACE_HOURS` (24) that nothing holds. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
+(`VisibilityCheckerService`); reads stay open.
+
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
 Follows Clean Architecture.
@@ -192,6 +264,10 @@ Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow c
 Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 of 14; a pronunciation session's ratings
 (`gapResults`, GOOD/HARD/AGAIN → 90/70/0) rate them by the gap's `score`. `atoms_flagged` with source `ai_session` pulls a
 card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).
+School lifecycle (plan 90, phase 5, step 8): `SchoolPurgedConsumer` (queue `learning-service.school-purged`, prefetch 1,
+`processed_events` in the same transaction): the school's open enrolments and assignments become `COMPLETED`, **without
+events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) can still be read by its active learners.
+Internal `internal/content/active-learners` is what content asks for the cleanup (plan 90, phase 5, step 4c).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
@@ -216,6 +292,11 @@ Q32): the learner's roster school when its `ai-precheck` is on, else the learner
 take; takes carry `sessionId` = the attempt id.
 Step 14.2: diagnostic takes go with `explain: false` (no model call); toneme takes carry the probe as `exerciseId`. Live
 end-to-end run on Azure dev: `infrastructure/scripts/plan-86-session-live.mts`.
+School not active (plan 90, phase 5, step 7): `SchoolActivityGate` (cache 30 s, fail open when organization is down) → 409
+`SCHOOL_NOT_ACTIVE { schoolStatus }` on start, `submit`, `check`, `claim`, `review`, `batch-approve`. The school is the owner
+of the exercise's course (`placement.ownerSchoolId`), not the learner's school: a learner of a suspended school keeps
+practising public courses; for staff and for a hand-in "to review" it is `attempt.schoolId`. Probes (no course) untouched.
+Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no gate; reads stay open.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -233,10 +314,30 @@ Word clips by a cloud voice (plan 86, step 4z.3): `POST internal/media/pronuncia
 `REFERENCE_REJECTED` → 422, `NOT_AVAILABLE` → 503. Which contrast may use
 which voice is the kernel pack's `ContrastFamily.checkedVoices` (nb `kjsj`: Finn; `tone`: none).
 
+Sweeps in the admin panel (plan 90, phase 8, steps 3–4; module `sweeps`): four passes `orphan_recordings` /
+`superseded_narrations` / `abandoned_uploads` / `orphan_content`, all run through `SweepRunner` (the nightly worker and
+`internal/media/assets/sweep-*`, trigger `operator`, keep their paths) and written to `sweep_runs` (`kind`, `mode`, `trigger`
+nightly / admin / operator, `actor_id`, `report` jsonb, `error`; 90 days, trimmed after each nightly run; a history write
+failure is only logged). `GET admin/media/sweeps` (level `support`) → per kind `schedule`, `nightlyMode` (env
+`MEDIA_ORPHAN_SWEEP_MODE`, one value for all four — it is not switched from the panel, Q7), `minAgeDays` + `ageBasis`,
+`maxPerRun`, `recentRuns[]` (10, `summary { scanned, kept, candidates, deleted, aborted, skipped }`), plus `historyDays`.
+`POST admin/media/sweeps/:kind/run { dryRun, reason }`: dry-run level `admin`, deleting `super` (the command checks it) and
+`reason` required (400 `REASON_REQUIRED`); synchronous; a pass already running → 409 `SWEEP_RUNNING` (set `inFlight`, set
+before the first `await`; the skipped nightly / operator run is still written as `skipped`). Only a deleting run goes to the
+journal: `admin_audit` + `outbox` in `media_db` (relay from `@ssz/messaging`), event `admin.action.performed` on `media.events`,
+action `media.sweep.deleted`, targetType `media_sweep`, targetId = kind, `after` = report + `runId` (a failed run: `after { error }`).
+The journal is written after the run in its own transaction; a failure is only logged (files are already gone, the answer is 200).
+Gateway: `location /api/v1/admin/media` in all three nginx configs.
+
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.
 Simplified structure acceptable.
 Database: `notifications_db`
+School lifecycle letters to the owner (plan 90, phase 5, step 9): `school.suspended` (with the closing date), `school.closed`
+(with the purge date), `school.restored`, `school.purge.reminder` 30 / 7 days — queue `notification-service.organization`.
+Address and language come from user-profile `GET internal/profiles/:userId/contact` (`x-service-token`): 404 → no letter,
+no error; another failure → one retry. `school.reactivated` sends nothing. Templates in uk / ru / nb / en by `uiLocale`
+(else en). Env `PROFILE_SERVICE_URL`. Log rows `notifications` type `GENERAL`, `templateKey = school-lifecycle-<letter>`.
 
 ### 9. Analytics Service (NestJS)
 Analytics for schools/tutors and students. Aggregation, reports, export.
@@ -248,10 +349,30 @@ dedup via `processed_events` key `admin-audit-log`) into `admin_audit_log` (id =
 exchange, never from the payload. `GET api/v1/admin/audit?service=&actorId=&targetType=&targetId=&from=&to=&cursor=`
 (level `support`; newest first, keyset on (`occurredAt`, `id`), `limit` 1–200 default 50, `from` inclusive, `to`
 exclusive; `from > to` or a foreign cursor → 400) → `{ items, nextCursor }`. Malformed message → nack without requeue;
-DB failure → one requeue. This journal is separate from the school activity feed (`audit` module).
+DB failure → one requeue. Sources: `auth.events`, `subscription.events` and (phase 3) `ai.events` (queue `analytics-service.admin-audit.ai`,
+`service: 'ai'`). This journal is separate from the school activity feed (`audit` module).
 Weak grammar rules (plan 85): consumes `exercise.feedback.atoms_flagged` into `weak_rules_daily` (facts keyed by
 day, learner, exercise, atom, source). `GET analytics/groups/:groupId/weak-rules?window=7|30|course` and
 `GET analytics/students/:studentId/weak-rules?window=&courseId=`; learners selected by group membership + course, not by `group_id`.
+Admin journal also reads `organization.events` (queue `analytics-service.admin-audit.organization`, `service: 'organization'`);
+rows from the timer or the owner carry `actorLevel: null`.
+Admin journal also reads `media.events` (phase 8, step 5; queue `analytics-service.admin-audit.media`, `service: 'media'`,
+filter `service=media`; no migration, the column is TEXT).
+Weekly AI usage by agent (phase 8, step 1): `admin/ai/usage?groupBy=week` gives each week `byCapability[]` (same figures as
+a row; a capability without calls that week is omitted; one query over `ai_usage_daily`, folded in `admin-usage.ts`).
+AI review gate (plan 90, phase 7, step 10): `ai_draft_quality_daily` has `template_code` (old rows `null` = "template not
+recorded", not restorable) and `drafts_settled`; the unique key includes the template (NULLS NOT DISTINCT) — roll the image
+and the migration out together (the old image fails on `ON CONFLICT`). `GET admin/ai/review-gate?from=&to=` (level `support`,
+optional days, default all time) → per (template, model): settled drafts, kept / edited / discarded / untouched, shares,
+learner disputes and teacher-flipped `review_direct` verdicts (reference only); `verdict` `passed` / `failed` / `insufficient`
+/ `not_recorded` on exact counts against `AI_REVIEW_GATE_MIN_DRAFTS` (100), `…_MIN_KEPT` (0.85), `…_MAX_DISCARDED` (0.10).
+The gate is shown only: nothing enforces it, so `ai.review_direct` stays out of every plan (plan 90 §7, Q6).
+AI spend per payer (step 12): `GET admin/ai/usage?from=&to=&groupBy=capability|payer|week&payerType=&limit=` over
+`ai_usage_daily` (level `support`; `from`/`to` both or neither, default last 30 days, ≤ 366; `limit` 1–100, default 20) →
+`{ from, to, groupBy, payerType, total, items }`; `payer` adds `payers` and `others` (everything below the top; top + `others`
+= `total`); money is `credits` as a six-decimal string, sorted by exact micro-credits. Names of schools are not here — the
+panel reads them from organization `admin/schools?ids=`. Both routes need an exact nginx `location =` (`/api/v1/admin/ai/
+review-gate`, `/api/v1/admin/ai/usage`): ai-service owns `admin/ai/usage/:payerType/:payerId` and everything under the gate.
 
 ### 10. API Gateway (nginx — exists)
 Request routing, rate limiting, CORS, SSL termination.
@@ -339,6 +460,46 @@ layer via `internal/prosody/phrase-marks`; `internal/prosody/word-stresses` (lex
 stresses and per-word `sounds`. The sound atoms `nb:<family>` / `nb:tone` are the analysis vocabulary; `pronunciation_explain@2`
 explains a mistake with the articulation base from content-service. Pitch (F0) and sex-of-voice handling run in the
 `whisper` sidecar (`infrastructure/whisper`).
+Platform admin (plan 90, phase 3): `PUT admin/ai/payer-policies/:payerType/:payerId` requires `reason` (≤ 500) and writes
+`admin_audit` in `ai_db` (`recordAdminAction(tx, entry)`, same transaction; action `payer_policy.changed`, targetType
+`workspace` / `user`, `before` absent when no policy existed — the default was "on, any region") and the event
+`admin.action.performed` on `ai.events` through the outbox (envelope as subscription's). Other admin changes join the journal
+in phase 7 (see below). `GET admin/ai/usage/:payerType/:payerId` (level `support`) → per AI key
+(`AI_FEATURE_KEYS` in `domain/entitlement.ts` — mirrors subscription's seven `ai.*` keys, add a key in both places):
+`feature`, `enabled`, `used`, `total`, `periodEnd`, `limits`, plus the effective `policy`. The spend is the learner
+`ai/usage/me` calculation (`FeatureUsage`: max(call ledger, gate counter), the counter is never created); `enabled` is
+the tariff only, `policy.aiEnabled: false` overrides it; an unknown payer = free plan of its audience; tariff or
+ledger unreadable → 503.
+School not active (plan 90, phase 5, step 6): projection `payer_workspace_status` fed by `school.*` (no row = `active`;
+`SchoolStatusConsumer`, queue `ai-service.school-status`; a stale event never overwrites a newer one). A workspace payer that
+is not `active` → refusal `school_not_active` before policy and tariff (`AccessGate`); unreadable status → `gate_unavailable`
+(fail closed). `AssistPayerResolver` then falls back to the learner's own plan; precheck and the sound-session door answer
+`not_available`.
+Agent models and platform spend (plan 90, phase 7, part 1): `PUT admin/ai/bindings/:capability` (`super`) requires `reason`
+(≤ 500) and, in the same transaction, writes `admin_audit` (action `binding.changed`, targetType `capability`, `before` /
+`after` = settings + `version`, `before` absent on create, read inside the transaction) and `admin.action.performed` through
+the outbox; `expectedVersion` → 409, an unfit model → 422 with the reasons. `GET admin/ai/spend?from=&to=` (level `support`;
+UTC days `YYYY-MM-DD`, both ends inclusive, default last 30 days, > 366 or `from > to` → 400; module `registry`,
+`PrismaSpendReader` — one `$queryRaw` over `ai_calls` grouped by day, model, capability; domain `platform-spend.ts`) →
+`totals { costByCurrency, calls, failed, unpricedCalls }`, `models[]` (provider, model — `null` if gone from the registry —
+`boundTo[]`, calls, failed, `fallbackCalls`, `unpricedCalls`, tokens in / out / cache, `audioMs`, `characters`,
+`costByCurrency`, `byCapability[]`), `daily[]` (every day, zeros included). Money is a string with six decimals from
+`cost_micros`, never a float; a call without a price counts in `unpricedCalls` and adds no cost; calls without a model (gate
+refusals) are not counted; a bound model with no calls is a zero row. Spend is read from `ai_calls`, not from analytics
+`ai_usage_daily` (no `audio_ms`, `characters` or money there).
+Providers, breakers, model test (plan 90, phase 7, part 2): `PUT admin/ai/providers/:id { enabled, reason }` and
+`PUT admin/ai/models/:id/status { status, reason }` (`super`, reason ≤ 500, same value → 200 without a write or journal row;
+port `IRegistryWriter`, row under `FOR UPDATE`); journal `provider.toggled` / `model.status_changed` (targetType `provider` /
+`model`, targetId = row uuid) + outbox event. Enabling a provider without a key → 422 with `missing`; the answer carries
+`strandedCapabilities[]` (enabled bindings left with no serving model; the breaker is not counted). `GET admin/ai/breakers`
+(`support`) → `{ settings, storeAvailable, items[] }` per registry model (`state` open / closed / `unknown`, `reopensInMs`,
+`recentFailures`, `bindings[]`), open first; `POST admin/ai/breakers/:modelId/reset { reason }` (`admin`, journal
+`breaker.reset`; a clean breaker → `changed: false`; Redis down or `unknown` → 503 `breaker_store_unavailable`). The admin port
+`IBreakerInspector` is separate from the router's fail-open `ICircuitBreaker`: an unreadable store is `unknown`, never
+"closed". `POST admin/ai/models/:id/test { reason? }` (`admin`; speech / tts → 422) writes `model.tested` (`after { outcome,
+errorCode, latencyMs, callId, providerCode, providerModelId }`; no reason = `''` in `admin_audit`, `null` in the event); a
+journal failure never takes the answer away (the call is already made and paid) — logged only. Eval runs and runs list: see
+the evals above. Gateway `location`s for these are covered by `/api/v1/admin/ai`, except the two analytics routes below.
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
@@ -380,6 +541,54 @@ Actions: `subscription.assigned` / `subscription.canceled` / `grant.issued` / `g
 Batch read: `POST admin/subscriptions/accounts/lookup { type, ids[] }` (1–200 UUIDs, duplicates answered once) →
 `{ items }` in request order; unknown id → `hasAccount: false` on the free plan, never 404. Rule as in entitlements:
 no account / no open subscription / expired → free plan of the audience.
+Switching a key off (plan 90, phase 3, step 1): a grant has `enabled` (default `true`); `enabled: false` is a switching-off
+grant — no credits, no limits (else 422) — and is applied last, so it turns the key off over the plan and over any
+switching-on grants, whatever the row order; revoking it brings the plan back. `grant.issued` carries `after.enabled`;
+`/subscriptions/me` lists in `grants` only the grants that give a key (an off key is `enabled: false` in `features`);
+`validUntil` counts its end; the entitlements event is unchanged. The payer policy `aiEnabled: false` stays the
+"all AI of the school" switch.
+Student seats (plan 90, phase 4, steps 1–2): feature key `seats.students` (kind `seats`, no credits, `limitNames: ['max']`,
+`requiredLimits` — `max` is required on an enabled plan row; audience `workspace` only, a plan or grant for a learner → 422
+`feature_not_for_audience`). Only students; no `seats.teachers`. Seed (plan versions v2): `free_workspace` 5, `tutor_pro` 30,
+`school` 100. Subscribers of older versions have no limit ("existing ones untouched"). A grant with `limits.max` only raises
+the plan's limit; a grant on a plan without a limit does nothing; a switching-off grant on `seats.students` → 422
+`grant_disable_not_applicable`. `studentSeatLimit()` / `resolveStudentSeatLimit()` (`entitlements.ts`) is the one rule for the
+snapshot and for `accounts/lookup`, which answers `seats: { max } | null`. Organization projects the limit from the snapshot.
+`SEED_REVISE=1` turns a drifted seed plan into a new version (no `admin_audit` row, `created_by = seed`).
+Dashboard stats: `GET admin/subscriptions/stats?withinDays=7` (level `support`, `withinDays` 1–90) → `plans[]` (every plan,
+archived too: `subscribers`, `trial`, `byVersion` — a version below `currentVersion` is a subscriber not moved),
+`payers.workspace|user { accounts, withSubscription, withoutSubscription }` (a payer without an account is on the free
+plan and unknown here, so not counted), `endingSoon.grants` (with `enabled`, scheduled ones too) and
+`endingSoon.subscriptions` (up to 100 each, `truncated`).
+School closed (plan 90, phase 5, step 5): `PayerCreatedConsumer` also takes `school.closed` (workspace payers only). An open
+subscription is cancelled by the same command as `DELETE`, journal `subscription.canceled` with `actor_id = 'system'` and
+`reason = 'school closed'` (the event omits `actorLevel`); grants stay. `school.restored` / `school.purged` do nothing —
+restoring a school does not bring its tariff back; an admin assigns it.
+Moving subscribers to a plan's current version (plan 90, phase 8, step 6): `POST admin/subscriptions/plans/:code/migrate
+{ toVersion, fromVersions?, dryRun, reason }` (`super`; `toVersion` must be the current one, else 422
+`migration_target_not_current`; archived plan → 422 `plan_archived`; bad sources → 422 `invalid_source_versions`).
+`dryRun: true` → `{ dryRun, total, sources[{ version, subscribers, changes[] }] }` (`changes` from `plans/domain/plan-diff.ts`:
+`added` / `removed` / `changed`; credits compared as numbers; no `reason` needed). A run → `{ dryRun: false, batchId, moved,
+skipped, remaining }`, up to 200 accounts per call; the panel repeats the call, passing the first answer's `batchId`, until
+`remaining` is 0 (`moved = 0` with `remaining > 0` means stop). Per account, its own transaction: the old row is closed
+(`endedBy`), a new one opens on `toVersion` with the same `status`, `periodStart`, `periodEnd` (the start is the credit-month
+anchor, so a move gives no fresh month), the account revision grows, a snapshot goes to the outbox; an account changed in
+between (raced) is `skipped` and taken by the next call. Grants stay. Journal: one `admin_audit` row per account
+(`subscription.migrated`, `before` / `after { planVersion }`, `batchId` in `after`; Q8). Seats below the taken ones: as in
+phase 4, nobody is evicted.
+Archiving the free plan of an audience is refused (422 `free_plan_not_archivable`): new accounts would open without a
+subscription (`no_free_plan`).
+
+### 14. Scheduling Service (NestJS)
+Lessons, slots, review blocks, absences and exam marks for schools and tutors.
+Database: `scheduling_db`
+School lifecycle (plan 90, phase 5, step 8): `SchoolLifecycleConsumer` (queue `scheduling-service.school-lifecycle`).
+`suspended` / `closed` → lessons from today in `scheduled` / `moved` become `cancelled` (note `School suspended|closed`),
+review blocks from today are removed, a running series is cut at yesterday. `purged` → everything the school has in
+scheduling is deleted, exam marks included — a choice beyond the plan: if exam marks must stay as learner history they
+need anonymising, not deletion. New records in a non-active school → 409 `SCHOOL_NOT_ACTIVE` (creating a slot, replacing
+slots, creating a lesson, booking a review block), checked through `OrgServiceHttpClient.assertSchoolActive`
+(`internal/schools/:id/status`, fail open). Editing existing rows is not gated (the future is already cancelled).
 
 ## API Documentation Strategy
 

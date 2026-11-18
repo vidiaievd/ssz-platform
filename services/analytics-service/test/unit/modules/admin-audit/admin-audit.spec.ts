@@ -80,13 +80,100 @@ describe('adminAuditRowOf (plan 90, step 6)', () => {
     expect(row).toMatchObject({ actorId: null, actorLevel: null });
   });
 
+  it('files ai-service\'s envelope under ai (plan 90, phase 3, step 3)', () => {
+    const aiEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '3d1f5b7a-9c2e-4a6b-8d0f-1e2a3b4c5d6e',
+      source: 'ai-service',
+      payload: {
+        service: 'ai',
+        actorId: 'a1',
+        actorLevel: 'admin',
+        action: 'payer_policy.changed',
+        targetType: 'workspace',
+        targetId: 's1',
+        reason: 'EU only',
+        before: { aiEnabled: true, allowedRegions: null },
+        after: { aiEnabled: true, allowedRegions: ['eu'] },
+      },
+    };
+    expect(adminAuditRowOf('ai.events', aiEnvelope)).toMatchObject({
+      id: aiEnvelope.eventId,
+      service: 'ai',
+      action: 'payer_policy.changed',
+      targetType: 'workspace',
+      targetId: 's1',
+      after: { aiEnabled: true, allowedRegions: ['eu'] },
+    });
+    expect(adminAuditRowOf('ai.events', subscriptionEnvelope)).toBeNull();
+  });
+
   it('takes the service from the exchange: a payload naming another service is refused', () => {
     expect(adminAuditRowOf('subscription.events', authEnvelope)).toBeNull();
     expect(adminAuditRowOf('auth.events', subscriptionEnvelope)).toBeNull();
   });
 
+  it('files organization\'s school lifecycle under organization (plan 90, phase 5)', () => {
+    const orgEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '5e2a7c9b-1d3f-4b8a-9c0e-2f3a4b5c6d7e',
+      source: 'organization-service',
+      payload: {
+        service: 'organization',
+        actorId: 'a1',
+        actorLevel: 'super',
+        action: 'school.closed',
+        targetType: 'school',
+        targetId: 's1',
+        reason: 'fraud',
+        before: { status: 'active' },
+        after: { status: 'closed' },
+      },
+    };
+    expect(adminAuditRowOf('organization.events', orgEnvelope)).toMatchObject({
+      id: orgEnvelope.eventId,
+      service: 'organization',
+      action: 'school.closed',
+      targetType: 'school',
+      targetId: 's1',
+      after: { status: 'closed' },
+    });
+    // The timer and the owner have no admin level: the row is filed, the level stays empty.
+    const { actorLevel: _l, ...noLevel } = orgEnvelope.payload;
+    expect(adminAuditRowOf('organization.events', { ...orgEnvelope, payload: noLevel })).toMatchObject({ actorLevel: null });
+  });
+
+  it('files media\'s manual sweep deletions under media (plan 90, phase 8)', () => {
+    const mediaEnvelope = {
+      ...subscriptionEnvelope,
+      eventId: '7b1c2d3e-4f5a-4b6c-8d7e-9f0a1b2c3d4e',
+      source: 'media-service',
+      payload: {
+        service: 'media',
+        actorId: 'a1',
+        actorLevel: 'super',
+        action: 'media.sweep.deleted',
+        targetType: 'media_sweep',
+        targetId: 'orphan_recordings',
+        reason: 'disk is full',
+        after: { runId: 'r1', candidates: 3, deleted: 3 },
+      },
+    };
+    expect(adminAuditRowOf('media.events', mediaEnvelope)).toMatchObject({
+      id: mediaEnvelope.eventId,
+      service: 'media',
+      action: 'media.sweep.deleted',
+      targetType: 'media_sweep',
+      targetId: 'orphan_recordings',
+      before: null,
+      after: { runId: 'r1', deleted: 3 },
+    });
+    // Media publishes only on its own exchange; the same payload elsewhere is refused.
+    expect(adminAuditRowOf('ai.events', mediaEnvelope)).toBeNull();
+  });
+
   it('refuses exchanges it does not collect from', () => {
-    expect(adminAuditRowOf('organization.events', { ...authEnvelope, payload: { ...authEnvelope.payload, service: 'organization' } })).toBeNull();
+    expect(adminAuditRowOf('content.events', { ...authEnvelope, payload: { ...authEnvelope.payload, service: 'content' } })).toBeNull();
   });
 
   it('refuses what it cannot file', () => {

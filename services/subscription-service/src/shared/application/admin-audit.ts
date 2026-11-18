@@ -4,13 +4,19 @@ import type { AdminLevel } from '@ssz/contracts';
 /** The platform admin behind a change, as the admin-panel token names them. */
 export interface AdminActor {
   userId: string;
-  level: AdminLevel;
+  /** `system` — a change made by a consumer or a timer, not by a person (plan 90, phase 5). */
+  level: AdminLevel | 'system';
 }
+
+/** The actor of a journal row written by the service itself, e.g. a subscription ended by `school.closed`. */
+export const SYSTEM_ADMIN_ACTOR: AdminActor = { userId: 'system', level: 'system' };
 
 /**
  * Everything an admin can change here. Before/after per action:
  * - `subscription.assigned` — before: the current subscription (absent = the audience's free plan), after: the new one;
  * - `subscription.canceled` — before: the canceled subscription; no after (back to the free plan);
+ * - `subscription.migrated` — moved to the plan's current version (phase 8): before/after the subscription,
+ *   after also carries the run's `batchId` — one row per account, the same id across a run's calls;
  * - `grant.issued` — after: the grant;
  * - `grant.revoked` — before: the grant, after: `{ grantId, revokedAt }`;
  * - `plan.created` — after: `{ name, audience, version, features }`;
@@ -21,6 +27,7 @@ export interface AdminActor {
 export type SubscriptionAdminAction =
   | 'subscription.assigned'
   | 'subscription.canceled'
+  | 'subscription.migrated'
   | 'grant.issued'
   | 'grant.revoked'
   | 'plan.created'

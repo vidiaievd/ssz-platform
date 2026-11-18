@@ -15,6 +15,7 @@ import {
   type ISchedulingEventPublisher,
 } from '../../../../infrastructure/messaging/scheduling-event-publisher.service.js';
 import { SCHEDULING_EVENT_TYPES } from '@ssz/contracts';
+import { OrgServiceHttpClient } from '../../../../infrastructure/org/org-service.http-client.js';
 import { utcMidnight } from './session-plan.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Lesson, LessonScore, LessonType } from '../../domain/entities/lesson.entity.js';
@@ -62,6 +63,7 @@ export class SessionWriterService {
     @Inject(CURRICULUM_PLAN_READER) private readonly plan: ICurriculumPlanReader,
     private readonly access: SessionAccessService,
     @Inject(SCHEDULING_EVENT_PUBLISHER) private readonly publisher: ISchedulingEventPublisher,
+    private readonly org: OrgServiceHttpClient,
   ) {}
 
   async find(sessionId: string): Promise<Lesson> {
@@ -89,6 +91,7 @@ export class SessionWriterService {
   async create(input: NewSessionInput, user: AuthenticatedUser): Promise<Lesson> {
     const type = input.type ?? 'lesson';
     await this.access.requireCanCreate(input.schoolId, type, input.teacherId ?? null, user);
+    await this.org.assertSchoolActive(input.schoolId);
     this.assertTimes(input.startTime, input.endTime);
 
     const contentUnitId = input.contentUnitId ?? null;

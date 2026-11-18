@@ -12,7 +12,9 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { ActiveSchoolGuard, AllowInactiveSchool } from '../guards/active-school.guard.js';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -93,9 +95,13 @@ import {
 } from '../dto/ai-precheck-settings.dto.js';
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
+import { GetSchoolSeatsQuery } from '../../application/queries/get-school-seats/get-school-seats.query.js';
+import { SeatUsageResponseDto, SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 @ApiTags('Schools')
 @ApiBearerAuth('JWT')
+// Writes refused while the school is not active (plan 90, phase 5, step 3).
+@UseGuards(ActiveSchoolGuard)
 @Controller('schools')
 export class SchoolsController {
   constructor(
@@ -238,11 +244,19 @@ export class SchoolsController {
   }
 
   @Delete(':schoolId')
+  // The owner may archive a suspended school too; the lifecycle table decides.
+  @AllowInactiveSchool()
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Soft-delete a school (owner only)' })
+  @ApiOperation({
+    summary: 'Delete a school (owner only): it is archived',
+    description:
+      'The school becomes `closed` and is purged after the archive term (6 months); until then only a platform ' +
+      'admin can bring it back.',
+  })
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 409, description: '`SCHOOL_TRANSITION_NOT_ALLOWED` — already closed' })
   async deleteSchool(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
@@ -251,20 +265,21 @@ export class SchoolsController {
   }
 
   @Post(':schoolId/members')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Add a member directly (owner/admin only)' })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'Seats after a learner joined (null for staff)' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
-  @ApiResponse({ status: 409, description: 'Member already exists' })
+  @ApiResponse({ status: 409, description: 'MEMBER_ALREADY_EXISTS, or SEATS_EXHAUSTED (body as SeatsExhaustedErrorDto)' })
   async addMember(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Body() dto: AddMemberRequestDto,
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(
       new AddMemberCommand(user.sub, schoolId, dto.userId, dto.role),
     );
+    return { seats };
   }
 
   @Delete(':schoolId/members/:userId')
@@ -358,24 +373,26 @@ export class SchoolsController {
   }
 
   @Patch(':schoolId/students/:userId')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Archive/reactivate a student and/or change their CEFR level',
     description:
       'OWNER/ADMIN can change status and/or level. TEACHER can only change level, only for their own students.',
   })
-  @ApiResponse({ status: 204 })
+  @ApiResponse({ status: 200, type: SeatsResultResponseDto, description: 'seats is set when the student came back from the archive' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found or userId is not a student of this school' })
+  @ApiResponse({ status: 409, type: SeatsExhaustedErrorDto, description: 'SEATS_EXHAUSTED — no seat to bring the student back' })
   async updateStudent(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
     @Param('userId', ParseUUIDPipe) userId: string,
     @Body() dto: UpdateStudentRequestDto,
-  ): Promise<void> {
-    await this.commandBus.execute(
+  ): Promise<SeatsResultResponseDto> {
+    const { seats } = await this.commandBus.execute(
       new UpdateStudentCommand(user.sub, schoolId, userId, dto.status, dto.level),
     );
+    return { seats };
   }
 
   @Post(':schoolId/students/:userId/transfer')
@@ -552,6 +569,23 @@ export class SchoolsController {
     return this.commandBus.execute(
       new UpdateReviewEffortMinutesCommand(schoolId, user.sub, dto.templates, dto.other ?? null),
     );
+  }
+
+  @Get(':id/seats')
+  @ApiOperation({
+    summary: 'Student seats of the school: used, limit, ceiling, state (plan 90, owner/admin/manager)',
+    description:
+      'Used = active STUDENT rows. `limit` / `ceiling` null = no limit (or the plan could not be read). ' +
+      'State `warning` = over the limit within the 10 % grace, `full` = new learners are refused.',
+  })
+  @ApiResponse({ status: 200, type: SeatUsageResponseDto })
+  @ApiResponse({ status: 403, description: 'Only owner, admin or manager' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  async getSeats(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+  ): Promise<SeatUsageResponseDto> {
+    return this.queryBus.execute(new GetSchoolSeatsQuery(schoolId, user.sub));
   }
 
   @Get(':id/assistant-access')

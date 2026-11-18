@@ -7,7 +7,9 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
+import { ActiveSchoolGuard } from '../guards/active-school.guard.js';
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import {
   ApiBearerAuth,
@@ -91,6 +93,8 @@ class SchoolTeacherResponseDto {
 
 @ApiTags('School Teachers')
 @ApiBearerAuth('JWT')
+// Writes refused while the school is not active (plan 90, phase 5, step 3).
+@UseGuards(ActiveSchoolGuard)
 @Controller('schools/:schoolId/teachers')
 export class SchoolTeachersController {
   constructor(

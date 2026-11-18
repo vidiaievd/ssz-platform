@@ -1,7 +1,9 @@
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Options;
+using AuthService.Application.Services;
 using AuthService.Domain.Entities;
+using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.Options;
@@ -14,6 +16,9 @@ namespace AuthService.Application.Commands;
 // rotated after it; a token already issued keeps the expiry it was given, so lowering a
 // lifetime ends long sessions at their next refresh rather than at once. Revoking them
 // now is what "revoke all sessions" is for.
+//
+// Plan 90: every pair whose lifetime actually changes leaves one admin trail row, written
+// with the change; the events go out after the save.
 
 public sealed record ListTokenLifetimesQuery : IRequest<TokenLifetimesResponse>;
 
@@ -30,11 +35,14 @@ public sealed class ListTokenLifetimesQueryHandler(
 
 public sealed record UpdateTokenLifetimesCommand(
     Guid ActorId,
-    IReadOnlyList<TokenLifetimeChange> Changes) : IRequest<TokenLifetimesResponse>;
+    string ActorLevel,
+    IReadOnlyList<TokenLifetimeChange> Changes,
+    string Reason) : IRequest<TokenLifetimesResponse>;
 
 public sealed class UpdateTokenLifetimesCommandHandler(
     ITokenLifetimePolicyRepository policies,
     IRoleRepository roleRepository,
+    IAdminAuditTrail trail,
     IUnitOfWork unitOfWork,
     IOptions<AuthOptions> authOptions)
     : IRequestHandler<UpdateTokenLifetimesCommand, TokenLifetimesResponse>
@@ -45,6 +53,8 @@ public sealed class UpdateTokenLifetimesCommandHandler(
     {
         var now = DateTimeOffset.UtcNow;
         var existing = await policies.ListAsync(ct);
+        var reason = command.Reason.Trim();
+        var actions = new List<AdminActionPerformedEvent>();
 
         foreach (var change in command.Changes)
         {
@@ -55,7 +65,12 @@ public sealed class UpdateTokenLifetimesCommandHandler(
 
             if (policy is not null)
             {
+                // Sending the current value is not a change: no row, no new "updated by".
+                if (policy.RefreshLifetimeHours == change.RefreshLifetimeHours) continue;
+
+                var before = policy.RefreshLifetimeHours;
                 policy.Change(change.RefreshLifetimeHours, command.ActorId, now);
+                actions.Add(Action(command, reason, role, clientType, before, change.RefreshLifetimeHours));
                 continue;
             }
 
@@ -69,11 +84,45 @@ public sealed class UpdateTokenLifetimesCommandHandler(
                 role, clientType, change.RefreshLifetimeHours, now, command.ActorId);
             policies.Add(created);
             existing.Add(created);
+            actions.Add(Action(command, reason, role, clientType, null, change.RefreshLifetimeHours));
         }
 
+        foreach (var action in actions) trail.Stage(action);
         await unitOfWork.SaveChangesAsync(ct);
+        foreach (var action in actions) await trail.PublishAsync(action, ct);
+
         return TokenLifetimes.ToResponse(existing, authOptions.Value);
     }
+
+    private static AdminActionPerformedEvent Action(
+        UpdateTokenLifetimesCommand command,
+        string reason,
+        string role,
+        string clientType,
+        int? beforeHours,
+        int afterHours) =>
+        new(
+            command.ActorId,
+            command.ActorLevel,
+            TokenLifetimeActions.Changed,
+            TokenLifetimeActions.TargetType,
+            TokenLifetimeActions.TargetId(role, clientType),
+            reason,
+            // A pair without a row had no lifetime of its own (the fallback applied).
+            beforeHours is null ? null : Hours(beforeHours.Value),
+            Hours(afterHours));
+
+    private static IReadOnlyDictionary<string, object?> Hours(int hours) =>
+        new Dictionary<string, object?> { ["hours"] = hours };
+}
+
+/// <summary>Action name and target of the token lifetimes' part of the admin trail.</summary>
+public static class TokenLifetimeActions
+{
+    public const string Changed = "token_lifetime.changed";
+    public const string TargetType = "token_lifetime";
+
+    public static string TargetId(string role, string clientType) => $"{role}:{clientType}";
 }
 
 internal static class TokenLifetimes

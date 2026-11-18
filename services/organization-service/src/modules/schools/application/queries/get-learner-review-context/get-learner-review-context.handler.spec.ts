@@ -11,12 +11,16 @@ function makePrismaStub(
   rosterRows: unknown[] = [],
   taughtGroupIds: string[] = [],
 ) {
+  // Rows read the school's status alongside (plan 90, phase 5); a fixture that names none is active.
+  const withStatus = (row: any, school: any) => ({ ...row, school: school ?? { status: 'active' } });
+  const groupRows = (memberships as any[]).map((m) => ({ ...m, group: withStatus(m.group, m.group.school) }));
+  const roster = (rosterRows as any[]).map((r) => withStatus(r, r.school));
   return {
     schoolGroupMember: {
-      findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(memberships),
+      findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(groupRows),
     },
     schoolMember: {
-      findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(rosterRows),
+      findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue(roster),
     },
     groupTeacher: {
       findMany: jest
@@ -33,7 +37,7 @@ describe('GetLearnerReviewContextHandler', () => {
 
     const result = await handler.execute(new GetLearnerReviewContextQuery(USER_ID));
 
-    expect(result).toEqual({ schoolId: null, groupId: null, groupName: null });
+    expect(result).toEqual({ schoolId: null, groupId: null, groupName: null, schoolStatus: null });
   });
 
   it('returns the only active group when there is exactly one', async () => {
@@ -47,7 +51,7 @@ describe('GetLearnerReviewContextHandler', () => {
 
     const result = await handler.execute(new GetLearnerReviewContextQuery(USER_ID));
 
-    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-1', groupName: 'A2 Kveld' });
+    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-1', groupName: 'A2 Kveld', schoolStatus: 'active' });
   });
 
   it('names the learner workspace even when the content belongs to another school', async () => {
@@ -84,7 +88,7 @@ describe('GetLearnerReviewContextHandler', () => {
       new GetLearnerReviewContextQuery(USER_ID, 'course-1'),
     );
 
-    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-1', groupName: 'A2 Kveld' });
+    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-1', groupName: 'A2 Kveld', schoolStatus: 'active' });
   });
 
   it('prefers a group in the school owning the content when no course matches', async () => {
@@ -122,7 +126,7 @@ describe('GetLearnerReviewContextHandler', () => {
 
     const result = await handler.execute(new GetLearnerReviewContextQuery(USER_ID));
 
-    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-2', groupName: 'B1 Morgen' });
+    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: 'group-2', groupName: 'B1 Morgen', schoolStatus: 'active' });
   });
 
   /**
@@ -159,6 +163,7 @@ describe('GetLearnerReviewContextHandler', () => {
       schoolId: OTHER_SCHOOL_ID,
       groupId: 'tutor-group',
       groupName: 'Norsk med Dmytro',
+      schoolStatus: 'active',
     });
   });
 
@@ -170,7 +175,7 @@ describe('GetLearnerReviewContextHandler', () => {
 
     const result = await handler.execute(new GetLearnerReviewContextQuery(USER_ID));
 
-    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: null, groupName: null });
+    expect(result).toEqual({ schoolId: SCHOOL_ID, groupId: null, groupName: null, schoolStatus: 'active' });
   });
 
   it('prefers the content school among several rosters, else the newest', async () => {
@@ -182,12 +187,33 @@ describe('GetLearnerReviewContextHandler', () => {
 
     await expect(
       handler.execute(new GetLearnerReviewContextQuery(USER_ID, undefined, SCHOOL_ID)),
-    ).resolves.toEqual({ schoolId: SCHOOL_ID, groupId: null, groupName: null });
+    ).resolves.toEqual({ schoolId: SCHOOL_ID, groupId: null, groupName: null, schoolStatus: 'active' });
 
     await expect(handler.execute(new GetLearnerReviewContextQuery(USER_ID))).resolves.toEqual({
       schoolId: OTHER_SCHOOL_ID,
       groupId: null,
       groupName: null,
+      schoolStatus: 'active',
     });
+  });
+
+  // Plan 90, phase 5: the engine refuses new work on a suspended school by this field.
+  it("carries the school's status, from the group and from the roster", async () => {
+    const inGroup = makePrismaStub([
+      {
+        addedAt: new Date('2026-01-01'),
+        group: { id: 'group-1', name: 'A2 Kveld', courseId: 'course-1', schoolId: SCHOOL_ID, school: { status: 'suspended' } },
+      },
+    ]);
+    await expect(
+      new GetLearnerReviewContextHandler(inGroup as never).execute(new GetLearnerReviewContextQuery(USER_ID)),
+    ).resolves.toMatchObject({ schoolId: SCHOOL_ID, schoolStatus: 'suspended' });
+
+    const onRoster = makePrismaStub([], [
+      { schoolId: SCHOOL_ID, joinedAt: new Date('2026-01-01'), school: { status: 'suspended' } },
+    ]);
+    await expect(
+      new GetLearnerReviewContextHandler(onRoster as never).execute(new GetLearnerReviewContextQuery(USER_ID)),
+    ).resolves.toMatchObject({ schoolId: SCHOOL_ID, schoolStatus: 'suspended' });
   });
 });

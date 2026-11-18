@@ -4,14 +4,18 @@ import { AiCallCompletedConsumer } from './consumers/ai-call-completed.consumer.
 import { AttemptAiReviewConsumer } from './consumers/attempt-ai-review.consumer.js';
 import { AssistFeedbackConsumer } from './consumers/assist-feedback.consumer.js';
 import { AttemptReviewedDraftConsumer } from './consumers/attempt-reviewed-draft.consumer.js';
+import { AdminReviewGateController } from './controllers/admin-review-gate.controller.js';
+import { AdminUsageController } from './controllers/admin-usage.controller.js';
 import { AiUsageController } from './controllers/ai-usage.controller.js';
 import { GetAiUsageHandler } from './queries/get-ai-usage.handler.js';
 import { GetAiDraftQualityHandler } from './queries/get-ai-draft-quality.handler.js';
 import { GetAiAssistQualityHandler } from './queries/get-ai-assist-quality.handler.js';
+import { GetReviewGateHandler } from './queries/get-review-gate.handler.js';
+import { GetAdminAiUsageHandler } from './queries/get-admin-ai-usage.handler.js';
 
 @Module({
   imports: [CqrsModule],
-  controllers: [AiUsageController],
+  controllers: [AiUsageController, AdminReviewGateController, AdminUsageController],
   providers: [
     AiCallCompletedConsumer,
     GetAiUsageHandler,
@@ -23,6 +27,10 @@ import { GetAiAssistQualityHandler } from './queries/get-ai-assist-quality.handl
     // Learners' marks on the assistant's answers (plan 83, step 7).
     AssistFeedbackConsumer,
     GetAiAssistQualityHandler,
+    // The Q2 gate per template × model for the admin panel (plan 90, phase 7, step 10).
+    GetReviewGateHandler,
+    // Spend per payer / capability / week for the admin panel (plan 90, phase 7, step 12).
+    GetAdminAiUsageHandler,
   ],
 })
 export class AiUsageModule {}

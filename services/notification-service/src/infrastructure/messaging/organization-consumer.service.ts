@@ -14,6 +14,12 @@ import { EnrollmentRejectedHandler } from '../../modules/notifications/handlers/
 import { PlacementReviewReadyHandler } from '../../modules/notifications/handlers/placement-review-ready.handler.js';
 import { GroupAssignedHandler } from '../../modules/notifications/handlers/group-assigned.handler.js';
 import { StudentNudgedHandler } from '../../modules/notifications/handlers/student-nudged.handler.js';
+import {
+  SchoolSuspendedHandler,
+  SchoolClosedHandler,
+  SchoolRestoredHandler,
+  SchoolPurgeReminderHandler,
+} from '../../modules/notifications/handlers/school-lifecycle.handlers.js';
 import type { IMessageHandler } from './message-handler.interface.js';
 
 const QUEUE = 'notification-service.organization';
@@ -38,6 +44,10 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
     private readonly placementReviewReadyHandler: PlacementReviewReadyHandler,
     private readonly groupAssignedHandler: GroupAssignedHandler,
     private readonly studentNudgedHandler: StudentNudgedHandler,
+    private readonly schoolSuspendedHandler: SchoolSuspendedHandler,
+    private readonly schoolClosedHandler: SchoolClosedHandler,
+    private readonly schoolRestoredHandler: SchoolRestoredHandler,
+    private readonly schoolPurgeReminderHandler: SchoolPurgeReminderHandler,
   ) {
     this.handlers = [
       schoolInvitationSentHandler,
@@ -49,6 +59,10 @@ export class OrganizationConsumerService implements OnModuleInit, OnModuleDestro
       placementReviewReadyHandler,
       groupAssignedHandler,
       studentNudgedHandler,
+      schoolSuspendedHandler,
+      schoolClosedHandler,
+      schoolRestoredHandler,
+      schoolPurgeReminderHandler,
     ];
   }
 

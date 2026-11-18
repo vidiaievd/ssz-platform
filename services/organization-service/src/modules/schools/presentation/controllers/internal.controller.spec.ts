@@ -7,7 +7,10 @@ const OWNER_ID = '22222222-0000-4000-8000-000000000002';
 const TEACHER_ID = '33333333-0000-4000-8000-000000000003';
 const STRANGER_ID = '44444444-0000-4000-8000-000000000004';
 
-function makeController(school: { ownerId: string; members: Array<{ userId: string; role: string }> }) {
+type FakeSchool = { ownerId: string; status?: string; members: Array<{ userId: string; role: string }> };
+
+function makeController(fake: FakeSchool) {
+  const school = { status: 'active', ...fake };
   const queryBus = { execute: jest.fn<() => Promise<unknown>>().mockResolvedValue(school) };
   return new InternalController(queryBus as never, {} as never, {} as never);
 }
@@ -21,9 +24,29 @@ describe('InternalController.getMemberRole', () => {
   it('answers with the role written on the roster', async () => {
     const controller = makeController(SCHOOL);
 
+    await expect(controller.getMemberRole(SCHOOL_ID, TEACHER_ID)).resolves.toEqual({
+      schoolId: SCHOOL_ID,
+      userId: TEACHER_ID,
+      role: 'TEACHER',
+      schoolStatus: 'active',
+    });
+  });
+
+  // Plan 90, phase 5: a suspended school keeps its people; the caller refuses changes by the status.
+  it('keeps the role in a suspended school and says it is suspended', async () => {
+    const controller = makeController({ ...SCHOOL, status: 'suspended' });
+
     await expect(controller.getMemberRole(SCHOOL_ID, TEACHER_ID)).resolves.toMatchObject({
       role: 'TEACHER',
+      schoolStatus: 'suspended',
     });
+  });
+
+  it.each(['closed', 'purged'])('answers nobody, the owner included, once the school is %s', async (status) => {
+    const controller = makeController({ ...SCHOOL, status });
+
+    await expect(controller.getMemberRole(SCHOOL_ID, TEACHER_ID)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(controller.getMemberRole(SCHOOL_ID, OWNER_ID)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   // Creating a school writes no roster row for its owner: ownership lives in
@@ -57,5 +80,21 @@ describe('InternalController.getMemberRole', () => {
     await expect(controller.getMemberRole(SCHOOL_ID, STRANGER_ID)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+});
+
+// Plan 90, phase 5, step 7: exercise-engine and content read a school's status to refuse work in it.
+describe('InternalController.getSchoolStatus', () => {
+  const withStatus = (status: string | null) =>
+    new InternalController({} as never, {} as never, {
+      findStatus: jest.fn<() => Promise<string | null>>().mockResolvedValue(status),
+    } as never);
+
+  it.each(['active', 'suspended', 'closed', 'purged'])('answers %s as it is', async (status) => {
+    await expect(withStatus(status).getSchoolStatus(SCHOOL_ID)).resolves.toEqual({ schoolId: SCHOOL_ID, status });
+  });
+
+  it('answers 404 for a school nobody knows', async () => {
+    await expect(withStatus(null).getSchoolStatus(SCHOOL_ID)).rejects.toBeInstanceOf(NotFoundException);
   });
 });

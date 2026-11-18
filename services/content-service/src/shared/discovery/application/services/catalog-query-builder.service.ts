@@ -33,7 +33,7 @@ export interface CatalogWhereResult {
 
 export interface CatalogQueryContext {
   filters: CatalogFilters;
-  user: AuthenticatedUser;
+  user: Pick<AuthenticatedUser, 'userId'>;
   /**
    * List of school IDs the user is a member of (any role).
    * Used to include SCHOOL_PRIVATE content from those schools.

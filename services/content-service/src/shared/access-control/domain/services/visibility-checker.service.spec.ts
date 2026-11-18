@@ -38,12 +38,14 @@ function makeUser(overrides: Partial<AuthenticatedUser> = {}): AuthenticatedUser
 
 function makeService(mocks?: {
   getMemberRole?: jest.Mock;
+  getSchoolStatus?: jest.Mock;
   hasActiveShare?: jest.Mock;
   hasActiveEditShare?: jest.Mock;
   hasActiveEntitlement?: jest.Mock;
 }): VisibilityCheckerService {
   const orgClient: IOrganizationClient = {
     getMemberRole: mocks?.getMemberRole ?? jest.fn().mockResolvedValue(null),
+    getSchoolStatus: mocks?.getSchoolStatus ?? jest.fn().mockResolvedValue('active'),
     getCourseTeachers: jest.fn().mockResolvedValue([]),
     getSchoolReviewSettings: jest.fn().mockResolvedValue(null),
     getSchoolReviewAiPolicy: jest.fn().mockResolvedValue(null),
@@ -61,6 +63,43 @@ function makeService(mocks?: {
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('VisibilityCheckerService', () => {
+  // Plan 90, phase 5, step 7: a school that is not active is read only.
+  describe('a school that is not active', () => {
+    const schoolEntity = () => makeEntity({ ownerSchoolId: SCHOOL_ID, ownerUserId: OWNER_ID });
+
+    it.each(['suspended', 'closed', 'purged'])(
+      'refuses an edit of its material, even by the author, when it is %s',
+      async (status) => {
+        const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue(status) });
+        const result = await svc.canAccess(makeUser({ userId: OWNER_ID }), schoolEntity(), 'edit');
+        expect(result).toEqual({ allowed: false, reason: 'school_not_active' });
+      },
+    );
+
+    it('refuses a co-author and a content admin alike', async () => {
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockResolvedValue('suspended'),
+        getMemberRole: jest.fn().mockResolvedValue('content_admin'),
+        hasActiveEditShare: jest.fn().mockResolvedValue(true),
+      });
+      expect((await svc.canAccess(makeUser(), schoolEntity(), 'edit')).reason).toBe('school_not_active');
+    });
+
+    it('still lets everyone read it and a platform admin edit it', async () => {
+      const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue('suspended'), getMemberRole: jest.fn().mockResolvedValue('teacher') });
+      expect((await svc.canAccess(makeUser(), schoolEntity(), 'view')).allowed).toBe(true);
+      expect((await svc.canAccess(makeUser({ isPlatformAdmin: true }), schoolEntity(), 'edit')).allowed).toBe(true);
+    });
+
+    it('does not ask about a personal course, and lets an edit through when the status cannot be read', async () => {
+      const getSchoolStatus = jest.fn().mockRejectedValue(new Error('down'));
+      const svc = makeService({ getSchoolStatus });
+      expect((await svc.canAccess(makeUser({ userId: OWNER_ID }), makeEntity(), 'edit')).allowed).toBe(true);
+      expect(getSchoolStatus).not.toHaveBeenCalled();
+      expect((await svc.canAccess(makeUser({ userId: OWNER_ID }), schoolEntity(), 'edit')).allowed).toBe(true);
+    });
+  });
+
   // 1. Soft-deleted, owner, view → ALLOWED
   it('allows owner to view soft-deleted entity', async () => {
     const svc = makeService();

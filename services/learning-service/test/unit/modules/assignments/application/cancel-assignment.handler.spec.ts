@@ -37,6 +37,7 @@ const makeActiveAssignment = () =>
     cancelledReason: null,
     notes: null,
     deletedAt: null,
+    groupId: null,
   });
 
 // jest.fn typed as returning Promise<unknown> so mockResolvedValue accepts any value

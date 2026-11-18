@@ -1,5 +1,6 @@
-import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath } from '@nestjs/swagger';
-import { IsOptional, IsUUID } from 'class-validator';
+import { ApiExtraModels, ApiProperty, ApiPropertyOptional, getSchemaPath, type ApiPropertyOptions } from '@nestjs/swagger';
+import { IsBoolean, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { ADMIN_REASON_MAX, IsAdminReason } from '../../../../common/dto/admin-reason.js';
 
 const PROVIDER_KINDS = ['anthropic', 'openai', 'openai_compatible', 'azure_openai', 'google', 'whisper_local', 'azure_speech', 'fake'];
 const REGIONS = ['eu', 'us', 'global', 'local'];
@@ -188,6 +189,18 @@ export class CostDto {
   currency!: string;
 }
 
+export class TestModelDto {
+  @ApiPropertyOptional({
+    example: 'New Azure key, checking before the switch',
+    maxLength: ADMIN_REASON_MAX,
+    description: 'Why — optional (a test changes nothing); goes to the admin trail with the `model.tested` entry',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(ADMIN_REASON_MAX)
+  reason?: string;
+}
+
 export class TestModelResponseDto {
   @ApiProperty({ enum: ['ok', 'invalid_response', 'error'], example: 'ok' })
   outcome!: string;
@@ -237,4 +250,50 @@ export class TestModelResponseDto {
 
   @ApiProperty({ format: 'uuid', description: 'The ledger row written for this test' })
   callId!: string;
+}
+
+const STRANDED: ApiPropertyOptions = {
+  type: [String],
+  example: ['review_draft'],
+  description:
+    'Switched-on bindings using what was switched whose models now all fail to serve (missing, disabled, provider ' +
+    'off or not configured): every call of theirs ends `unavailable` until one comes back. Empty when none.',
+};
+
+export class SetProviderEnabledDto {
+  @ApiProperty({ example: false, description: 'On = the router may call its models; off = it steps over them to the fallback' })
+  @IsBoolean()
+  enabled!: boolean;
+
+  @IsAdminReason('Anthropic is answering 529 for an hour; reviews go to the fallback')
+  reason!: string;
+}
+
+export class SetProviderEnabledResponseDto extends ProviderResponseDto {
+  @ApiProperty({ example: true, description: 'False when it already was in that state — nothing written, nothing on the trail' })
+  changed!: boolean;
+
+  @ApiProperty(STRANDED)
+  strandedCapabilities!: string[];
+}
+
+export class SetModelStatusDto {
+  @ApiProperty({
+    enum: ['active', 'deprecated', 'disabled'],
+    example: 'disabled',
+    description: '`disabled` — out of every binding at once, new bindings refuse it; `deprecated` — a label, it still serves',
+  })
+  @IsIn(['active', 'deprecated', 'disabled'])
+  status!: 'active' | 'deprecated' | 'disabled';
+
+  @IsAdminReason('Provider retires this model on the 30th')
+  reason!: string;
+}
+
+export class SetModelStatusResponseDto extends ModelResponseDto {
+  @ApiProperty({ example: true, description: 'False when it already had that status — nothing written, nothing on the trail' })
+  changed!: boolean;
+
+  @ApiProperty(STRANDED)
+  strandedCapabilities!: string[];
 }

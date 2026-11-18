@@ -1,5 +1,6 @@
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Logger, Optional } from '@nestjs/common';
 import { BatchApproveCommand } from './batch-approve.command.js';
 import {
   ATTEMPT_REPOSITORY,
@@ -63,10 +64,13 @@ export class BatchApproveHandler implements ICommandHandler<BatchApproveCommand>
     @Inject(ATTEMPT_REPOSITORY) private readonly attempts: IAttemptRepository,
     private readonly scoring: ReviewScoring,
     @Inject(EVENT_PUBLISHER) private readonly publisher: IEventPublisher,
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
   ) {}
 
   async execute(command: BatchApproveCommand): Promise<BatchApproveResult> {
     const result: BatchApproveResult = { approved: 0, skipped: [] };
+    await this.schoolGate?.assertSchoolOpen(command.schoolId);
 
     // One at a time, saved and published before the next is touched. A batch that failed
     // half way must leave the submissions it already decided decided — the learners have

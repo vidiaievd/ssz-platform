@@ -118,3 +118,64 @@ model ProcessedEvent {
 
   @@map("processed_events")
 }
+
+// Plan 90, phase 8, step 3: one row per run of a media sweep — nightly, from the admin panel or
+// by an operator. `kind` / `mode` / `trigger` are checked by the domain (`sweep-run.ts`); kept 90 days.
+model SweepRun {
+  id         String    @id @default(uuid())
+  kind       String
+  mode       String
+  trigger    String
+  actorId    String?   @map("actor_id")
+  // The sweep's own report, as it returned it (its shape depends on `kind`).
+  report     Json?
+  error      String?
+  startedAt  DateTime  @default(now()) @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+
+  @@index([kind, startedAt])
+  @@index([startedAt])
+  @@map("sweep_runs")
+}
+
+// ─── Admin trail (plan 90, phase 8, step 4) ──────────────────────────────────
+
+/// Every change a platform admin makes here (a sweep run in delete mode), written together with its
+/// `admin.action.performed` outbox row; analytics files it into the shared journal.
+model AdminAudit {
+  /// = the event's `eventId`.
+  id         String   @id
+  occurredAt DateTime @map("occurred_at")
+  actorId    String   @map("actor_id")
+  actorLevel String   @map("actor_level") @db.VarChar(16)
+  /// `<object>.<verb>`, e.g. `media.sweep.deleted`.
+  action     String   @db.VarChar(64)
+  /// `media_sweep` — a sweep by its kind.
+  targetType String   @map("target_type") @db.VarChar(64)
+  targetId   String   @map("target_id") @db.VarChar(128)
+  reason     String   @db.VarChar(500)
+  before     Json?
+  after      Json?
+
+  @@index([occurredAt], map: "admin_audit_occurred_at_idx")
+  @@index([targetType, targetId], map: "admin_audit_target_idx")
+  @@map("admin_audit")
+}
+
+/// Events waiting for the relay (`@ssz/messaging`): written in the same transaction as their cause.
+model Outbox {
+  id            String    @id @default(uuid())
+  eventId       String    @unique @map("event_id")
+  eventType     String    @map("event_type")
+  exchange      String
+  routingKey    String    @map("routing_key")
+  payload       String    @db.Text
+  correlationId String?   @map("correlation_id")
+  occurredAt    DateTime  @map("occurred_at")
+  publishedAt   DateTime? @map("published_at")
+  attempts      Int       @default(0)
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([publishedAt, createdAt])
+  @@map("outbox")
+}

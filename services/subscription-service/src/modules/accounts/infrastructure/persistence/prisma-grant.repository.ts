@@ -33,6 +33,7 @@ export class PrismaGrantRepository implements IGrantRepository {
           id: g.id,
           accountId: g.accountId,
           featureKey: g.featureKey,
+          enabled: g.enabled,
           monthlyCredits: g.monthlyCredits,
           limits: g.limits as Prisma.InputJsonValue,
           startsAt: g.startsAt,

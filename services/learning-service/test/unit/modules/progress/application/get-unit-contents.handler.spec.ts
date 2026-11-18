@@ -144,7 +144,7 @@ describe('GetUnitContentsHandler', () => {
 
   it('throws BadRequestException when the content client fails', async () => {
     const { handler, contentClient } = makeHandler();
-    (contentClient.getModuleReaderStructure as jest.Mock).mockResolvedValue(
+    (contentClient.getModuleReaderStructure as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
       Result.fail(new ContentClientError('module not found', 404)),
     );
 

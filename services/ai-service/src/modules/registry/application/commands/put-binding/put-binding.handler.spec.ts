@@ -2,7 +2,8 @@ import { ConflictException, NotFoundException, UnprocessableEntityException } fr
 import { Result } from '../../../../../shared/kernel/result.js';
 import type { ModelFeatures } from '../../../../providers/domain/model-features.js';
 import type { AiBinding, BindingSettings } from '../../../domain/binding.js';
-import type { IBindingRepository } from '../../ports/binding.repository.js';
+import type { AdminActor } from '../../../../../shared/application/admin-audit.js';
+import type { BindingAudit, IBindingRepository } from '../../ports/binding.repository.js';
 import type { ModelForCall } from '../../ports/registry.reader.js';
 import { PutBindingCommand } from './put-binding.command.js';
 import { PutBindingHandler } from './put-binding.handler.js';
@@ -53,24 +54,55 @@ function setup(saveResult: Result<AiBinding, 'version_conflict'>, models: Record
   return { handler, saved, notified };
 }
 
+const admin: AdminActor = { userId: 'u1', level: 'super' };
+const command = (capability: string, expectedVersion?: number) =>
+  new PutBindingCommand(capability, settings, expectedVersion, admin, '  Sonnet reads reviews better  ');
+
 const stored: AiBinding = { capability: 'diagnostic', ...settings, version: 2, updatedBy: 'u1', updatedAt: new Date() };
 
 describe('PutBindingHandler', () => {
   it('saves, then tells the cache', async () => {
     const { handler, saved, notified } = setup(Result.ok(stored));
-    await expect(handler.execute(new PutBindingCommand('diagnostic', settings, 1, 'u1'))).resolves.toBe(stored);
-    expect(saved).toEqual([['diagnostic', settings, 1, 'u1']]);
+    await expect(handler.execute(command('diagnostic', 1))).resolves.toBe(stored);
+    expect(saved).toHaveLength(1);
+    expect((saved[0] as unknown[]).slice(0, 3)).toEqual(['diagnostic', settings, 1]);
     expect(notified).toEqual(['diagnostic']);
+  });
+
+  it('puts the write on the admin trail with what was there before and the version it makes', async () => {
+    const { handler, saved } = setup(Result.ok(stored));
+    await handler.execute(command('diagnostic', 1));
+    const audit = (saved[0] as unknown[])[3] as BindingAudit;
+
+    const before = { ...settings, primaryModelId: 'old', version: 1 };
+    const entry = audit(before, 2);
+    expect(entry).toMatchObject({
+      actor: admin,
+      action: 'binding.changed',
+      targetType: 'capability',
+      targetId: 'diagnostic',
+      reason: 'Sonnet reads reviews better',
+      before,
+      after: { ...settings, version: 2 },
+    });
+    expect(entry.id).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('records a created binding without a before', async () => {
+    const { handler, saved } = setup(Result.ok(stored));
+    await handler.execute(command('diagnostic', 0));
+    const audit = (saved[0] as unknown[])[3] as BindingAudit;
+    expect(audit(null, 1)).toMatchObject({ before: null, after: { ...settings, version: 1 } });
   });
 
   it('is 404 for a capability not in the catalog', async () => {
     const { handler } = setup(Result.ok(stored));
-    await expect(handler.execute(new PutBindingCommand('not_a_capability', settings, undefined, 'u1'))).rejects.toBeInstanceOf(NotFoundException);
+    await expect(handler.execute(command('not_a_capability'))).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('is 422 with the list of problems, and writes nothing', async () => {
     const { handler, saved, notified } = setup(Result.ok(stored), { a: found('a') });
-    const error = await handler.execute(new PutBindingCommand('diagnostic', settings, undefined, 'u1')).catch((e: unknown) => e);
+    const error = await handler.execute(command('diagnostic')).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(UnprocessableEntityException);
     expect((error as UnprocessableEntityException).getResponse()).toMatchObject({ missing: ['fallback model b does not exist'] });
     expect(saved).toEqual([]);
@@ -79,7 +111,7 @@ describe('PutBindingHandler', () => {
 
   it('is 409 on a stale version, and tells nobody', async () => {
     const { handler, notified } = setup(Result.fail('version_conflict'));
-    await expect(handler.execute(new PutBindingCommand('diagnostic', settings, 1, 'u1'))).rejects.toBeInstanceOf(ConflictException);
+    await expect(handler.execute(command('diagnostic', 1))).rejects.toBeInstanceOf(ConflictException);
     expect(notified).toEqual([]);
   });
 });

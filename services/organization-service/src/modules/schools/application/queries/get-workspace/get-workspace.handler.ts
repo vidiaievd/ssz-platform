@@ -8,6 +8,7 @@ import {
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import type { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import type { SchoolKind } from '../../../domain/value-objects/school-kind.vo.js';
+import type { SchoolStatus } from '../../../domain/school-access.policy.js';
 
 /** The whole answer a screen needs before it can draw itself: which shell, whose, what may I do. */
 export interface WorkspaceResult {
@@ -17,6 +18,10 @@ export interface WorkspaceResult {
   /** A school's URL slug. Kept for links that still carry one; a solo workspace's is internal. */
   slug: string | null;
   myRole: MemberRole;
+  /** Where it stands in its lifecycle (plan 90, phase 5): the shell draws its banner from it. */
+  status: SchoolStatus;
+  closesAt: Date | null;
+  purgeAt: Date | null;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +48,8 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
       : null;
     const workspace = byId ?? (await this.schoolRepository.findBySlug(query.idOrSlug));
 
-    if (!workspace || workspace.isDeleted) {
+    // A closed workspace stays its owner's to open until the purge; nobody else finds it.
+    if (!workspace || !workspace.isReadableBy(query.actorId)) {
       throw new SchoolNotFoundException(query.idOrSlug);
     }
 
@@ -65,6 +71,9 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
       name: workspace.name,
       slug: workspace.isSolo ? null : workspace.slug,
       myRole: role,
+      status: workspace.status,
+      closesAt: workspace.closesAt,
+      purgeAt: workspace.purgeAt,
     };
   }
 }

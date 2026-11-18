@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../../../../generated/prisma/client.js';
 import type { AiBinding as PrismaBinding, AiBindingChange as PrismaChange } from '../../../../../generated/prisma/client.js';
+import { recordAdminAction } from '../../../../infrastructure/audit/record-admin-action.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { Result } from '../../../../shared/kernel/result.js';
-import type { IBindingRepository } from '../../application/ports/binding.repository.js';
+import type { BindingAudit, IBindingRepository } from '../../application/ports/binding.repository.js';
 import { settingsOf, type AiBinding, type BindingChange, type BindingSettings } from '../../domain/binding.js';
 
 class VersionConflict extends Error {}
@@ -26,7 +27,7 @@ export class PrismaBindingRepository implements IBindingRepository {
     capability: string,
     settings: BindingSettings,
     expectedVersion: number | undefined,
-    changedBy: string,
+    audit: BindingAudit,
   ): Promise<Result<AiBinding, 'version_conflict'>> {
     try {
       const saved = await this.prisma.$transaction(async (tx) => {
@@ -35,6 +36,9 @@ export class PrismaBindingRepository implements IBindingRepository {
           throw new VersionConflict();
         }
         const version = (current?.version ?? 0) + 1;
+        const before = current ? { ...settingsOf(toBinding(current)), version: current.version } : null;
+        const entry = audit(before, version);
+        const changedBy = entry.actor.userId;
         const row = current
           ? await tx.aiBinding.update({ where: { capability }, data: { ...settings, version, updatedBy: changedBy } })
           : await tx.aiBinding.create({ data: { capability, ...settings, version, updatedBy: changedBy } });
@@ -47,6 +51,7 @@ export class PrismaBindingRepository implements IBindingRepository {
             after: settings as unknown as Prisma.InputJsonValue,
           },
         });
+        await recordAdminAction(tx, entry);
         return row;
       });
       return Result.ok(toBinding(saved));

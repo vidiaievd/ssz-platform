@@ -42,6 +42,7 @@ const UNPROCESSABLE_ERRORS = new Set<ContainerDomainError>([
   ContainerDomainError.ITEM_TYPE_NOT_DUPLICABLE,
   ContainerDomainError.ITEM_TYPE_NOT_MOVABLE,
   ContainerDomainError.MOVE_TARGET_IS_SOURCE,
+  ContainerDomainError.MAINTENANCE_ONLY_FOR_COURSES,
 ]);
 
 export function throwHttpException(error: ContainerDomainError): never {
@@ -59,7 +60,8 @@ export function throwHttpException(error: ContainerDomainError): never {
   }
   if (
     error === ContainerDomainError.INVALID_VISIBILITY_FOR_OWNER_TYPE ||
-    error === ContainerDomainError.INVALID_COVERAGE_RECIPE
+    error === ContainerDomainError.INVALID_COVERAGE_RECIPE ||
+    error === ContainerDomainError.INVALID_MAINTENANCE_STATUS
   ) {
     throw new BadRequestException(error);
   }

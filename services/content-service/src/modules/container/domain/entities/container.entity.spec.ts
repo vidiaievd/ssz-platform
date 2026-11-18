@@ -5,6 +5,8 @@ import { Visibility } from '../value-objects/visibility.vo.js';
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
 import { GatingMode } from '../value-objects/gating-mode.vo.js';
+import { MaintenanceSource, MaintenanceStatus } from '../value-objects/maintenance-status.vo.js';
+import { ContainerDomainError } from '../exceptions/container-domain.exceptions.js';
 
 function createCourse(levelSystem?: LevelSystem) {
   const result = ContainerEntity.create({
@@ -190,3 +192,152 @@ describe('ContainerEntity — archive/restore', () => {
     expect(result.isFail).toBe(true);
   });
 });
+
+describe('ContainerEntity — maintenance status (plan 90, Q5)', () => {
+  it('starts maintained, never touched', () => {
+    const container = createCourse();
+
+    expect(container.maintenanceStatus).toBe(MaintenanceStatus.MAINTAINED);
+    expect(container.maintenanceSource).toBeNull();
+    expect(container.maintenanceChangedAt).toBeNull();
+    expect(container.isObsolete).toBe(false);
+  });
+
+  it.each([
+    [MaintenanceStatus.MAINTAINED, MaintenanceStatus.UNMAINTAINED],
+    [MaintenanceStatus.MAINTAINED, MaintenanceStatus.OBSOLETE],
+    [MaintenanceStatus.UNMAINTAINED, MaintenanceStatus.OBSOLETE],
+    [MaintenanceStatus.UNMAINTAINED, MaintenanceStatus.MAINTAINED],
+    [MaintenanceStatus.OBSOLETE, MaintenanceStatus.MAINTAINED],
+    [MaintenanceStatus.OBSOLETE, MaintenanceStatus.UNMAINTAINED],
+  ])('the author moves %s → %s', (from, to) => {
+    const container = createCourse();
+    if (from !== MaintenanceStatus.MAINTAINED) container.setMaintenanceByAuthor(from);
+    container.clearDomainEvents();
+
+    const result = container.setMaintenanceByAuthor(to);
+
+    expect(result.isOk && result.value).toBe(true);
+    expect(container.maintenanceStatus).toBe(to);
+    expect(container.maintenanceSource).toBe(MaintenanceSource.AUTHOR);
+    expect(container.maintenanceChangedAt).toBeInstanceOf(Date);
+    expect(container.getDomainEvents()).toHaveLength(1);
+    expect(container.getDomainEvents()[0].eventType).toBe('content.container.updated');
+  });
+
+  it('the same status again changes nothing', () => {
+    const container = createCourse();
+    container.setMaintenanceByAuthor(MaintenanceStatus.UNMAINTAINED);
+    const changedAt = container.maintenanceChangedAt;
+    container.clearDomainEvents();
+
+    const result = container.setMaintenanceByAuthor(MaintenanceStatus.UNMAINTAINED);
+
+    expect(result.isOk && result.value).toBe(false);
+    expect(container.maintenanceChangedAt).toBe(changedAt);
+    expect(container.getDomainEvents()).toHaveLength(0);
+  });
+
+  it('maintained on a never-touched course is a no-op', () => {
+    const container = createCourse();
+    container.clearDomainEvents();
+
+    const result = container.setMaintenanceByAuthor(MaintenanceStatus.MAINTAINED);
+
+    expect(result.isOk && result.value).toBe(false);
+    expect(container.maintenanceSource).toBeNull();
+    expect(container.getDomainEvents()).toHaveLength(0);
+  });
+
+  it('the author takes over a status the school set, so a restore will not undo it', () => {
+    const container = ContainerEntity.reconstitute('c-1', {
+      ...propsOf(createCourse()),
+      maintenanceStatus: MaintenanceStatus.UNMAINTAINED,
+      maintenanceSource: MaintenanceSource.SCHOOL,
+      maintenanceChangedAt: new Date('2026-11-01T00:00:00Z'),
+    });
+
+    const result = container.setMaintenanceByAuthor(MaintenanceStatus.UNMAINTAINED);
+
+    expect(result.isOk && result.value).toBe(true);
+    expect(container.maintenanceStatus).toBe(MaintenanceStatus.UNMAINTAINED);
+    expect(container.maintenanceSource).toBe(MaintenanceSource.AUTHOR);
+  });
+
+  it('is obsolete only at obsolete', () => {
+    const container = createCourse();
+    container.setMaintenanceByAuthor(MaintenanceStatus.UNMAINTAINED);
+    expect(container.isObsolete).toBe(false);
+
+    container.setMaintenanceByAuthor(MaintenanceStatus.OBSOLETE);
+    expect(container.isObsolete).toBe(true);
+  });
+
+  it('refuses a module — the course carries the status', () => {
+    const created = ContainerEntity.create({
+      containerType: ContainerType.MODULE,
+      targetLanguage: 'no',
+      difficultyLevel: DifficultyLevel.A1,
+      title: 'Leksjon 1',
+      ownerUserId: 'owner-1',
+      visibility: Visibility.PRIVATE,
+      accessTier: AccessTier.ASSIGNED_ONLY,
+    });
+    if (created.isFail) throw new Error('fixture');
+
+    const result = created.value.setMaintenanceByAuthor(MaintenanceStatus.OBSOLETE);
+
+    expect(result.isFail && result.error).toBe(ContainerDomainError.MAINTENANCE_ONLY_FOR_COURSES);
+    expect(created.value.maintenanceStatus).toBe(MaintenanceStatus.MAINTAINED);
+  });
+
+  it('refuses an unknown status', () => {
+    const container = createCourse();
+
+    const result = container.setMaintenanceByAuthor('retired' as MaintenanceStatus);
+
+    expect(result.isFail && result.error).toBe(ContainerDomainError.INVALID_MAINTENANCE_STATUS);
+  });
+
+  it('refuses a deleted course', () => {
+    const container = createCourse();
+    container.softDelete();
+
+    const result = container.setMaintenanceByAuthor(MaintenanceStatus.OBSOLETE);
+
+    expect(result.isFail && result.error).toBe(ContainerDomainError.CONTAINER_ALREADY_DELETED);
+  });
+});
+
+/** Every prop of an entity, for reconstituting a variant of it. */
+function propsOf(c: ContainerEntity): Parameters<typeof ContainerEntity.reconstitute>[1] {
+  return {
+    slug: c.slug,
+    containerType: c.containerType,
+    targetLanguage: c.targetLanguage,
+    difficultyLevel: c.difficultyLevel,
+    title: c.title,
+    description: c.description,
+    coverImageMediaId: c.coverImageMediaId,
+    ownerUserId: c.ownerUserId,
+    ownerSchoolId: c.ownerSchoolId,
+    visibility: c.visibility,
+    accessTier: c.accessTier,
+    levelSystem: c.levelSystem,
+    gatingMode: c.gatingMode,
+    reviewRespondWithinHours: c.reviewRespondWithinHours,
+    reviewAutoAcceptAfterHours: c.reviewAutoAcceptAfterHours,
+    reviewTeacherTemplates: c.reviewTeacherTemplates,
+    coverageRecipe: c.coverageRecipe,
+    learningGoals: c.learningGoals,
+    currentPublishedVersionId: c.currentPublishedVersionId,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    deletedAt: c.deletedAt,
+    archivedAt: c.archivedAt,
+    maintenanceStatus: c.maintenanceStatus,
+    maintenanceSource: c.maintenanceSource,
+    maintenanceChangedAt: c.maintenanceChangedAt,
+    ownerSchoolName: c.ownerSchoolName,
+  };
+}

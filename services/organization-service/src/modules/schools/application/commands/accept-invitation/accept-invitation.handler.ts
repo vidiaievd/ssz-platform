@@ -43,10 +43,14 @@ import {
   type IProfileServicePort,
 } from '../../../../../shared/application/ports/profile-service.interface.js';
 
+import { StudentSeatGate } from '../../services/student-seat-gate.service.js';
+import type { AddMemberResult } from '../add-member/add-member.handler.js';
+import type { SeatUsage } from '../../../domain/value-objects/seat-policy.vo.js';
+
 const ROLES_REQUIRING_STUDENT: ReadonlySet<MemberRole> = new Set([MemberRole.STUDENT]);
 
 @CommandHandler(AcceptInvitationCommand)
-export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitationCommand> {
+export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitationCommand, AddMemberResult> {
   constructor(
     @Inject(SCHOOL_REPOSITORY) private readonly schoolRepository: ISchoolRepository,
     @Inject(SCHOOL_INVITATION_REPOSITORY)
@@ -57,9 +61,10 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     @Inject(PROFILE_SERVICE_PORT) private readonly profileService: IProfileServicePort,
     private readonly tokenService: InvitationTokenService,
     private readonly prisma: PrismaService,
+    private readonly seatGate: StudentSeatGate,
   ) {}
 
-  async execute(command: AcceptInvitationCommand): Promise<void> {
+  async execute(command: AcceptInvitationCommand): Promise<AddMemberResult> {
     let decoded: ReturnType<InvitationTokenService['verify']>;
     try {
       decoded = this.tokenService.verify(command.token);
@@ -88,6 +93,8 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
 
     const school = await this.schoolRepository.findById(invitation.schoolId);
     if (!school) throw new SchoolNotFoundException(invitation.schoolId);
+    // Read only unless active (plan 90, phase 5) — reached by token or from the tutor's routes too.
+    school.assertWritable();
 
     // Snapshot the display name/avatar once at creation time — kept in sync
     // afterwards via profile.updated events (see ProfileUpdatedConsumer). Falls
@@ -107,6 +114,21 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
     });
 
     school.addMember(member, school.ownerId, randomUUID());
+
+    // A learner takes a seat (plan 90, phase 4). No seat → SEATS_EXHAUSTED and the invitation
+    // stays pending, so the learner can accept it once the school has room.
+    let seats: SeatUsage | null = null;
+    if (invitation.role === MemberRole.STUDENT) {
+      seats = await this.seatGate.claim(school.id, {
+        kind: 'insert',
+        memberId: member.id,
+        userId: member.userId,
+        joinedAt: member.joinedAt,
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+      });
+    }
+
     invitation.accept();
 
     await this.schoolRepository.save(school);
@@ -261,5 +283,6 @@ export class AcceptInvitationHandler implements ICommandHandler<AcceptInvitation
       }
     }
 
+    return { seats };
   }
 }

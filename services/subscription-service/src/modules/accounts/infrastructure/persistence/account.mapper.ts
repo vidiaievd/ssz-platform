@@ -37,6 +37,7 @@ export function toGrantProps(row: PrismaGrant): GrantProps {
     id: row.id,
     accountId: row.accountId,
     featureKey: row.featureKey,
+    enabled: row.enabled,
     monthlyCredits: row.monthlyCredits?.toString() ?? null,
     limits: (row.limits ?? {}) as Record<string, number>,
     startsAt: row.startsAt,

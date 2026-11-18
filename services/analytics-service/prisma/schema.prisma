@@ -556,6 +556,9 @@ model AiDraftQualityDaily {
   capability       String
   modelId          String?  @map("model_id")
   promptVersion    String?  @map("prompt_version")
+  /// Exercise template of the work reviewed (plan 90, phase 7, step 10) — the axis the Q2 gate of
+  /// plan 79 is read on. Null on rows folded before it: the events are gone, the template with them.
+  templateCode     String?  @map("template_code")
   /// `review_draft`: verdicts given with a draft on screen. `review_direct` / `voice_review`
   /// (plan 82): verdicts a model delivered — a teacher's verdict after one is
   /// `teacher_verdicts`, not a review (step 6c).
@@ -581,9 +584,12 @@ model AiDraftQualityDaily {
   /// went the other way (approved ↔ returned). Always 0 on `review_draft` rows.
   teacherVerdicts  Int      @default(0) @map("teacher_verdicts")
   teacherOverturned Int     @default(0) @map("teacher_overturned")
+  /// Drafts a teacher acted on (`aiDraft` on a verdict), of any agent — what the Q2 gate counts
+  /// (step 10). Equal to `reviews` on `review_draft` rows; on learners' reviews the only count of it.
+  draftsSettled    Int      @default(0) @map("drafts_settled")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  @@unique([day, capability, modelId, promptVersion], map: "ai_draft_quality_daily_dims_key")
+  @@unique([day, capability, modelId, promptVersion, templateCode], map: "ai_draft_quality_daily_dims_key")
   @@index([day])
   @@map("ai_draft_quality_daily")
 }
@@ -696,7 +702,7 @@ model ReviewTermAcceptance {
 
 model AdminAuditLog {
   id         String   @id
-  /// 'auth' | 'subscription' | 'organization' | 'ai'
+  /// 'auth' | 'subscription' | 'organization' | 'ai' | 'media'
   service    String
   occurredAt DateTime @map("occurred_at")
   /// Null when no person acted (auth's `admin bootstrap` command).

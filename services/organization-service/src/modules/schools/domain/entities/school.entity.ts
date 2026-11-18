@@ -11,6 +11,19 @@ import { ReviewSettings } from '../value-objects/review-settings.vo.js';
 import { ReviewAiPolicy } from '../value-objects/review-ai-policy.vo.js';
 import { InvalidReviewSettingsException } from '../exceptions/invalid-review-settings.exception.js';
 import type { SchoolMember } from './school-member.entity.js';
+import {
+  assertSchoolWritable,
+  schoolHoldsRoles,
+  schoolReadableBy,
+  type SchoolStatus,
+} from '../school-access.policy.js';
+
+/** Where the school stands in its lifecycle (plan 90, phase 5); the lifecycle module writes it. */
+export interface SchoolLifecycleView {
+  status: SchoolStatus;
+  closesAt: Date | null;
+  purgeAt: Date | null;
+}
 
 export interface CreateSchoolProps {
   id: string;
@@ -44,6 +57,8 @@ export interface RehydrateSchoolProps extends CreateSchoolProps {
   showGroupPositionToStudents?: boolean;
   /** Absent for a row written before plan 80 — the teacher answers alone. */
   reviewAiPolicy?: ReviewAiPolicy;
+  /** Absent from a narrower read: the mirror (`deletedAt`) stands in — closed, else active. */
+  lifecycle?: SchoolLifecycleView;
 }
 
 export class School extends BaseEntity {
@@ -60,11 +75,20 @@ export class School extends BaseEntity {
   private _isActive: boolean;
   private _deletedAt: Date | undefined;
   private _members: SchoolMember[];
+  /**
+   * Roster changes made through this instance; the repository writes exactly these. Syncing the
+   * whole loaded list instead would let a stale aggregate erase members another request added
+   * after it was read, or bring back members another request removed. Members are never edited
+   * in place, so additions and removals are all there is.
+   */
+  private _addedMemberUserIds = new Set<string>();
+  private _removedMemberUserIds = new Set<string>();
   private _requireTutorReviewForSelfPaced: boolean;
   private _defaultExplanationLanguage: string | undefined;
   private _reviewSettings: ReviewSettings;
   private _showGroupPositionToStudents: boolean;
   private _reviewAiPolicy: ReviewAiPolicy;
+  private _lifecycle: SchoolLifecycleView = { status: 'active', closesAt: null, purgeAt: null };
 
   private constructor(
     id: string,
@@ -150,7 +174,7 @@ export class School extends BaseEntity {
   }
 
   static rehydrate(props: RehydrateSchoolProps): School {
-    return new School(
+    const school = new School(
       props.id,
       props.name,
       props.slug,
@@ -173,6 +197,25 @@ export class School extends BaseEntity {
       props.showGroupPositionToStudents ?? true,
       props.reviewAiPolicy ?? ReviewAiPolicy.default(),
     );
+    school._lifecycle = props.lifecycle ?? {
+      status: props.deletedAt ? 'closed' : 'active',
+      closesAt: null,
+      purgeAt: null,
+    };
+    return school;
+  }
+
+  /**
+   * Refuses any change to a school that is not `active` (plan 90, phase 5, step 3) — the one
+   * rule every write path goes by; see `school-access.policy.ts`.
+   */
+  assertWritable(): void {
+    assertSchoolWritable(this._id, this._lifecycle.status);
+  }
+
+  /** Whether this user may still see the school: members while it holds roles, the owner of a closed one. */
+  isReadableBy(userId: string): boolean {
+    return schoolReadableBy(this._lifecycle.status, { isOwner: userId === this._ownerId });
   }
 
   update(props: {
@@ -237,6 +280,7 @@ export class School extends BaseEntity {
     }
 
     this._members.push(member);
+    if (!this._removedMemberUserIds.delete(member.userId)) this._addedMemberUserIds.add(member.userId);
     this._updatedAt = new Date();
     this.addDomainEvent(
       new SchoolMemberAddedEvent(eventId, this._id, member.userId, member.role),
@@ -261,20 +305,12 @@ export class School extends BaseEntity {
     const idx = this._members.findIndex((m) => m.userId === userId);
     if (idx !== -1) {
       this._members.splice(idx, 1);
+      if (!this._addedMemberUserIds.delete(userId)) this._removedMemberUserIds.add(userId);
       this._updatedAt = new Date();
       this.addDomainEvent(
         new SchoolMemberRemovedEvent(eventId, this._id, userId),
       );
     }
-  }
-
-  softDelete(actorId: string): void {
-    if (actorId !== this._ownerId) {
-      throw new ForbiddenOperationException('Only the owner can delete the school');
-    }
-    this._deletedAt = new Date();
-    this._isActive = false;
-    this._updatedAt = new Date();
   }
 
   isMember(userId: string): boolean {
@@ -313,7 +349,18 @@ export class School extends BaseEntity {
   get isActive(): boolean { return this._isActive; }
   get deletedAt(): Date | undefined { return this._deletedAt; }
   get isDeleted(): boolean { return this._deletedAt !== undefined; }
+  get status(): SchoolStatus { return this._lifecycle.status; }
+  /** When a suspended school closes by itself; null otherwise. */
+  get closesAt(): Date | null { return this._lifecycle.closesAt; }
+  /** When a closed school is purged; null otherwise. */
+  get purgeAt(): Date | null { return this._lifecycle.purgeAt; }
+  /** Whether people keep their roles here (active or suspended). */
+  get holdsRoles(): boolean { return schoolHoldsRoles(this._lifecycle.status); }
   get members(): SchoolMember[] { return [...this._members]; }
+  /** Members added through this instance (not yet stored). */
+  get addedMembers(): SchoolMember[] { return this._members.filter((m) => this._addedMemberUserIds.has(m.userId)); }
+  /** Users removed through this instance. */
+  get removedMemberUserIds(): string[] { return [...this._removedMemberUserIds]; }
   get requireTutorReviewForSelfPaced(): boolean { return this._requireTutorReviewForSelfPaced; }
   get defaultExplanationLanguage(): string | undefined { return this._defaultExplanationLanguage; }
   get reviewSettings(): ReviewSettings { return this._reviewSettings; }

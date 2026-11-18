@@ -121,7 +121,7 @@ export class AdminPlansController {
   @ApiParam(CODE_PARAM)
   @ApiOkResponse({ type: PlanResponseDto })
   @ApiNotFoundResponse({ description: 'Unknown plan' })
-  @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Already archived' })
+  @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Already archived, or a free plan (`free_plan_not_archivable`)' })
   archive(@Param('code') code: string, @Body() body: AdminReasonDto, @CurrentAdmin() admin: AdminActor): Promise<PlanView> {
     return this.commandBus.execute(new ArchivePlanCommand(code, admin, body.reason));
   }

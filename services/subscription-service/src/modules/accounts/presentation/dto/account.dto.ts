@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsDate,
   IsIn,
   IsObject,
@@ -68,6 +69,16 @@ export class IssueGrantDto {
   featureKey!: string;
 
   @ApiPropertyOptional({
+    default: true,
+    description:
+      'false = switch the key off for the term (no credits, no limits); revoking the grant gives it back to the plan. ' +
+      'seats.students cannot be switched off (422)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+
+  @ApiPropertyOptional({
     type: String,
     nullable: true,
     example: '50',
@@ -78,7 +89,11 @@ export class IssueGrantDto {
   @IsString()
   monthlyCredits?: string | null;
 
-  @ApiPropertyOptional({ example: {}, description: 'Key-specific limits, as on a plan feature' })
+  @ApiPropertyOptional({
+    example: {},
+    description:
+      'Key-specific limits, as on a plan feature; they only raise the plan\'s. seats.students needs { max } (a whole number)',
+  })
   @IsOptional()
   @IsObject()
   limits?: Record<string, number>;
@@ -153,6 +168,9 @@ export class GrantResponseDto {
 
   @ApiProperty({ example: 'ai.review_direct' })
   featureKey!: string;
+
+  @ApiProperty({ description: 'false = the grant switches the key off' })
+  enabled!: boolean;
 
   @ApiProperty({ type: String, nullable: true, example: '50' })
   monthlyCredits!: string | null;
@@ -254,6 +272,11 @@ export class LookupSubscriptionDto {
   periodEnd!: Date | null;
 }
 
+export class LookupSeatsDto {
+  @ApiProperty({ example: 100, description: 'Active students the roster may hold; +10 % on top is let in with a warning' })
+  max!: number;
+}
+
 export class AccountLookupItemDto {
   @ApiProperty({ format: 'uuid' })
   externalId!: string;
@@ -275,6 +298,13 @@ export class AccountLookupItemDto {
 
   @ApiProperty({ example: 0, description: 'Grants that start later' })
   scheduledGrants!: number;
+
+  @ApiProperty({
+    type: LookupSeatsDto,
+    nullable: true,
+    description: 'Student seat limit now (seats.students of the plan, grants on top); null = no limit',
+  })
+  seats!: LookupSeatsDto | null;
 }
 
 export class AccountLookupResponseDto {

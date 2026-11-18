@@ -4,6 +4,8 @@ import axios, { type AxiosInstance } from 'axios';
 import type { AppConfig } from '../../config/configuration.js';
 import type {
   AccessTier,
+  ContainerAccessTerms,
+  CourseMaintenanceStatus,
   AtomDescriptorRef,
   CanDoDescriptorRef,
   ContainerAtomCoverageRef,
@@ -113,12 +115,17 @@ export class ContentClient implements IContentClient {
 
   async getAccessTier(
     containerId: string,
-  ): Promise<Result<AccessTier, ContentClientError>> {
+  ): Promise<Result<ContainerAccessTerms, ContentClientError>> {
     try {
-      const { data } = await this.http.get<{ accessTier: AccessTier }>(
-        `/containers/${containerId}/access-tier`,
-      );
-      return Result.ok(data.accessTier);
+      const { data } = await this.http.get<{
+        accessTier: AccessTier;
+        maintenanceStatus?: CourseMaintenanceStatus;
+      }>(`/containers/${containerId}/access-tier`);
+      // An older content-service answers the tier only: nothing is obsolete there.
+      return Result.ok({
+        accessTier: data.accessTier,
+        maintenanceStatus: data.maintenanceStatus ?? 'maintained',
+      });
     } catch (err) {
       return this.mapError(err, `getAccessTier(${containerId})`);
     }

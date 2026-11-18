@@ -45,6 +45,13 @@ export const envSchema = z.object({
   // attempts — a group's unit and a learner's cell are judged in different units, and
   // the threshold has to be in the same one as the sample beside it.
   GROUP_UNIT_MIN_LEARNERS: z.coerce.number().int().positive().default(3),
+
+  // The Q2 gate of plan 79 (decided 24.10) a template has to pass before a model reviews its
+  // work by itself — read by `admin/ai/review-gate` (plan 90, phase 7, step 10). Configuration,
+  // so that moving a threshold is a deployment.
+  AI_REVIEW_GATE_MIN_DRAFTS: z.coerce.number().int().positive().default(100),
+  AI_REVIEW_GATE_MIN_KEPT: z.coerce.number().min(0).max(1).default(0.85),
+  AI_REVIEW_GATE_MAX_DISCARDED: z.coerce.number().min(0).max(1).default(0.1),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -73,6 +80,7 @@ export interface AppConfig {
   metrics: { atRiskThresholdDays: number; dropoffCompletionThreshold: number };
   mastery: { ewmaAlpha: number; minWeightedSample: number };
   groupProgress: { workContextSplitFrom: string; minLearnersPerUnit: number };
+  reviewGate: { minDrafts: number; minKept: number; maxDiscarded: number };
   /** Shared secret for service-to-service routes — the same one the clients above send. */
   internalServiceToken: string;
 }
@@ -105,6 +113,11 @@ export default (): AppConfig => {
     groupProgress: {
       workContextSplitFrom: env.WORK_CONTEXT_SPLIT_FROM,
       minLearnersPerUnit: env.GROUP_UNIT_MIN_LEARNERS,
+    },
+    reviewGate: {
+      minDrafts: env.AI_REVIEW_GATE_MIN_DRAFTS,
+      minKept: env.AI_REVIEW_GATE_MIN_KEPT,
+      maxDiscarded: env.AI_REVIEW_GATE_MAX_DISCARDED,
     },
     internalServiceToken: env.INTERNAL_SERVICE_TOKEN,
   };

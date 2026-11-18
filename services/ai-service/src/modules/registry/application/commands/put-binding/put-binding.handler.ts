@@ -1,5 +1,6 @@
 import { ConflictException, Inject, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
+import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { findCapability } from '../../../../capabilities/catalog.js';
 import type { AiBinding } from '../../../domain/binding.js';
 import { bindingProblems } from '../../binding-check.js';
@@ -9,7 +10,11 @@ import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../ports/crede
 import { REGISTRY_READER, type IRegistryReader } from '../../ports/registry.reader.js';
 import { PutBindingCommand } from './put-binding.command.js';
 
-/** Creates or replaces a capability's binding, after checking both models can serve it. */
+/**
+ * Creates or replaces a capability's binding, after checking both models can serve it, and puts the
+ * write on the admin trail (`binding.changed`, plan 90, phase 7, step 1) in the same transaction.
+ * A write that changes nothing is still recorded: the admin stated a reason for it.
+ */
 @CommandHandler(PutBindingCommand)
 export class PutBindingHandler implements ICommandHandler<PutBindingCommand, AiBinding> {
   constructor(
@@ -38,7 +43,18 @@ export class PutBindingHandler implements ICommandHandler<PutBindingCommand, AiB
       });
     }
 
-    const saved = await this.bindings.save(capability.code, settings, command.expectedVersion, command.actorUserId);
+    const saved = await this.bindings.save(capability.code, settings, command.expectedVersion, (before, version) =>
+      adminAuditEntry({
+        actor: command.admin,
+        action: 'binding.changed',
+        targetType: 'capability',
+        targetId: capability.code,
+        reason: command.reason,
+        before: before ? { ...before } : null,
+        after: { ...settings, version },
+        now,
+      }),
+    );
     if (saved.isFail) {
       throw new ConflictException(
         `Binding for "${capability.code}" changed since version ${command.expectedVersion}; reload and retry`,

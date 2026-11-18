@@ -22,6 +22,13 @@ export const ORGANIZATION_EVENT_TYPES = {
   STUDENT_REMOVED: 'school.student.removed',
   STUDENT_NUDGED: 'school.student.nudged',
   TUTORING_INVITATION_SENT: 'tutoring.invitation.sent',
+  // School lifecycle (plan 90, phase 5).
+  SCHOOL_SUSPENDED: 'school.suspended',
+  SCHOOL_REACTIVATED: 'school.reactivated',
+  SCHOOL_CLOSED: 'school.closed',
+  SCHOOL_RESTORED: 'school.restored',
+  SCHOOL_PURGED: 'school.purged',
+  SCHOOL_PURGE_REMINDER: 'school.purge.reminder',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -187,6 +194,60 @@ export interface TutoringInvitationSentPayload {
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────
 
+// ─── School lifecycle (plan 90, phase 5) ──────────────────────────────────────
+
+/** `active` → `suspended` (read only) → `closed` (archive) → `purged` (tombstone). */
+export type SchoolLifecycleStatus = 'active' | 'suspended' | 'closed' | 'purged';
+
+/** Who moved the school: a platform admin, its owner ("delete school" archives it) or the timer. */
+export type SchoolLifecycleActor = 'admin' | 'owner' | 'system';
+
+/**
+ * One shape for `school.suspended`, `school.reactivated`, `school.closed` and `school.restored`.
+ * The admin's reason stays in the admin trail and is not sent here: owners and learners are told
+ * what happened, not why the platform's staff decided it.
+ */
+export interface SchoolLifecyclePayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  status: SchoolLifecycleStatus;
+  previousStatus: SchoolLifecycleStatus;
+  by: SchoolLifecycleActor;
+  /** ISO 8601 — when the status changed. */
+  changedAt: string;
+  /** ISO 8601 — when a suspended school closes by itself; null in any other status. */
+  closesAt: string | null;
+  /** ISO 8601 — when a closed school is purged; null in any other status. */
+  purgeAt: string | null;
+}
+
+/**
+ * `school.purged` — everything of the school is gone from organization-service; the row stays as a
+ * tombstone (name, owner, dates). Other services delete what they hold of the school (content's
+ * materials, scheduling's slots…) and never a learner's own history (attempts, progress, SRS).
+ */
+export interface SchoolPurgedPayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  /** ISO 8601. */
+  purgedAt: string;
+}
+
+/** `school.purge.reminder` — tells the owner a closed school will be purged; sent once at 30 and once at 7 days. */
+export interface SchoolPurgeReminderPayload {
+  schoolId: string;
+  ownerId: string;
+  name: string;
+  kind: 'SCHOOL' | 'SOLO';
+  daysLeft: 30 | 7;
+  /** ISO 8601. */
+  purgeAt: string;
+}
+
 export type SchoolCreatedEvent = BaseEvent<SchoolCreatedPayload>;
 export type SchoolMemberAddedEvent = BaseEvent<SchoolMemberAddedPayload>;
 export type SchoolMemberRemovedEvent = BaseEvent<SchoolMemberRemovedPayload>;
@@ -205,6 +266,9 @@ export type GroupAssignedEvent = BaseEvent<GroupAssignedPayload>;
 export type StudentRemovedEvent = BaseEvent<StudentRemovedPayload>;
 export type StudentNudgedEvent = BaseEvent<StudentNudgedPayload>;
 export type TutoringInvitationSentEvent = BaseEvent<TutoringInvitationSentPayload>;
+export type SchoolLifecycleEvent = BaseEvent<SchoolLifecyclePayload>;
+export type SchoolPurgedEvent = BaseEvent<SchoolPurgedPayload>;
+export type SchoolPurgeReminderEvent = BaseEvent<SchoolPurgeReminderPayload>;
 
 export type AnyOrganizationEvent =
   | SchoolCreatedEvent
@@ -224,4 +288,7 @@ export type AnyOrganizationEvent =
   | GroupAssignedEvent
   | StudentRemovedEvent
   | StudentNudgedEvent
-  | TutoringInvitationSentEvent;
+  | TutoringInvitationSentEvent
+  | SchoolLifecycleEvent
+  | SchoolPurgedEvent
+  | SchoolPurgeReminderEvent;

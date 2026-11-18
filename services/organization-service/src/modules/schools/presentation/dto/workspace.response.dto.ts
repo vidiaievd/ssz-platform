@@ -1,12 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 import { SchoolKind } from '../../domain/value-objects/school-kind.vo.js';
+import { SchoolLifecycleFieldsDto } from './school-lifecycle-fields.dto.js';
 
 /**
  * One place a person works from: a school, or a private tutor's own space. Everything a
  * client needs to pick a shell and gate its controls before it fetches anything else.
  */
-export class WorkspaceResponseDto {
+export class WorkspaceResponseDto extends SchoolLifecycleFieldsDto {
   @ApiProperty({ description: 'Workspace UUID — the address every workspace screen is built on' })
   id!: string;
 

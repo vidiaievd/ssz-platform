@@ -7,6 +7,7 @@ import { Visibility, getValidVisibilities } from '../value-objects/visibility.vo
 import { AccessTier } from '../value-objects/access-tier.vo.js';
 import { LevelSystem } from '../value-objects/level-system.vo.js';
 import { GatingMode } from '../value-objects/gating-mode.vo.js';
+import { MaintenanceSource, MaintenanceStatus } from '../value-objects/maintenance-status.vo.js';
 import { ContainerDomainError } from '../exceptions/container-domain.exceptions.js';
 import { ContainerCreatedEvent } from '../events/container-created.event.js';
 import { ContainerUpdatedEvent } from '../events/container-updated.event.js';
@@ -44,6 +45,12 @@ interface ContainerProps {
   updatedAt: Date;
   deletedAt: Date | null;
   archivedAt: Date | null;
+  maintenanceStatus: MaintenanceStatus;
+  /** Null until the status is changed for the first time. */
+  maintenanceSource: MaintenanceSource | null;
+  maintenanceChangedAt: Date | null;
+  /** The owning school's name, kept once the school closes — the byline outlives it. */
+  ownerSchoolName: string | null;
 }
 
 export interface CreateContainerProps {
@@ -152,6 +159,22 @@ export class ContainerEntity extends AggregateRoot {
   get archivedAt(): Date | null {
     return this.props.archivedAt;
   }
+  get maintenanceStatus(): MaintenanceStatus {
+    return this.props.maintenanceStatus;
+  }
+  get maintenanceSource(): MaintenanceSource | null {
+    return this.props.maintenanceSource;
+  }
+  get maintenanceChangedAt(): Date | null {
+    return this.props.maintenanceChangedAt;
+  }
+  get ownerSchoolName(): string | null {
+    return this.props.ownerSchoolName;
+  }
+  /** Out of the catalogue and closed to new enrolments; current learners carry on. */
+  get isObsolete(): boolean {
+    return this.props.maintenanceStatus === MaintenanceStatus.OBSOLETE;
+  }
 
   // ── Factory ───────────────────────────────────────────────────────────────
 
@@ -190,6 +213,10 @@ export class ContainerEntity extends AggregateRoot {
       updatedAt: now,
       deletedAt: null,
       archivedAt: null,
+      maintenanceStatus: MaintenanceStatus.MAINTAINED,
+      maintenanceSource: null,
+      maintenanceChangedAt: null,
+      ownerSchoolName: null,
     });
 
     entity.addDomainEvent(
@@ -380,6 +407,48 @@ export class ContainerEntity extends AggregateRoot {
     );
 
     return Result.ok();
+  }
+
+  /**
+   * The author's own say on whether the course is still looked after (plan 90, Q5).
+   *
+   * Any status may follow any other — an author can retire a course straight to obsolete
+   * and bring it back. Choosing the status the course already has is not a no-op when the
+   * school set it: the author's hand takes the status over, so the school's restore will
+   * no longer undo it. Only a course carries the status; a module's learners hold it
+   * through the course it sits in. Answers whether anything changed.
+   */
+  setMaintenanceByAuthor(status: MaintenanceStatus): Result<boolean, ContainerDomainError> {
+    if (this.props.deletedAt !== null) {
+      return Result.fail(ContainerDomainError.CONTAINER_ALREADY_DELETED);
+    }
+    if (this.props.containerType !== ContainerType.COURSE) {
+      return Result.fail(ContainerDomainError.MAINTENANCE_ONLY_FOR_COURSES);
+    }
+    if (!Object.values(MaintenanceStatus).includes(status)) {
+      return Result.fail(ContainerDomainError.INVALID_MAINTENANCE_STATUS);
+    }
+
+    const unchanged =
+      status === this.props.maintenanceStatus &&
+      (this.props.maintenanceSource === MaintenanceSource.AUTHOR ||
+        // Never touched: `maintained` by default is already the author's.
+        (this.props.maintenanceSource === null && status === MaintenanceStatus.MAINTAINED));
+    if (unchanged) return Result.ok(false);
+
+    const now = new Date();
+    this.props.maintenanceStatus = status;
+    this.props.maintenanceSource = MaintenanceSource.AUTHOR;
+    this.props.maintenanceChangedAt = now;
+    this.props.updatedAt = now;
+    this.addDomainEvent(
+      new ContainerUpdatedEvent({
+        containerId: this.id,
+        updatedFields: ['maintenanceStatus'],
+      }),
+    );
+
+    return Result.ok(true);
   }
 
   softDelete(): Result<void, ContainerDomainError> {

@@ -4,7 +4,13 @@ import type {
   AdminSchoolStatus,
   SchoolKindValue,
 } from '../../domain/admin-school.js';
-import type { AdminStatsSnapshot, DailyCount, IAdminStatsReader } from '../../domain/admin-stats.js';
+import {
+  ADMIN_LIFECYCLE_WINDOW_DAYS,
+  type AdminLifecycleAttentionItem,
+  type AdminStatsSnapshot,
+  type DailyCount,
+  type IAdminStatsReader,
+} from '../../domain/admin-stats.js';
 
 /**
  * Raw SQL: "first time a person became a student / teacher" and distinct people across
@@ -16,16 +22,16 @@ import type { AdminStatsSnapshot, DailyCount, IAdminStatsReader } from '../../do
 export class AdminStatsPrismaReader implements IAdminStatsReader {
   constructor(private readonly prisma: PrismaService) {}
 
-  async snapshot(start: Date, end: Date): Promise<AdminStatsSnapshot> {
+  async snapshot(start: Date, end: Date, now: Date): Promise<AdminStatsSnapshot> {
     const from = start.toISOString();
     const to = end.toISOString();
+    const horizon = new Date(now.getTime() + ADMIN_LIFECYCLE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const [schools, students, teachers, schoolDays, studentDays, teacherDays] = await Promise.all([
+    const [schools, students, teachers, schoolDays, studentDays, teacherDays, seatTotals, attention, closing, purging] =
+      await Promise.all([
       this.prisma.$queryRaw<{ kind: SchoolKindValue; status: AdminSchoolStatus; count: number }[]>`
         SELECT kind::text AS kind,
-               CASE WHEN "deletedAt" IS NOT NULL THEN 'deleted'
-                    WHEN "isActive" THEN 'active'
-                    ELSE 'inactive' END AS status,
+               status::text AS status,
                count(*)::int AS count
           FROM schools
          GROUP BY 1, 2`,
@@ -74,13 +80,69 @@ export class AdminStatsPrismaReader implements IAdminStatsReader {
           ) f
          WHERE first_at >= ${from}::timestamp AND first_at < ${to}::timestamp
          GROUP BY 1`,
+      this.prisma.$queryRaw<{ used: number; limit: number; schools_limited: number }[]>`
+        SELECT COALESCE(sum(COALESCE(u.used, 0)), 0)::int AS used,
+               COALESCE(sum(l.max_seats), 0)::int AS "limit",
+               count(*)::int AS schools_limited
+          FROM school_seat_limits l
+          JOIN schools s ON s.id = l.school_id AND s."deletedAt" IS NULL
+          LEFT JOIN (
+            SELECT "schoolId", count(*)::int AS used FROM school_members
+             WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+          ) u ON u."schoolId" = l.school_id
+         WHERE l.max_seats IS NOT NULL`,
+      this.prisma.$queryRaw<
+        { school_id: string; name: string; slug: string; used: number; limit: number; over: boolean }[]
+      >`
+        SELECT s.id::text AS school_id, s.name, s.slug, COALESCE(u.used, 0)::int AS used,
+               l.max_seats AS "limit", COALESCE(u.used, 0) > l.max_seats AS over
+          FROM school_seat_limits l
+          JOIN schools s ON s.id = l.school_id AND s."deletedAt" IS NULL
+          LEFT JOIN (
+            SELECT "schoolId", count(*)::int AS used FROM school_members
+             WHERE role = 'STUDENT' AND status = 'active' GROUP BY 1
+          ) u ON u."schoolId" = l.school_id
+         WHERE l.max_seats IS NOT NULL
+           AND (COALESCE(u.used, 0) > l.max_seats
+                OR (l.max_seats > 0 AND COALESCE(u.used, 0) * 10 >= l.max_seats * 9))
+         ORDER BY COALESCE(u.used, 0)::float / GREATEST(l.max_seats, 1) DESC, s.id`,
+      this.prisma.school.findMany({
+        where: { status: 'suspended', closesAt: { lte: horizon } },
+        orderBy: [{ closesAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, slug: true, kind: true, closesAt: true },
+      }),
+      this.prisma.school.findMany({
+        where: { status: 'closed', purgeAt: { lte: horizon } },
+        orderBy: [{ purgeAt: 'asc' }, { id: 'asc' }],
+        select: { id: true, name: true, slug: true, kind: true, purgeAt: true },
+      }),
     ]);
+
+    const item = (r: { id: string; name: string; slug: string; kind: SchoolKindValue }, at: Date | null) =>
+      ({ schoolId: r.id, name: r.name, slug: r.slug, kind: r.kind, at: at! }) satisfies AdminLifecycleAttentionItem;
 
     return {
       schools,
       studentsTotal: students[0]?.count ?? 0,
       teachersTotal: teachers[0]?.count ?? 0,
       daily: { schools: schoolDays, students: studentDays, teachers: teacherDays },
+      seats: {
+        used: seatTotals[0]?.used ?? 0,
+        limit: seatTotals[0]?.limit ?? 0,
+        schoolsLimited: seatTotals[0]?.schools_limited ?? 0,
+        attention: attention.map((r) => ({
+          schoolId: r.school_id,
+          name: r.name,
+          slug: r.slug,
+          used: r.used,
+          limit: r.limit,
+          over: r.over,
+        })),
+      },
+      lifecycle: {
+        closingSoon: closing.map((r) => item(r, r.closesAt)),
+        purgingSoon: purging.map((r) => item(r, r.purgeAt)),
+      },
     };
   }
 }

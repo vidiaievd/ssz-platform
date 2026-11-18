@@ -1,4 +1,4 @@
-import { Inject, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { Inject, Logger, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { SchemaGuard } from '../../../../providers/application/schema-guard.js';
 import { LlmError, type LlmErrorCode } from '../../../../providers/domain/llm-error.js';
@@ -6,6 +6,11 @@ import { LLM_PROVIDERS, type LlmProvider } from '../../../../providers/domain/ll
 import type { LlmRequest } from '../../../../providers/domain/llm-request.js';
 import type { LlmOutput, LlmStopReason, LlmUsage } from '../../../../providers/domain/llm-result.js';
 import { CallRecorder } from '../../../../ledger/application/call-recorder.js';
+import {
+  ADMIN_AUDIT_RECORDER,
+  adminAuditEntry,
+  type IAdminAuditRecorder,
+} from '../../../../../shared/application/admin-audit.js';
 import { CREDENTIAL_PRESENCE, type ICredentialPresence } from '../../ports/credential-presence.js';
 import { REGISTRY_READER, type IRegistryReader, type ModelForCall } from '../../ports/registry.reader.js';
 import { llmModelRef } from '../../model-ref.js';
@@ -50,15 +55,24 @@ const TEST_SCHEMA = {
  *
  * Language models only: a speech model is a 422 — the check would need a recording, and the
  * recognizer's own check comes with its adapter (plan 82, step 4).
+ *
+ * Every test that ran also goes on the admin trail as `model.tested` (plan 90, phase 7, step 9),
+ * reason optional — a test changes nothing. The trail entry is written after the ledger row in a
+ * transaction of its own; if it fails, the test's answer is still returned (the call is made and
+ * paid, and the ledger row already names the admin) and the failure is logged. A test that never
+ * ran (404 / 422) leaves no trail.
  */
 @CommandHandler(TestModelCommand)
 export class TestModelHandler implements ICommandHandler<TestModelCommand, TestModelResult> {
+  private readonly logger = new Logger(TestModelHandler.name);
+
   constructor(
     @Inject(REGISTRY_READER) private readonly registry: IRegistryReader,
     @Inject(CREDENTIAL_PRESENCE) private readonly credentials: ICredentialPresence,
     @Inject(LLM_PROVIDERS) private readonly providers: LlmProvider[],
     private readonly guard: SchemaGuard,
     private readonly recorder: CallRecorder,
+    @Inject(ADMIN_AUDIT_RECORDER) private readonly trail: IAdminAuditRecorder,
   ) {}
 
   async execute(command: TestModelCommand): Promise<TestModelResult> {
@@ -100,7 +114,7 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
       capability: 'diagnostic',
       context: {
         payer: { type: 'platform', id: 'platform' },
-        actor: { userId: command.actorUserId, role: command.actorRole },
+        actor: { userId: command.admin.userId, role: 'platform_admin' },
         surface: 'admin_model_test',
       },
       model: found,
@@ -113,7 +127,41 @@ export class TestModelHandler implements ICommandHandler<TestModelCommand, TestM
       attempts: [{ role: 'primary', modelId: model.id, outcome: answer.outcome === 'ok' ? 'ok' : 'error', reason: answer.errorCode }],
       startedAt,
     });
-    return { ...answer, latencyMs: answer.latencyMs ?? latencyMs, cost: recorded.cost, credits: recorded.credits, callId: recorded.callId };
+    const result: TestModelResult = {
+      ...answer,
+      latencyMs: answer.latencyMs ?? latencyMs,
+      cost: recorded.cost,
+      credits: recorded.credits,
+      callId: recorded.callId,
+    };
+    await this.putOnTrail(command, found, result);
+    return result;
+  }
+
+  private async putOnTrail(command: TestModelCommand, found: ModelForCall, result: TestModelResult): Promise<void> {
+    const entry = adminAuditEntry({
+      actor: command.admin,
+      action: 'model.tested',
+      targetType: 'model',
+      targetId: found.model.id,
+      reason: command.reason ?? '',
+      after: {
+        providerCode: found.provider.code,
+        providerModelId: found.model.providerModelId,
+        outcome: result.outcome,
+        errorCode: result.errorCode,
+        latencyMs: result.latencyMs,
+        callId: result.callId,
+      },
+      now: new Date(),
+    });
+    try {
+      await this.trail.record(entry);
+    } catch (err) {
+      this.logger.error(
+        `Model ${found.model.id} was tested (call ${result.callId}) but the trail entry failed: ${(err as Error).message}`,
+      );
+    }
   }
 
   private async call(

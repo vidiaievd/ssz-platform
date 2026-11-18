@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
@@ -15,7 +15,11 @@ import { EntitlementsModule } from './modules/entitlements/entitlements.module.j
 @Module({
   imports: [
     AppConfigModule,
-    LoggerModule.forRoot({ pinoHttp: { level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug' } }),
+    LoggerModule.forRoot({
+      // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+      forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
+      pinoHttp: { level: process.env['NODE_ENV'] === 'production' ? 'info' : 'debug' },
+    }),
     CqrsModule.forRoot(),
     PrismaModule,
     JwtModule,

@@ -6,7 +6,7 @@ import { EXCHANGES, EXERCISE_ENGINE_EVENT_TYPES } from '@ssz/contracts';
 import type { BaseEvent } from '@ssz/contracts';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
-import { isFoldableAiReview, isFoldableDispute } from '../domain/draft-quality.js';
+import { isFoldableAiReview, isFoldableDispute, templateOf } from '../domain/draft-quality.js';
 
 const PROCESSOR_ID = 'ai-review-quality-daily';
 const QUEUE = 'analytics-service.ai-review-quality.attempt-ai-review';
@@ -20,6 +20,8 @@ interface Fold {
   capability: string;
   modelId: string | null;
   promptVersion: string | null;
+  /** Exercise template (plan 90, phase 7, step 10); null when the event carries none. */
+  templateCode: string | null;
   column: 'reviews' | 'disputes';
 }
 
@@ -118,15 +120,16 @@ export class AttemptAiReviewConsumer implements OnModuleInit, OnModuleDestroy {
 
       await tx.$executeRaw`
         INSERT INTO ai_draft_quality_daily (
-          id, day, capability, model_id, prompt_version, reviews,
+          id, day, capability, model_id, prompt_version, template_code, reviews,
           remarks_accepted, remarks_edited, remarks_discarded, remarks_untouched,
           disputes, updated_at
         ) VALUES (
-          gen_random_uuid()::text, ${f.day}::date, ${f.capability}, ${f.modelId}, ${f.promptVersion}, ${reviews},
+          gen_random_uuid()::text, ${f.day}::date, ${f.capability}, ${f.modelId}, ${f.promptVersion},
+          ${f.templateCode}, ${reviews},
           0, 0, 0, 0,
           ${disputes}, now()
         )
-        ON CONFLICT (day, capability, model_id, prompt_version)
+        ON CONFLICT (day, capability, model_id, prompt_version, template_code)
         DO UPDATE SET
           reviews    = ai_draft_quality_daily.reviews + EXCLUDED.reviews,
           disputes   = ai_draft_quality_daily.disputes + EXCLUDED.disputes,
@@ -154,5 +157,10 @@ export function foldOf(routingKey: string, payload: unknown): Fold | null {
 }
 
 function axes(p: { capability: string; modelId: string | null; promptVersion: string | null }) {
-  return { capability: p.capability, modelId: p.modelId, promptVersion: p.promptVersion };
+  return {
+    capability: p.capability,
+    modelId: p.modelId,
+    promptVersion: p.promptVersion,
+    templateCode: templateOf(p as unknown as Record<string, unknown>),
+  };
 }

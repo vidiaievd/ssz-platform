@@ -34,6 +34,7 @@ async function bootstrap() {
     .addTag('uploads', 'Pre-signed upload flow')
     .addTag('assets', 'Asset management and retrieval')
     .addTag('internal', 'Service-to-service routes (x-internal-token)')
+    .addTag('admin', 'Platform admin panel (admin-panel token with an admin level)')
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

@@ -2,26 +2,28 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QUEUE_MAINTENANCE } from '../../infrastructure/queues/queue-names.js';
+import { SWEEP_SCHEDULES } from '../sweeps/domain/sweep-run.js';
 
 export const SWEEP_ORPHANS_JOB = 'sweep-orphan-recordings';
 const SCHEDULER_ID = 'orphan-recordings-daily';
+// The crons live with the sweep kinds (`sweeps/domain/sweep-run.ts`), so the admin overview shows the same ones.
 /** Every night at 03:30 server time — after the evening's hand-ins, before the morning's. */
-export const SWEEP_CRON = '30 3 * * *';
+export const SWEEP_CRON = SWEEP_SCHEDULES.orphan_recordings;
 
 // Replaced lesson narrations (plan 74, D5), a quarter of an hour later on the same queue.
 export const SWEEP_SUPERSEDED_JOB = 'sweep-superseded-narrations';
 const SUPERSEDED_SCHEDULER_ID = 'superseded-narrations-daily';
-export const SUPERSEDED_SWEEP_CRON = '45 3 * * *';
+export const SUPERSEDED_SWEEP_CRON = SWEEP_SCHEDULES.superseded_narrations;
 
 // Uploads asked for and never finished (plan 76, 5.1), between the two.
 export const SWEEP_ABANDONED_JOB = 'sweep-abandoned-uploads';
 const ABANDONED_SCHEDULER_ID = 'abandoned-uploads-daily';
-export const ABANDONED_SWEEP_CRON = '40 3 * * *';
+export const ABANDONED_SWEEP_CRON = SWEEP_SCHEDULES.abandoned_uploads;
 
 // Uploaded content files nothing in content names (plan 76, 5.2), after the narration sweep.
 export const SWEEP_CONTENT_JOB = 'sweep-orphan-content-assets';
 const CONTENT_SCHEDULER_ID = 'orphan-content-assets-daily';
-export const CONTENT_SWEEP_CRON = '55 3 * * *';
+export const CONTENT_SWEEP_CRON = SWEEP_SCHEDULES.orphan_content;
 
 /**
  * Keeps one repeating job in the queue. `upsertJobScheduler` is idempotent by id: every replica

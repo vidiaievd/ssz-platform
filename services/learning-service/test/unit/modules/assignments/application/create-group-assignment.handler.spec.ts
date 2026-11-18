@@ -3,6 +3,7 @@ import { CreateGroupAssignmentHandler } from '../../../../../src/modules/assignm
 import { CreateGroupAssignmentCommand } from '../../../../../src/modules/assignments/application/commands/create-group-assignment/create-group-assignment.command.js';
 import {
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   InsufficientSchoolRoleError,
 } from '../../../../../src/modules/assignments/application/errors/assignment-application.errors.js';
 import { Result } from '../../../../../src/shared/kernel/result.js';
@@ -65,15 +66,16 @@ const makeHandler = (
     handler: new CreateGroupAssignmentHandler(repo, contentClient, orgClient, publisher, clock),
     repo,
     publisher,
+    contentClient,
   };
 };
 
-const command = () =>
+const command = (contentType = 'EXERCISE') =>
   new CreateGroupAssignmentCommand(
     ASSIGNER_ID,
     SCHOOL_ID,
     GROUP_ID,
-    'EXERCISE',
+    contentType,
     CONTENT_ID,
     DUE,
     undefined,
@@ -153,5 +155,52 @@ describe('CreateGroupAssignmentHandler', () => {
     expect(result.isFail).toBe(true);
     expect(result.error).toBeInstanceOf(ContentServiceUnavailableError);
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  describe('course maintenance status (plan 90, Q5)', () => {
+    it('refuses an obsolete course with COURSE_OBSOLETE and assigns nobody', async () => {
+      const { handler, repo, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.ok({ accessTier: 'FREE_WITHIN_SCHOOL', maintenanceStatus: 'obsolete' }),
+      );
+
+      const result = await handler.execute(command('CONTAINER'));
+
+      expect(result.isFail).toBe(true);
+      expect(result.error).toBeInstanceOf(CourseObsoleteError);
+      expect(result.error.message).toBe('COURSE_OBSOLETE');
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('still assigns an unmaintained course', async () => {
+      const { handler, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.ok({ accessTier: 'FREE_WITHIN_SCHOOL', maintenanceStatus: 'unmaintained' }),
+      );
+
+      const result = await handler.execute(command('CONTAINER'));
+
+      expect(result.isOk).toBe(true);
+    });
+
+    it('reports an unreadable status as the content service being unavailable', async () => {
+      const { handler, repo, contentClient } = makeHandler();
+      (contentClient.getAccessTier as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
+        Result.fail(new ContentClientError('timeout')),
+      );
+
+      const result = await handler.execute(command('CONTAINER'));
+
+      expect(result.error).toBeInstanceOf(ContentServiceUnavailableError);
+      expect(repo.save).not.toHaveBeenCalled();
+    });
+
+    it('does not ask about the status of a single lesson or exercise', async () => {
+      const { handler, contentClient } = makeHandler();
+
+      await handler.execute(command('EXERCISE'));
+
+      expect(contentClient.getAccessTier).not.toHaveBeenCalled();
+    });
   });
 });
