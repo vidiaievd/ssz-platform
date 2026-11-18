@@ -226,6 +226,12 @@ Reference clips of words (plan 88): `POST media/pronunciation/reference` (author
 with the code as `message`, `NOT_AVAILABLE` / `SYNTHESIS_FAILED` are 503.
 `POST internal/media/assets/:assetId/discard { ownerId }` (`x-internal-token`) — the engine deletes a pronunciation
 session's take once it is measured (plan 86, step 13.4d).
+Word clips by a cloud voice (plan 86, step 4z.3): `POST internal/media/pronunciation/clip` takes an optional `voice`
+(`nb-NO-FinnNeural`) — the word alone from ai-service `internal/reference-clips/word`, stored as mp3 like piper's; no
+`voice` = piper. Azure pads a word alone to ~1.8 s: the WAV is cut to the sound (−50 dB of the peak, 100 ms before,
+150 ms after; `trimSilence` in `infrastructure/audio/wav.ts`, step 4z.6) before encoding. Extra refusals: `NOT_A_WORD` /
+`REFERENCE_REJECTED` → 422, `NOT_AVAILABLE` → 503. Which contrast may use
+which voice is the kernel pack's `ContrastFamily.checkedVoices` (nb `kjsj`: Finn; `tone`: none).
 
 ### 8. Notification Service (NestJS)
 Push (FCM), email, in-app notifications. Study reminders.
@@ -312,6 +318,10 @@ hand-in; any failure = inventory notes only.
 Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
 reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
 content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
+Word clips (plan 86, step 4z.2): `POST internal/reference-clips/word { language, word, voice }` — the word alone by the voice
+asked for (`reference_synthesis`), heard back by `reference_check` (kept at accuracy ≥ 60 on that word), no carrier and no
+toneme check; platform pays (surface `authoring`); always 200 `ok { clip { wav, audioMs, voice, accuracy } }` / `rejected`
+/ `refused { not_a_word | not_available }` (a voice not bound = `not_available`) / `failed`. Caller: media-service.
 Pronunciation session door (plan 86, step 14.1): `POST internal/sound-sessions/admit { userId, schoolId, resume? }`
 (`x-internal-token`, always 200) — gate (`practice_voice` under `ai.practice`), then the learner's sessions per UTC day
 (`AI_SOUND_SESSION_DAILY_LIMIT` 3, Redis `ai:sound-session:day:`) → `admitted { budget { payer, metered, remainingCredits,

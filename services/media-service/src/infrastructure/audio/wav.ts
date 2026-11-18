@@ -86,3 +86,45 @@ export function pcmDurationMs(pcm: Pcm): number {
   const frameBytes = pcm.channels * (pcm.bitsPerSample / 8);
   return Math.round((pcm.data.length / frameBytes / pcm.sampleRate) * 1000);
 }
+
+export interface TrimOptions {
+  /** A sample counts as sound above this share of the clip's peak (default −50 dB). */
+  thresholdOfPeak?: number;
+  /** Silence kept before the first sound, so a soft onset (*s*, *f*) is not clipped. */
+  leadMs?: number;
+  /** Silence kept after the last sound, for the release. */
+  tailMs?: number;
+}
+
+/**
+ * `pcm` without the silence around the sound (plan 86, step 4z.6): Azure pads a word spoken alone
+ * to ~1.8 s, so a clip of *se* played for 1.3 s of nothing. Only 16-bit PCM is trimmed; any other
+ * format, and a clip with no sound at all, is returned as it is.
+ */
+export function trimSilence(pcm: Pcm, options: TrimOptions = {}): Pcm {
+  if (pcm.bitsPerSample !== 16) return pcm;
+  const { thresholdOfPeak = 0.003, leadMs = 100, tailMs = 150 } = options;
+  const frameBytes = pcm.channels * 2;
+  const frames = Math.floor(pcm.data.length / frameBytes);
+  const level = (frame: number): number => {
+    let max = 0;
+    for (let c = 0; c < pcm.channels; c += 1) {
+      max = Math.max(max, Math.abs(pcm.data.readInt16LE(frame * frameBytes + c * 2)));
+    }
+    return max;
+  };
+
+  let peak = 0;
+  for (let f = 0; f < frames; f += 1) peak = Math.max(peak, level(f));
+  if (peak === 0) return pcm;
+  const threshold = peak * thresholdOfPeak;
+
+  let first = 0;
+  while (first < frames && level(first) <= threshold) first += 1;
+  let last = frames - 1;
+  while (last > first && level(last) <= threshold) last -= 1;
+
+  const from = Math.max(0, first - Math.round((pcm.sampleRate * leadMs) / 1000));
+  const to = Math.min(frames, last + 1 + Math.round((pcm.sampleRate * tailMs) / 1000));
+  return { ...pcm, data: pcm.data.subarray(from * frameBytes, to * frameBytes) };
+}

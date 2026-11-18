@@ -49,13 +49,24 @@ export class InternalPronounceClipDto extends PronounceClipDto {
   })
   @IsUUID('all')
   ownerId!: string;
+
+  @ApiPropertyOptional({
+    example: 'nb-NO-FinnNeural',
+    description:
+      "A cloud voice of ai-service's to say the word alone (plan 86, step 4z.3); absent — piper. Only for a " +
+      "contrast whose kernel family lists the voice in `checkedVoices`: the caller's choice, not checked here.",
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  voice?: string;
 }
 
 export class PronounceClipResponseDto {
   @ApiProperty({ description: 'Asset id to put in the exercise document; READY once processing ends' })
   assetId!: string;
 
-  @ApiProperty({ example: 'no_NO-talesyntese-medium', description: 'Piper voice that spoke the clip' })
+  @ApiProperty({ example: 'no_NO-talesyntese-medium', description: 'Voice that spoke the clip (piper, or the cloud voice asked for)' })
   voice!: string;
 }
 

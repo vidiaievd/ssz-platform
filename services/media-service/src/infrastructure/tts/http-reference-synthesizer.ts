@@ -7,6 +7,7 @@ import type {
   IReferenceSynthesizer,
   ReferenceSynthesis,
   ReferenceTry,
+  WordAloneSynthesis,
 } from '../../shared/application/ports/reference-synthesizer.port.js';
 
 /** What ai-service answers on `POST /api/v1/internal/reference-clips` (plan 88, step 6b.2). */
@@ -54,6 +55,58 @@ export class HttpReferenceSynthesizer implements IReferenceSynthesizer {
     });
     if (!res.ok) throw new Error(`ai-service responded ${res.status}`);
     return readAnswer((await res.json()) as ReferenceClipResponse);
+  }
+
+  async wordAlone(word: string, lang: string, voice: string): Promise<WordAloneSynthesis> {
+    const res = await fetch(`${this.baseUrl}/api/v1/internal/reference-clips/word`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-internal-token': this.token },
+      body: JSON.stringify({ language: lang, word, voice }),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    });
+    if (!res.ok) throw new Error(`ai-service responded ${res.status}`);
+    return readWordAnswer((await res.json()) as WordClipResponse);
+  }
+}
+
+/** What ai-service answers on `POST /api/v1/internal/reference-clips/word` (plan 86, step 4z.2). */
+interface WordClipResponse {
+  status?: unknown;
+  clip?: { wav?: unknown; audioMs?: unknown; voice?: unknown; accuracy?: unknown };
+  voice?: unknown;
+  accuracy?: unknown;
+  reason?: unknown;
+  errorCode?: unknown;
+}
+
+/** Exported for tests. */
+export function readWordAnswer(body: WordClipResponse): WordAloneSynthesis {
+  switch (body.status) {
+    case 'ok': {
+      const clip = body.clip;
+      if (!clip || typeof clip.wav !== 'string' || typeof clip.voice !== 'string') {
+        throw new Error('ai-service answered ok without a clip');
+      }
+      return {
+        status: 'ok',
+        clip: {
+          wav: Buffer.from(clip.wav, 'base64'),
+          audioMs: Number(clip.audioMs),
+          voice: clip.voice,
+          accuracy: Number(clip.accuracy),
+        },
+      };
+    }
+    case 'rejected':
+      return {
+        status: 'rejected',
+        voice: String(body.voice),
+        accuracy: typeof body.accuracy === 'number' ? body.accuracy : null,
+      };
+    case 'refused':
+      return { status: 'refused', reason: String(body.reason) };
+    default:
+      throw new Error(`ai-service could not make the clip: ${String(body.errorCode ?? body.status)}`);
   }
 }
 

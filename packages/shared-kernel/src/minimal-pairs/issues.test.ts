@@ -98,6 +98,16 @@ describe('step 2', () => {
     cons = setClip(cons, P4, 'w9kjol', { provenance: 'tts', voice: 'piper' });
     expect(codes(cons)).not.toContain('MP_TTS_BLOCKED');
     expect(issues(cons)).toContainEqual(expect.objectContaining({ code: 'MP_TTS_NOTE', contrastId: 'consonant', count: 3 }));
+    // A voice the family lists as checked is a warning, not a blocker; any other voice stays blocked.
+    const finn = { provenance: 'tts' as const, voice: 'nb-NO-FinnNeural' };
+    let checked = setClip(sampleDocument(), P1, 'w1kjar', finn);
+    expect(codes(checked)).not.toContain('MP_TTS_BLOCKED');
+    expect(issues(checked)).toContainEqual(expect.objectContaining({ code: 'MP_TTS_RISKY', contrastId: 'kjsj', count: 1 }));
+    checked = setClip(checked, P1, 'w2skja', { provenance: 'tts', voice: 'piper' });
+    expect(issues(checked)).toContainEqual(expect.objectContaining({ code: 'MP_TTS_BLOCKED', contrastId: 'kjsj', count: 1 }));
+    // Tonemes list no voice: Finn is blocked there.
+    const tone = setClip({ ...sampleDocument(), contrastId: 'tone' }, P1, 'w1kjar', finn);
+    expect(issues(tone)).toContainEqual(expect.objectContaining({ code: 'MP_TTS_BLOCKED', contrastId: 'tone', count: 1 }));
     // Length — risky.
     const len = setClip({ ...sampleDocument(), contrastId: 'length' }, P1, 'w1kjar', { provenance: 'tts' });
     expect(codes(len)).toContain('MP_TTS_RISKY');

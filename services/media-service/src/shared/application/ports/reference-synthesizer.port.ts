@@ -39,6 +39,27 @@ export type ReferenceSynthesis =
   | { status: 'rejected'; tone: 1 | 2 | null; tries: ReferenceTry[] }
   | { status: 'refused'; reason: string };
 
+/** A word spoken alone by a named voice and heard back (plan 86, step 4z.2). */
+export interface WordAloneAudio {
+  /** WAV, PCM 16-bit, 16 kHz, mono. */
+  wav: Buffer;
+  audioMs: number;
+  voice: string;
+  /** Azure's 0–100 score of the word, heard back. */
+  accuracy: number;
+}
+
+/**
+ * - `ok` — heard back as the word asked for;
+ * - `rejected` — heard as another word, or too poorly;
+ * - `refused` — nothing was synthesized: `not_a_word`, `not_available` (switched off, or the voice
+ *   is not one the bound model has).
+ */
+export type WordAloneSynthesis =
+  | { status: 'ok'; clip: WordAloneAudio }
+  | { status: 'rejected'; voice: string; accuracy: number | null }
+  | { status: 'refused'; reason: string };
+
 /**
  * The second synthesizer (plan 88, step 6b.3, Q10): a reference word spoken by a cloud voice and
  * self-checked for its toneme — ai-service's, since the provider key lives only there. Unlike
@@ -50,4 +71,11 @@ export interface IReferenceSynthesizer {
 
   /** Throws when the synthesizer cannot answer (down, timed out, a model or its check failed). */
   reference(word: string, lang: string): Promise<ReferenceSynthesis>;
+
+  /**
+   * The word alone, by the voice asked for, with no toneme check — a `minimal_pairs` clip of a
+   * contrast whose kernel family lists that voice in `checkedVoices` (plan 86, step 4z.3). Throws
+   * like `reference`.
+   */
+  wordAlone(word: string, lang: string, voice: string): Promise<WordAloneSynthesis>;
 }

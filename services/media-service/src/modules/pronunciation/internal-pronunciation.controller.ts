@@ -42,18 +42,31 @@ export class InternalPronunciationController {
     description:
       'What POST /media/pronunciation/clip does for an author, for the clips of a seeded course ' +
       '(plan 86, step 12.3): there is no user token, so the owner is named in the body. The caller ' +
-      'has already checked the owner may author the exercise. Each call makes a new asset.',
+      'has already checked the owner may author the exercise. Each call makes a new asset. With `voice`, ' +
+      "ai-service's cloud voice says the word alone instead of piper (plan 86, step 4z.3).",
   })
   @ApiResponse({ status: 200, type: PronounceClipResponseDto })
-  @ApiResponse({ status: 422, description: 'Empty text, text too long, unsupported language or asset refused' })
-  @ApiResponse({ status: 503, description: 'Speech synthesis is unavailable' })
+  @ApiResponse({
+    status: 422,
+    description:
+      'Empty text, text too long, unsupported language or asset refused; with `voice` also NOT_A_WORD and ' +
+      'REFERENCE_REJECTED (heard back as another word) — the code is the message',
+  })
+  @ApiResponse({ status: 503, description: 'Speech synthesis is unavailable; with `voice` also NOT_AVAILABLE' })
   async clip(@Body() dto: InternalPronounceClipDto): Promise<PronounceClipResponseDto> {
-    const result = await this.clips.createAsset(dto.ownerId, dto.text, dto.lang ?? 'nb', dto.exerciseId ?? null);
+    const result = await this.clips.createAsset(
+      dto.ownerId,
+      dto.text,
+      dto.lang ?? 'nb',
+      dto.exerciseId ?? null,
+      dto.voice ?? null,
+    );
 
     if (result.isFail) {
       if (result.error === 'SYNTHESIS_FAILED') {
         throw new ServiceUnavailableException('Speech synthesis is unavailable');
       }
+      if (result.error === 'NOT_AVAILABLE') throw new ServiceUnavailableException('NOT_AVAILABLE');
       throw new UnprocessableEntityException(result.error);
     }
 

@@ -19,6 +19,7 @@ import {
   pairSpread,
   probePool,
   readyPairs,
+  checkedSyntheticByContrast,
   syntheticByContrast,
   voicesOf,
 } from './derive.js';
@@ -140,9 +141,15 @@ export function issues(ex: MinimalPairsContent): Issue[] {
   }
 
   const families = contrastsOf(ex.language);
+  const checked = checkedSyntheticByContrast(ex);
   for (const [contrastId, count] of syntheticByContrast(ex)) {
     const tts = families.find((c) => c.id === contrastId)?.tts ?? 'ok';
-    if (tts === 'no') out.push({ code: 'MP_TTS_BLOCKED', level: 'blocker', step: 2, contrastId, count });
+    // A voice checked for the family is listened through like a risky one; the rest stay blocked.
+    const ofChecked = tts === 'no' ? (checked.get(contrastId) ?? 0) : 0;
+    if (tts === 'no' && count > ofChecked) {
+      out.push({ code: 'MP_TTS_BLOCKED', level: 'blocker', step: 2, contrastId, count: count - ofChecked });
+    }
+    if (ofChecked > 0) out.push({ code: 'MP_TTS_RISKY', level: 'warning', step: 2, contrastId, count: ofChecked });
     if (tts === 'risky') out.push({ code: 'MP_TTS_RISKY', level: 'warning', step: 2, contrastId, count });
     if (tts === 'ok') out.push({ code: 'MP_TTS_NOTE', level: 'info', step: 2, contrastId, count });
   }
