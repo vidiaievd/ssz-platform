@@ -6,6 +6,7 @@ import { adminAuditEntry } from '../../../../../shared/application/admin-audit.j
 import { describeAccountError } from '../../../domain/account-errors.js';
 import { audienceFor } from '../../../domain/billing-account.js';
 import { Grant } from '../../../domain/grant.js';
+import { accountChanged, assertRevision } from '../../account-conflict.js';
 import type { AccountOverview } from '../../account-views.js';
 import { accountTarget, grantSnapshot } from '../../audit-snapshots.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
@@ -23,6 +24,7 @@ export class IssueGrantHandler implements ICommandHandler<IssueGrantCommand, Acc
 
   async execute(command: IssueGrantCommand): Promise<AccountOverview> {
     const account = await this.accounts.ensure(command.type, command.externalId);
+    assertRevision(account, command.expectedRevision);
     const now = new Date();
     const { grant: g } = command;
 
@@ -50,7 +52,11 @@ export class IssueGrantHandler implements ICommandHandler<IssueGrantCommand, Acc
       after: grantSnapshot(issued.value),
       now,
     });
-    await this.grants.insert(issued.value, audit);
+    // Claim the revision read above only when the caller asked for the check: without it,
+    // two grants issued at once both stand, as before.
+    const claim = command.expectedRevision === undefined ? undefined : account.revision;
+    const saved = await this.grants.insert(issued.value, audit, claim);
+    if (saved.isFail) throw accountChanged({ expectedRevision: command.expectedRevision });
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }
 }

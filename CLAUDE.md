@@ -563,6 +563,11 @@ Actions: `subscription.assigned` / `subscription.canceled` / `grant.issued` / `g
 `user`, targetId = schoolId / userId) and `plan.created` / `plan.renamed` / `plan.revised` / `plan.archived` (targetType
 `plan`). Admin events use envelope `eventVersion: '1.0'`, `source: 'subscription-service'` (auth's envelope is numeric
 `version` — readers must accept both).
+Optimistic lock (plan 90, live check): `GET admin/subscriptions/accounts/:type/:externalId` (and `history`) answer
+`account.revision` (`billing_accounts.revision`; grows with every subscription / grant change, refresh job and migration
+included; a payer never seen = 0). PUT subscription, POST grants, POST grants/:id/revoke take an optional
+`expectedRevision` in the body, DELETE subscription as `&expectedRevision=`; a mismatch → 409 `account_changed`
+(`details { expectedRevision, revision }`), nothing written; omitted = no check. The panel always sends it.
 Batch read: `POST admin/subscriptions/accounts/lookup { type, ids[] }` (1–200 UUIDs, duplicates answered once) →
 `{ items }` in request order; unknown id → `hasAccount: false` on the free plan, never 404. Rule as in entitlements:
 no account / no open subscription / expired → free plan of the audience.

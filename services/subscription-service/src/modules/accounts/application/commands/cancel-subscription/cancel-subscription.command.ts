@@ -7,5 +7,7 @@ export class CancelSubscriptionCommand {
     readonly externalId: string,
     readonly actor: AdminActor,
     readonly reason: string,
+    /** The account revision the caller read; a mismatch is 409 `account_changed`. Undefined = no check. */
+    readonly expectedRevision?: number,
   ) {}
 }

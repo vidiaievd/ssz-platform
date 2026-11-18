@@ -18,5 +18,7 @@ export class IssueGrantCommand {
       reason: string;
     },
     readonly actor: AdminActor,
+    /** The account revision the caller read; a mismatch is 409 `account_changed`. Undefined = no check. */
+    readonly expectedRevision?: number,
   ) {}
 }

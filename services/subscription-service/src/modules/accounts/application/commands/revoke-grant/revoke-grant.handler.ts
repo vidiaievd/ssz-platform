@@ -3,6 +3,7 @@ import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
 import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
+import { accountChanged, assertRevision } from '../../account-conflict.js';
 import { accountNotFound } from '../../account-lookup.js';
 import type { AccountOverview } from '../../account-views.js';
 import { accountTarget, grantSnapshot } from '../../audit-snapshots.js';
@@ -22,6 +23,8 @@ export class RevokeGrantHandler implements ICommandHandler<RevokeGrantCommand, A
   async execute(command: RevokeGrantCommand): Promise<AccountOverview> {
     const account = await this.accounts.find(command.type, command.externalId);
     if (!account) throw accountNotFound(command.type, command.externalId);
+    // Before the grant's own checks: a stale tab learns the account moved, not that the grant is gone.
+    assertRevision(account, command.expectedRevision);
     const grant = await this.grants.find(account.id, command.grantId);
     if (!grant) throw new NotFoundException(`Grant ${command.grantId} not found on this account`);
     const now = new Date();
@@ -39,7 +42,9 @@ export class RevokeGrantHandler implements ICommandHandler<RevokeGrantCommand, A
       after: { grantId: grant.id, revokedAt: now.toISOString() },
       now,
     });
-    const saved = await this.grants.saveRevocation(grant, audit);
+    const claim = command.expectedRevision === undefined ? undefined : account.revision;
+    const saved = await this.grants.saveRevocation(grant, audit, claim);
+    if (saved.isFail && saved.error === 'account_changed') throw accountChanged({ expectedRevision: command.expectedRevision });
     if (saved.isFail) throw new ConflictException(`Grant ${command.grantId} was revoked meanwhile`);
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }

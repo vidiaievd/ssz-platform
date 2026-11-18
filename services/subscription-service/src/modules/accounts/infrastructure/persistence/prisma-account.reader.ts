@@ -24,7 +24,7 @@ export class PrismaAccountReader implements IAccountReader {
     if (!row) return null;
     const current = row.subscriptions.find((s) => isCurrent(toSubscription(s), now));
     return {
-      account: { id: row.id, type: row.type, externalId: row.externalId, createdAt: row.createdAt },
+      account: { id: row.id, type: row.type, externalId: row.externalId, createdAt: row.createdAt, revision: row.revision },
       subscription: current ? toSubscriptionView(current) : null,
       grants: row.grants.map((g) => toGrantView(g, now)),
     };
@@ -40,7 +40,7 @@ export class PrismaAccountReader implements IAccountReader {
     });
     if (!row) return null;
     return {
-      account: { id: row.id, type: row.type, externalId: row.externalId, createdAt: row.createdAt },
+      account: { id: row.id, type: row.type, externalId: row.externalId, createdAt: row.createdAt, revision: row.revision },
       subscriptions: row.subscriptions.map(toSubscriptionView),
       grants: row.grants.map((g) => toGrantView(g, now)),
     };

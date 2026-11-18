@@ -14,7 +14,6 @@ import {
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { CurrentAdmin } from '../../../../common/decorators/current-admin.decorator.js';
-import { AdminReasonDto } from '../../../../common/dto/admin-reason.js';
 import { BusinessErrorDto } from '../../../../common/errors/business-error.dto.js';
 import { RequireAdminLevel } from '../../../../common/decorators/require-admin-level.decorator.js';
 import { AdminLevelGuard } from '../../../../common/guards/admin-level.guard.js';
@@ -27,13 +26,19 @@ import { RevokeGrantCommand } from '../../application/commands/revoke-grant/revo
 import { GetAccountHistoryQuery } from '../../application/queries/get-account-history/get-account-history.query.js';
 import { GetAccountQuery } from '../../application/queries/get-account/get-account.query.js';
 import {
+  AccountChangedErrorDto,
   AccountHistoryResponseDto,
   AccountOverviewResponseDto,
   AccountParams,
   AssignPlanDto,
+  CancelSubscriptionQueryDto,
   GrantParams,
   IssueGrantDto,
+  RevokeGrantDto,
 } from '../dto/account.dto.js';
+
+const ACCOUNT_CHANGED_409 =
+  'The account is past expectedRevision (another tab or admin changed it), or a concurrent save won — code account_changed';
 
 /**
  * Accounts are addressed by what they pay for — `workspace/<schoolId>` or `user/<userId>` —
@@ -79,7 +84,7 @@ export class AdminAccountsController {
   })
   @ApiOkResponse({ type: AccountOverviewResponseDto })
   @ApiNotFoundResponse({ description: 'Unknown plan' })
-  @ApiConflictResponse({ description: 'The account changed meanwhile' })
+  @ApiConflictResponse({ type: AccountChangedErrorDto, description: ACCOUNT_CHANGED_409 })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Archived plan, wrong audience, bad period' })
   assign(
     @Param() p: AccountParams,
@@ -87,7 +92,16 @@ export class AdminAccountsController {
     @CurrentAdmin() admin: AdminActor,
   ): Promise<AccountOverview> {
     return this.commandBus.execute(
-      new AssignPlanCommand(p.type, p.externalId, body.planCode, body.status ?? 'active', body.periodEnd ?? null, admin, body.reason),
+      new AssignPlanCommand(
+        p.type,
+        p.externalId,
+        body.planCode,
+        body.status ?? 'active',
+        body.periodEnd ?? null,
+        admin,
+        body.reason,
+        body.expectedRevision,
+      ),
     );
   }
 
@@ -95,18 +109,19 @@ export class AdminAccountsController {
   @Delete('subscription')
   @ApiOperation({
     summary: 'Cancel the current subscription',
-    description: "The account falls back to its audience's free plan. The reason goes as `?reason=`",
+    description:
+      "The account falls back to its audience's free plan. The reason goes as `?reason=`, the optional lock as `&expectedRevision=`",
   })
   @ApiOkResponse({ type: AccountOverviewResponseDto })
   @ApiNotFoundResponse({ description: 'The payer has no billing account yet' })
-  @ApiConflictResponse({ description: 'The account changed meanwhile' })
+  @ApiConflictResponse({ type: AccountChangedErrorDto, description: ACCOUNT_CHANGED_409 })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'No current subscription' })
   cancel(
     @Param() p: AccountParams,
-    @Query() q: AdminReasonDto,
+    @Query() q: CancelSubscriptionQueryDto,
     @CurrentAdmin() admin: AdminActor,
   ): Promise<AccountOverview> {
-    return this.commandBus.execute(new CancelSubscriptionCommand(p.type, p.externalId, admin, q.reason));
+    return this.commandBus.execute(new CancelSubscriptionCommand(p.type, p.externalId, admin, q.reason, q.expectedRevision));
   }
 
   @RequireAdminLevel('admin')
@@ -119,6 +134,7 @@ export class AdminAccountsController {
       'or limits. Revoking the grant gives the key back to the plan.',
   })
   @ApiCreatedResponse({ type: AccountOverviewResponseDto })
+  @ApiConflictResponse({ type: AccountChangedErrorDto, description: ACCOUNT_CHANGED_409 })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Unknown key, bad credits/limits, no reason, bad term' })
   issueGrant(
     @Param() p: AccountParams,
@@ -139,6 +155,7 @@ export class AdminAccountsController {
           reason: body.reason,
         },
         admin,
+        body.expectedRevision,
       ),
     );
   }
@@ -149,13 +166,18 @@ export class AdminAccountsController {
   @ApiOperation({ summary: 'Revoke a grant now' })
   @ApiOkResponse({ type: AccountOverviewResponseDto })
   @ApiNotFoundResponse({ description: 'No such account or grant' })
-  @ApiConflictResponse({ description: 'Revoked by someone else meanwhile' })
+  @ApiConflictResponse({
+    type: AccountChangedErrorDto,
+    description: `${ACCOUNT_CHANGED_409}. Without expectedRevision: revoked by someone else meanwhile (no code)`,
+  })
   @ApiUnprocessableEntityResponse({ type: BusinessErrorDto, description: 'Already revoked or already ended' })
   revokeGrant(
     @Param() p: GrantParams,
-    @Body() body: AdminReasonDto,
+    @Body() body: RevokeGrantDto,
     @CurrentAdmin() admin: AdminActor,
   ): Promise<AccountOverview> {
-    return this.commandBus.execute(new RevokeGrantCommand(p.type, p.externalId, p.grantId, admin, body.reason));
+    return this.commandBus.execute(
+      new RevokeGrantCommand(p.type, p.externalId, p.grantId, admin, body.reason, body.expectedRevision),
+    );
   }
 }

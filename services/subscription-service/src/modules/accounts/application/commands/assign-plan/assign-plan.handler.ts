@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, Inject } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
 import { loadPlanOr404 } from '../../../../plans/application/load-plan.js';
@@ -7,6 +7,7 @@ import { PLAN_REPOSITORY, type IPlanRepository } from '../../../../plans/applica
 import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
 import { accountTarget, subscriptionSnapshot } from '../../audit-snapshots.js';
+import { accountChanged, assertRevision } from '../../account-conflict.js';
 import type { AccountOverview } from '../../account-views.js';
 import { ACCOUNT_READER, type IAccountReader } from '../../ports/account.reader.js';
 import { BILLING_ACCOUNT_REPOSITORY, type IBillingAccountRepository } from '../../ports/billing-account.repository.js';
@@ -27,6 +28,7 @@ export class AssignPlanHandler implements ICommandHandler<AssignPlanCommand, Acc
   async execute(command: AssignPlanCommand): Promise<AccountOverview> {
     const plan = await loadPlanOr404(this.plans, command.planCode);
     const account = await this.accounts.ensure(command.type, command.externalId);
+    assertRevision(account, command.expectedRevision);
     const now = new Date();
     const before = account.current(now);
 
@@ -49,7 +51,7 @@ export class AssignPlanHandler implements ICommandHandler<AssignPlanCommand, Acc
       now,
     });
     const saved = await this.accounts.save(account, audit);
-    if (saved.isFail) throw new ConflictException('The account changed meanwhile; reload and retry');
+    if (saved.isFail) throw accountChanged({ expectedRevision: command.expectedRevision });
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }
 }

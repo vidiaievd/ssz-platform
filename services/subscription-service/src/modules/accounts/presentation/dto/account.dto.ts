@@ -1,3 +1,4 @@
+import { applyDecorators } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -7,17 +8,41 @@ import {
   IsBoolean,
   IsDate,
   IsIn,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
   IsUUID,
+  Min,
   ValidateIf,
 } from 'class-validator';
-import { IsAdminReason } from '../../../../common/dto/admin-reason.js';
+import { AdminReasonDto, IsAdminReason } from '../../../../common/dto/admin-reason.js';
+import { ACCOUNT_CHANGED } from '../../application/account-conflict.js';
 import { FEATURE_KEYS } from '../../../plans/domain/feature-key.js';
 import { BILLING_ACCOUNT_TYPES, type BillingAccountType } from '../../domain/billing-account.js';
 
 const KEY_LIST = FEATURE_KEYS.map((k) => k.key).join(', ');
+
+/**
+ * Optimistic lock of an admin's change: the `account.revision` the caller last read. A mismatch
+ * is 409 `account_changed`; omitted = no check (last writer wins). A payer the GET answered 404
+ * for is at revision 0.
+ */
+function IsExpectedRevision(): PropertyDecorator {
+  return applyDecorators(
+    ApiPropertyOptional({
+      type: Number,
+      minimum: 0,
+      example: 4,
+      description:
+        "account.revision as last read; a mismatch is 409 account_changed. Omitted = no check. 0 for a payer the GET answered 404 for",
+    }),
+    IsOptional(),
+    Type(() => Number),
+    IsInt(),
+    Min(0),
+  );
+}
 
 export class AccountParams {
   @ApiProperty({ enum: BILLING_ACCOUNT_TYPES, description: 'workspace = a school (SOLO included); user = a self-taught learner' })
@@ -61,6 +86,9 @@ export class AssignPlanDto {
 
   @IsAdminReason('Signed contract, school plan from November')
   reason!: string;
+
+  @IsExpectedRevision()
+  expectedRevision?: number;
 }
 
 export class IssueGrantDto {
@@ -111,6 +139,39 @@ export class IssueGrantDto {
 
   @IsAdminReason('Paid pilot, 30 days, discount agreed with the school')
   reason!: string;
+
+  @IsExpectedRevision()
+  expectedRevision?: number;
+}
+
+/** Body of a grant revocation. */
+export class RevokeGrantDto extends AdminReasonDto {
+  @IsExpectedRevision()
+  expectedRevision?: number;
+}
+
+/** Query of a subscription cancel: `?reason=…&expectedRevision=…`. */
+export class CancelSubscriptionQueryDto extends AdminReasonDto {
+  @IsExpectedRevision()
+  expectedRevision?: number;
+}
+
+/** Body of a 409: the account is past the revision the caller read, or a concurrent save won. */
+export class AccountChangedErrorDto {
+  @ApiProperty({ example: 409 })
+  statusCode!: number;
+
+  @ApiProperty({ example: ACCOUNT_CHANGED, enum: [ACCOUNT_CHANGED] })
+  code!: string;
+
+  @ApiProperty({ example: 'The account changed meanwhile; reload and retry' })
+  message!: string;
+
+  @ApiProperty({
+    example: { code: ACCOUNT_CHANGED, expectedRevision: 3, revision: 5 },
+    description: 'expectedRevision as sent; revision = where the account is, absent when a concurrent save won',
+  })
+  details!: Record<string, unknown>;
 }
 
 export class AccountResponseDto {
@@ -125,6 +186,12 @@ export class AccountResponseDto {
 
   @ApiProperty()
   createdAt!: Date;
+
+  @ApiProperty({
+    example: 4,
+    description: 'Grows with every change of the subscription or grants (refresh job included); send it back as expectedRevision',
+  })
+  revision!: number;
 }
 
 export class SubscriptionResponseDto {

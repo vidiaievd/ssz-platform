@@ -1,8 +1,9 @@
-import { ConflictException, Inject } from '@nestjs/common';
+import { Inject } from '@nestjs/common';
 import { CommandHandler, type ICommandHandler } from '@nestjs/cqrs';
 import { businessError } from '../../../../../common/errors/business-error.js';
 import { adminAuditEntry } from '../../../../../shared/application/admin-audit.js';
 import { describeAccountError } from '../../../domain/account-errors.js';
+import { accountChanged, assertRevision } from '../../account-conflict.js';
 import { accountNotFound } from '../../account-lookup.js';
 import type { AccountOverview } from '../../account-views.js';
 import { accountTarget, subscriptionSnapshot } from '../../audit-snapshots.js';
@@ -21,6 +22,7 @@ export class CancelSubscriptionHandler implements ICommandHandler<CancelSubscrip
   async execute(command: CancelSubscriptionCommand): Promise<AccountOverview> {
     const account = await this.accounts.find(command.type, command.externalId);
     if (!account) throw accountNotFound(command.type, command.externalId);
+    assertRevision(account, command.expectedRevision);
     const now = new Date();
 
     const canceled = account.cancelSubscription(command.actor.userId, now);
@@ -35,7 +37,7 @@ export class CancelSubscriptionHandler implements ICommandHandler<CancelSubscrip
       now,
     });
     const saved = await this.accounts.save(account, audit);
-    if (saved.isFail) throw new ConflictException('The account changed meanwhile; reload and retry');
+    if (saved.isFail) throw accountChanged({ expectedRevision: command.expectedRevision });
     return (await this.reader.overview(command.type, command.externalId, now))!;
   }
 }
