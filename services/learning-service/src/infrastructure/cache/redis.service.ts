@@ -25,9 +25,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       db: redisConfig.db,
       keyPrefix: redisConfig.keyPrefix,
       retryStrategy: (times: number) => {
-        if (times > 10) {
-          this.logger.error('Redis: max reconnection attempts reached');
-          return null;
+        // Never give up: a client that stops retrying stays dead until the container restarts
+        if (times % 10 === 0) {
+          this.logger.error(`Redis: still unreachable after ${times} reconnection attempts`);
         }
         return 3000;
       },
