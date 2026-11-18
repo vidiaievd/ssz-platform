@@ -60,9 +60,9 @@ public sealed class SetAdminLevelCommandHandler(
         if (assignment is not null && assignment.Level == level && hasRole)
             return AdminMapping.ToResponse(assignment, user);
 
-        if (assignment is { Level: AdminLevels.Super } && level != AdminLevels.Super
-            && await levels.CountAtLevelAsync(AdminLevels.Super, ct) <= 1)
-            throw new DomainException("The last super administrator cannot be lowered.", "ADMIN_LAST_SUPER");
+        if (assignment is { Level: AdminLevels.Super } && level != AdminLevels.Super)
+            await LastSuperRule.EnsureAnotherRemainsAsync(
+                levels, user, "The last super administrator cannot be lowered.", ct);
 
         var now = DateTimeOffset.UtcNow;
         var before = assignment is null ? null : AdminMapping.Snapshot(user.Email, assignment.Level);
@@ -119,13 +119,13 @@ public sealed class RevokeAdminCommandHandler(
         var assignment = await levels.FindAsync(command.UserId, ct)
             ?? throw new DomainException("This account is not an administrator.", "ADMIN_NOT_FOUND");
 
-        if (assignment.Level == AdminLevels.Super
-            && await levels.CountAtLevelAsync(AdminLevels.Super, ct) <= 1)
-            throw new DomainException("The last super administrator cannot be removed.", "ADMIN_LAST_SUPER");
-
         // Loads the sessions next to the roles.
         var user = await users.FindByIdWithTokensAsync(command.UserId, ct)
             ?? throw new UserNotFoundException();
+
+        if (assignment.Level == AdminLevels.Super)
+            await LastSuperRule.EnsureAnotherRemainsAsync(
+                levels, user, "The last super administrator cannot be removed.", ct);
 
         var before = AdminMapping.Snapshot(user.Email, assignment.Level);
 
@@ -149,6 +149,21 @@ public sealed class RevokeAdminCommandHandler(
         await trail.PublishAsync(action, ct);
 
         return Unit.Value;
+    }
+}
+
+/// <summary>
+/// The panel must always keep a super administrator who can sign in. Blocked supers do not count
+/// (they cannot sign in); a blocked target therefore takes no one away.
+/// </summary>
+internal static class LastSuperRule
+{
+    public static async Task EnsureAnotherRemainsAsync(
+        IAdminLevelRepository levels, User target, string message, CancellationToken ct)
+    {
+        if (target.IsBlocked) return;
+        if (await levels.CountAtLevelAsync(AdminLevels.Super, ct) <= 1)
+            throw new DomainException(message, "ADMIN_LAST_SUPER");
     }
 }
 

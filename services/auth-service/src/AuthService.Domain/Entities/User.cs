@@ -267,6 +267,35 @@ public sealed class User : AggregateRoot
         return true;
     }
 
+    /// <summary>
+    /// Lifts the lockout after failed sign-ins and forgets the failures (plan 90, phase 6: an
+    /// administrator's unlock). A block by an administrator is not touched.
+    /// </summary>
+    /// <returns>False when there was neither a lockout nor a failure to forget.</returns>
+    public bool ClearLockout()
+    {
+        if (!IsLocked && LockedUntil is null && FailedLoginAttempts == 0 && LastFailedLoginAt is null)
+            return false;
+
+        IsLocked = false;
+        LockedUntil = null;
+        FailedLoginAttempts = 0;
+        LastFailedLoginAt = null;
+        SetUpdated();
+        return true;
+    }
+
+    /// <summary>Withdraws a pending deletion request on the account holder's behalf (plan 90, phase 6).</summary>
+    /// <returns>False when no deletion was pending.</returns>
+    public bool CancelDeletion()
+    {
+        if (DeletionRequestedAt is null) return false;
+
+        DeletionRequestedAt = null;
+        SetUpdated();
+        return true;
+    }
+
     /// <summary>Every path that opens a session calls this before handing anything out.</summary>
     public void EnsureNotBlocked()
     {

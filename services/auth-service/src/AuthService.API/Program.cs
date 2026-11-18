@@ -71,6 +71,9 @@ builder.Services.AddAuthorization(opts =>
     // session of a platform administrator passes neither policy.
     opts.AddPolicy("AdminSupport",   p => p.RequireRole(RoleNames.PlatformAdmin)
                                           .RequireClaim("admin_level", AdminLevels.All));
+    // Changes to an account from the admin panel (plan 90, phase 6): `admin` or `super`.
+    opts.AddPolicy("AdminLevel",     p => p.RequireRole(RoleNames.PlatformAdmin)
+                                          .RequireClaim("admin_level", AdminLevels.Admin, AdminLevels.Super));
     opts.AddPolicy("SuperAdmin",     p => p.RequireRole(RoleNames.PlatformAdmin)
                                           .RequireClaim("admin_level", AdminLevels.Super));
     opts.AddPolicy("PremiumOrAdmin", p => p.RequireRole(RoleNames.Premium, RoleNames.PlatformAdmin));

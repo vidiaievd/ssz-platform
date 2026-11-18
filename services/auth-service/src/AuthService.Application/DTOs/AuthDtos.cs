@@ -157,6 +157,13 @@ public sealed record AdminMfaSetupConfirmedResponse(
 /// <param name="Reason">Why — kept in the admin trail.</param>
 public sealed record SetAdminLevelRequest(string Level, string Reason);
 
+/// <param name="Reason">Why — kept in the admin trail (required, at most 500 characters).</param>
+public sealed record AdminUserActionRequest(string Reason);
+
+/// <param name="Reason">Why — kept in the admin trail (required, at most 500 characters).</param>
+/// <param name="ClientType">web, mobile or admin; left out — the sessions of every client.</param>
+public sealed record AdminRevokeSessionsRequest(string Reason, string? ClientType = null);
+
 public sealed record AdminResponse(
     Guid UserId,
     string Email,

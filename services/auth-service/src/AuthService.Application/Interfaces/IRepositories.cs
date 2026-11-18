@@ -65,7 +65,10 @@ public interface IAdminLevelRepository
     void Add(AdminLevelAssignment assignment);
     void Remove(AdminLevelAssignment assignment);
 
-    /// <summary>How many administrators hold exactly this level.</summary>
+    /// <summary>
+    /// How many administrators hold exactly this level and are not blocked (plan 90, phase 6) —
+    /// a blocked super cannot sign in, so it is no way back into the panel.
+    /// </summary>
     Task<int> CountAtLevelAsync(string level, CancellationToken ct = default);
 
     /// <summary>Every administrator with their account, highest level first, then by email.</summary>

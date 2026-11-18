@@ -14,7 +14,10 @@ public sealed class AdminLevelRepository(AuthDbContext db) : IAdminLevelReposito
     public void Remove(AdminLevelAssignment assignment) => db.AdminLevels.Remove(assignment);
 
     public async Task<int> CountAtLevelAsync(string level, CancellationToken ct = default) =>
-        await db.AdminLevels.CountAsync(a => a.Level == level, ct);
+        await db.AdminLevels
+            .Where(a => a.Level == level)
+            .Join(db.Users.Where(u => u.BlockedAt == null), a => a.UserId, u => u.Id, (a, _) => a)
+            .CountAsync(ct);
 
     public async Task<List<AdminListItem>> ListAsync(CancellationToken ct = default)
     {

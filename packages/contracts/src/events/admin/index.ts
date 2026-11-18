@@ -10,6 +10,35 @@ export const ADMIN_EVENT_TYPES = {
   ACTION_PERFORMED: 'admin.action.performed',
 } as const;
 
+// ─── Auth actions ─────────────────────────────────────────────────────────────
+
+/**
+ * Actions auth-service writes to its `admin_audit` (mirrors `AdminActions` / `AdminUserActions`
+ * in the C# service). Administrators: targetType `admin`, before/after `{ email, level }`.
+ * Accounts (plan 90, phase 6): targetType `user`, before/after `{ email, …the fields touched }`:
+ * - `user.blocked` — `{ blocked, activeSessions }`, after adds `blockedAt`;
+ * - `user.unblocked` — before `{ blocked, blockedAt, blockedBy, blockReason }`, after `{ blocked }`;
+ * - `user.unlocked` — `{ failedLoginAttempts, lockedUntil, mfaCodeFailures, mfaCodesLockedUntil }`;
+ * - `user.sessions_revoked` — `{ clientType (null = all), sessions: { <client>: count } }`;
+ * - `user.mfa_reset` — `{ twoFactorEnabled, backupCodesLeft, adminSessions }`, after adds
+ *   `mfaCodeCounterCleared` (false when Redis could not be reached);
+ * - `user.deletion_cancelled` — `{ deletionRequestedAt }`.
+ */
+export const AUTH_ADMIN_ACTIONS = {
+  ADMIN_GRANTED: 'admin.granted',
+  ADMIN_LEVEL_CHANGED: 'admin.level_changed',
+  ADMIN_REVOKED: 'admin.revoked',
+  TOKEN_LIFETIME_CHANGED: 'token_lifetime.changed',
+  USER_BLOCKED: 'user.blocked',
+  USER_UNBLOCKED: 'user.unblocked',
+  USER_UNLOCKED: 'user.unlocked',
+  USER_SESSIONS_REVOKED: 'user.sessions_revoked',
+  USER_MFA_RESET: 'user.mfa_reset',
+  USER_DELETION_CANCELLED: 'user.deletion_cancelled',
+} as const;
+
+export type AuthAdminAction = (typeof AUTH_ADMIN_ACTIONS)[keyof typeof AUTH_ADMIN_ACTIONS];
+
 // ─── Payload ──────────────────────────────────────────────────────────────────
 
 /** Service that performed the change and holds its `admin_audit` row. */
@@ -20,8 +49,7 @@ export type AdminAuditService = 'auth' | 'subscription' | 'organization' | 'ai' 
  * (the row and the event share an id — the envelope's `eventId`). Absent fields are null in the row:
  * a publisher omits them rather than sending `null`.
  *
- * Actions are `<object>.<verb>` and owned by the service, e.g. auth: `admin.granted`,
- * `admin.level_changed`, `admin.revoked` (targetType `admin`, before/after `{ email, level }`).
+ * Actions are `<object>.<verb>` and owned by the service, e.g. auth: `AUTH_ADMIN_ACTIONS`.
  */
 export interface AdminActionPerformedPayload {
   service: AdminAuditService;

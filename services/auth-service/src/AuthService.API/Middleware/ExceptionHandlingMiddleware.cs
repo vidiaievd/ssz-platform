@@ -63,6 +63,19 @@ public sealed class ExceptionHandlingMiddleware(
                 StatusCodes.Status403Forbidden,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),
 
+            AdminLevelRequiredException ex => (
+                StatusCodes.Status403Forbidden,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden,
+                    requiredLevel: ex.RequiredLevel)),
+
+            NothingToChangeException ex => (
+                StatusCodes.Status409Conflict,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status409Conflict)),
+
+            LockoutStoreUnavailableException ex => (
+                StatusCodes.Status503ServiceUnavailable,
+                CreateProblem(ex.Message, ex.Code, StatusCodes.Status503ServiceUnavailable)),
+
             AdminAccessDeniedException ex => (
                 StatusCodes.Status403Forbidden,
                 CreateProblem(ex.Message, ex.Code, StatusCodes.Status403Forbidden)),
@@ -131,7 +144,8 @@ public sealed class ExceptionHandlingMiddleware(
         string code,
         int status,
         object? errors = null,
-        DateTimeOffset? lockedUntil = null) => new()
+        DateTimeOffset? lockedUntil = null,
+        string? requiredLevel = null) => new()
         {
             Title = GetTitle(status),
             Detail = detail,
@@ -139,6 +153,7 @@ public sealed class ExceptionHandlingMiddleware(
             Status = status,
             Errors = errors,
             LockedUntil = lockedUntil,
+            RequiredLevel = requiredLevel,
         };
 
     private static string GetTitle(int status) => status switch
@@ -150,6 +165,7 @@ public sealed class ExceptionHandlingMiddleware(
         409 => "Conflict",
         422 => "Validation Error",
         423 => "Account Locked",
+        503 => "Service Unavailable",
         _ => "Internal Server Error",
     };
 }
@@ -159,4 +175,5 @@ public sealed class AuthProblemDetails : ProblemDetails
     public string Code { get; set; } = default!;
     public object? Errors { get; set; }
     public DateTimeOffset? LockedUntil { get; set; }
+    public string? RequiredLevel { get; set; }
 }
