@@ -43,6 +43,14 @@ public sealed class RedisRateLimitStore(IConnectionMultiplexer redis) : IRateLim
         await _db.KeyDeleteAsync([CountKey(key), LockKey(key)]);
     }
 
+    public async Task<RateLimitSnapshot> InspectAsync(string key, CancellationToken ct = default)
+    {
+        var count = await _db.StringGetAsync(CountKey(key));
+        var lockTtl = await _db.KeyTimeToLiveAsync(LockKey(key));
+        var attempts = count.HasValue && int.TryParse(count.ToString(), out var n) ? n : 0;
+        return new RateLimitSnapshot(attempts, lockTtl);
+    }
+
     private static string CountKey(string key) => $"ratelimit:count:{key}";
     private static string LockKey(string key) => $"ratelimit:lock:{key}";
 }

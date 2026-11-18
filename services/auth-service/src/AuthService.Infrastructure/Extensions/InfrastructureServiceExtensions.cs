@@ -91,6 +91,7 @@ public static class InfrastructureServiceExtensions
         services.AddScoped<ITokenLifetimePolicyRepository, TokenLifetimePolicyRepository>();
         services.AddScoped<IAdminLevelRepository, AdminLevelRepository>();
         services.AddScoped<IAdminAuditRepository, AdminAuditRepository>();
+        services.AddScoped<IAdminUserReader, AdminUserReader>();
         services.AddScoped<IAdminAuditTrail, AdminAuditTrail>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 

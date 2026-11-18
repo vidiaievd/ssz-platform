@@ -166,3 +166,82 @@ public sealed record AdminResponse(
     bool TwoFactorEnabled);
 
 public sealed record AdminListResponse(IReadOnlyList<AdminResponse> Items);
+
+// ── Users in the admin panel (plan 90, phase 6) ──────────────────────────────
+
+/// <summary>One account in the admin user list.</summary>
+/// <param name="AdminLevel">Set only for a platform administrator with a level.</param>
+/// <param name="LockedUntil">End of a lockout after failed sign-ins still running; null otherwise.</param>
+/// <param name="PurgeAt">When a pending deletion erases the account; null without a request.</param>
+public sealed record AdminUserListItem(
+    Guid Id,
+    string Email,
+    IReadOnlyList<string> Roles,
+    string? AdminLevel,
+    bool EmailVerified,
+    bool TwoFactorEnabled,
+    DateTimeOffset? BlockedAt,
+    DateTimeOffset? LockedUntil,
+    DateTimeOffset? DeletionRequestedAt,
+    DateTimeOffset? PurgeAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastLoginAt);
+
+public sealed record AdminUserListResponse(
+    IReadOnlyList<AdminUserListItem> Items,
+    int Total,
+    int Page,
+    int Limit);
+
+/// <summary>An administrator's block of the account; the reason is never shown to its holder.</summary>
+public sealed record AdminUserBlockDto(DateTimeOffset At, Guid? By, string? Reason);
+
+/// <summary>Wrong passwords since the last successful sign-in, and the lockout they caused.</summary>
+public sealed record AdminUserFailedLoginsDto(
+    int Count,
+    DateTimeOffset? LastAt,
+    DateTimeOffset? LockedUntil);
+
+/// <summary>
+/// Wrong two-factor codes on every client (Redis <c>mfa:attempts:&lt;userId&gt;</c>).
+/// <c>Available: false</c> when the store could not be read — then the other fields say nothing.
+/// </summary>
+public sealed record AdminUserMfaCodesDto(
+    bool Available,
+    int Failures,
+    DateTimeOffset? LockedUntil);
+
+public sealed record AdminUserSessionDto(
+    DateTimeOffset IssuedAt,
+    DateTimeOffset ExpiresAt,
+    string? DeviceInfo);
+
+/// <summary>The sessions of one client (`web`, `mobile`, `admin`).</summary>
+/// <param name="Active">Sessions open now.</param>
+/// <param name="LastIssuedAt">When this client last got a token (sign-in or refresh), revoked or not.</param>
+/// <param name="Recent">The three newest open sessions.</param>
+public sealed record AdminUserClientSessionsDto(
+    string ClientType,
+    int Active,
+    DateTimeOffset? LastIssuedAt,
+    IReadOnlyList<AdminUserSessionDto> Recent);
+
+/// <summary>The card of one account: the list row plus block, lockouts, MFA and sessions.</summary>
+public sealed record AdminUserDetailResponse(
+    Guid Id,
+    string Email,
+    IReadOnlyList<string> Roles,
+    string? AdminLevel,
+    bool EmailVerified,
+    bool TwoFactorEnabled,
+    DateTimeOffset? BlockedAt,
+    DateTimeOffset? LockedUntil,
+    DateTimeOffset? DeletionRequestedAt,
+    DateTimeOffset? PurgeAt,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastLoginAt,
+    AdminUserBlockDto? Block,
+    AdminUserFailedLoginsDto FailedLogins,
+    AdminUserMfaCodesDto MfaCodes,
+    int BackupCodesLeft,
+    IReadOnlyList<AdminUserClientSessionsDto> Sessions);

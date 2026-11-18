@@ -14,7 +14,10 @@ namespace AuthService.Application.Services;
 /// </summary>
 public sealed class MfaAttempts(IRateLimitStore store, AuthOptions options, Guid userId)
 {
-    private readonly string _key = $"mfa:attempts:{userId}";
+    private readonly string _key = KeyFor(userId);
+
+    /// <summary>The rate-limit key of one account's code count — also read by the admin card.</summary>
+    public static string KeyFor(Guid userId) => $"mfa:attempts:{userId}";
 
     public async Task EnsureNotLockedAsync(CancellationToken ct)
     {
