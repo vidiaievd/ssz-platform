@@ -76,7 +76,17 @@ public interface IRateLimitStore
         TimeSpan window,
         CancellationToken ct = default);
     Task ResetAsync(string key, CancellationToken ct = default);
+
+    /// <summary>
+    /// What the store holds for a key right now, without counting an attempt (plan 90, phase 6:
+    /// the admin card of a user).
+    /// </summary>
+    Task<RateLimitSnapshot> InspectAsync(string key, CancellationToken ct = default);
 }
+
+/// <param name="Attempts">Attempts counted in the current window; 0 when the window has passed.</param>
+/// <param name="LockRemaining">How long the lockout still lasts; null when there is none.</param>
+public sealed record RateLimitSnapshot(int Attempts, TimeSpan? LockRemaining);
 
 public interface IOtpReplayGuard
 {

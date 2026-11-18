@@ -29,6 +29,16 @@ public sealed class AccountLockedException : DomainException
         => LockedUntil = lockedUntil;
 }
 
+/// <summary>
+/// The account was blocked by a platform administrator (plan 90, phase 6). Not a 423: there is
+/// nothing to wait for. The reason stays with the administrators.
+/// </summary>
+public sealed class AccountBlockedException : DomainException
+{
+    public AccountBlockedException()
+        : base("This account has been blocked. Please contact support.", "ACCOUNT_BLOCKED") { }
+}
+
 public sealed class InvalidCredentialsException : DomainException
 {
     public InvalidCredentialsException()
@@ -96,4 +106,37 @@ public sealed class MfaSetupRequiredException : DomainException
 {
     public MfaSetupRequiredException()
         : base("Two-factor authentication must be set up before using the admin panel.", "MFA_SETUP_REQUIRED") { }
+}
+
+/// <summary>
+/// The administrator's level is too low for this change (plan 90, phase 6) — e.g. a
+/// <c>platform_admin</c> account is blocked or has its MFA reset by a super administrator only.
+/// </summary>
+public sealed class AdminLevelRequiredException : DomainException
+{
+    public string RequiredLevel { get; }
+
+    public AdminLevelRequiredException(string requiredLevel)
+        : base($"This change needs the '{requiredLevel}' admin level.", "ADMIN_LEVEL_REQUIRED")
+        => RequiredLevel = requiredLevel;
+}
+
+/// <summary>
+/// An administrator's action that would change nothing (plan 90, phase 6): unblocking an account
+/// that is not blocked, resetting MFA that is not set up, and so on. Nothing is written.
+/// </summary>
+public sealed class NothingToChangeException : DomainException
+{
+    public NothingToChangeException(string message)
+        : base(message, "NOTHING_TO_CHANGE") { }
+}
+
+/// <summary>
+/// The store of sign-in and code counters (Redis) could not be reached, so an unlock cannot be
+/// done or judged; nothing was changed.
+/// </summary>
+public sealed class LockoutStoreUnavailableException : DomainException
+{
+    public LockoutStoreUnavailableException()
+        : base("The lockout store is unavailable; nothing was changed. Try again later.", "LOCKOUT_STORE_UNAVAILABLE") { }
 }

@@ -79,6 +79,9 @@ public sealed class LoginCommandHandler(
         if (ipKey is not null)
             await rateLimitStore.ResetAsync(ipKey, ct);
 
+        // Only after the password: an email alone must not tell whether the account is blocked.
+        user.EnsureNotBlocked();
+
         if (!user.EmailVerified)
             throw new EmailNotVerifiedException();
 
@@ -188,6 +191,9 @@ public sealed class CompleteMfaLoginCommandHandler(
         var user = await userRepository.FindByIdWithTokensAsync(userId, ct)
             ?? throw new UserNotFoundException();
 
+        // The challenge may predate the block.
+        user.EnsureNotBlocked();
+
         if (!user.TwoFactorEnabled || user.TotpSecretEncrypted is null)
             throw new DomainException("2FA is not configured.", "MFA_NOT_CONFIGURED");
 
@@ -276,6 +282,9 @@ public sealed class LoginWithBackupCodeCommandHandler(
 
         var user = await userRepository.FindByIdWithBackupCodesAsync(userId, ct)
             ?? throw new UserNotFoundException();
+
+        // The challenge may predate the block.
+        user.EnsureNotBlocked();
 
         var attempts = new MfaAttempts(rateLimitStore, authOptions.Value, userId);
         await attempts.EnsureNotLockedAsync(ct);
@@ -384,6 +393,15 @@ public sealed class RefreshTokenCommandHandler(
 
         if (existingToken.IsExpired)
             throw new InvalidTokenException();
+
+        // Blocking revokes every refresh token already; a token that still turns up here ends
+        // its session all the same.
+        if (user.IsBlocked)
+        {
+            user.RevokeRefreshTokenFamily(existingToken.FamilyId);
+            await unitOfWork.SaveChangesAsync(ct);
+            throw new AccountBlockedException();
+        }
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);
 
@@ -584,6 +602,13 @@ public sealed class VerifyEmailCommandHandler(
         {
             user.VerifyEmail();
             await eventPublisher.PublishAsync(new EmailVerifiedEvent(user.Id, user.Email), ct);
+        }
+
+        // The address is confirmed all the same; only the session the link opens is withheld.
+        if (user.IsBlocked)
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+            throw new AccountBlockedException();
         }
 
         var roles = await roleRepository.GetRoleNamesForUserAsync(user.Id, ct);

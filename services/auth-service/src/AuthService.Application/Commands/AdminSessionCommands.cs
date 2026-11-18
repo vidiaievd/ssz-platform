@@ -139,6 +139,9 @@ internal static class AdminMfaSetup
         var user = await userRepository.FindByIdWithTokensAsync(userId, ct)
             ?? throw new InvalidTokenException();
 
+        // The setup token may predate the block.
+        user.EnsureNotBlocked();
+
         // Someone holding a setup token must not re-enrol an administrator who already has
         // MFA — that would hand the second factor to whoever knows the password.
         if (user.TwoFactorEnabled)

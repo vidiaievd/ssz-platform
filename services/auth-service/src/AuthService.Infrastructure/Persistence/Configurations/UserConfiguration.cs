@@ -69,6 +69,16 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.DeletionRequestedAt)
             .HasColumnName("deletion_requested_at");
 
+        builder.Property(u => u.BlockedAt)
+            .HasColumnName("blocked_at");
+
+        builder.Property(u => u.BlockedBy)
+            .HasColumnName("blocked_by");
+
+        builder.Property(u => u.BlockReason)
+            .HasColumnName("block_reason")
+            .HasMaxLength(500);
+
         builder.Property(u => u.CreatedAt)
             .HasColumnName("created_at");
 

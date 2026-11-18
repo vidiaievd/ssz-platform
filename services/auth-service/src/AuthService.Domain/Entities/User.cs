@@ -31,6 +31,21 @@ public sealed class User : AggregateRoot
     /// </summary>
     public DateTimeOffset? DeletionRequestedAt { get; private set; }
 
+    /// <summary>
+    /// When a platform administrator blocked the account (plan 90, phase 6); null when it is not
+    /// blocked. Unlike the lockout after failed sign-ins (<see cref="IsLocked"/>) it does not
+    /// expire and a correct password does not lift it — only an administrator does.
+    /// </summary>
+    public DateTimeOffset? BlockedAt { get; private set; }
+
+    /// <summary>The administrator who blocked the account.</summary>
+    public Guid? BlockedBy { get; private set; }
+
+    /// <summary>Why it was blocked — for administrators only, never shown to the account holder.</summary>
+    public string? BlockReason { get; private set; }
+
+    public bool IsBlocked => BlockedAt is not null;
+
     public IReadOnlyList<UserRole> Roles => _roles.AsReadOnly();
     public IReadOnlyList<RefreshToken> RefreshTokens => _refreshTokens.AsReadOnly();
     public IReadOnlyList<BackupCode> BackupCodes => _backupCodes.AsReadOnly();
@@ -217,6 +232,74 @@ public sealed class User : AggregateRoot
 
         DeletionRequestedAt = DateTimeOffset.UtcNow;
         RevokeAllRefreshTokens();
+    }
+
+    /// <summary>
+    /// Blocks the account and signs it out everywhere: no sign-in, MFA code, backup code,
+    /// refresh or email link opens a session until an administrator unblocks it. An access
+    /// token already handed out lives out its own short lifetime — services check JWTs
+    /// themselves and keep no revocation list.
+    /// </summary>
+    /// <returns>False when the account was already blocked; the first block is kept as it is.</returns>
+    public bool Block(Guid actorId, string reason, DateTimeOffset now)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new DomainException("A reason is required to block an account.", "REASON_REQUIRED");
+
+        if (IsBlocked) return false;
+
+        BlockedAt = now;
+        BlockedBy = actorId;
+        BlockReason = reason.Trim();
+        RevokeAllRefreshTokens();
+        return true;
+    }
+
+    /// <returns>False when the account was not blocked.</returns>
+    public bool Unblock()
+    {
+        if (!IsBlocked) return false;
+
+        BlockedAt = null;
+        BlockedBy = null;
+        BlockReason = null;
+        SetUpdated();
+        return true;
+    }
+
+    /// <summary>
+    /// Lifts the lockout after failed sign-ins and forgets the failures (plan 90, phase 6: an
+    /// administrator's unlock). A block by an administrator is not touched.
+    /// </summary>
+    /// <returns>False when there was neither a lockout nor a failure to forget.</returns>
+    public bool ClearLockout()
+    {
+        if (!IsLocked && LockedUntil is null && FailedLoginAttempts == 0 && LastFailedLoginAt is null)
+            return false;
+
+        IsLocked = false;
+        LockedUntil = null;
+        FailedLoginAttempts = 0;
+        LastFailedLoginAt = null;
+        SetUpdated();
+        return true;
+    }
+
+    /// <summary>Withdraws a pending deletion request on the account holder's behalf (plan 90, phase 6).</summary>
+    /// <returns>False when no deletion was pending.</returns>
+    public bool CancelDeletion()
+    {
+        if (DeletionRequestedAt is null) return false;
+
+        DeletionRequestedAt = null;
+        SetUpdated();
+        return true;
+    }
+
+    /// <summary>Every path that opens a session calls this before handing anything out.</summary>
+    public void EnsureNotBlocked()
+    {
+        if (IsBlocked) throw new AccountBlockedException();
     }
 
     /// <summary>Raised right before the account is erased, for every other service to follow.</summary>
