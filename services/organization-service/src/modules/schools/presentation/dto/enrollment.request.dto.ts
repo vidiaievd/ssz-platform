@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { MembershipSource } from '../../domain/entities/school-membership.entity.js';
 import type { ApprovalMode, PlacementMode } from '../../domain/entities/school-onboarding-settings.entity.js';
@@ -18,6 +18,7 @@ export class UpsertOnboardingSettingsRequestDto {
   schoolTestId?: string;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   reusePlatform: boolean;
 
   @ApiPropertyOptional({ example: null })
@@ -27,12 +28,15 @@ export class UpsertOnboardingSettingsRequestDto {
   maxResultAgeDays?: number;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   interviewRequired: boolean;
 
   @ApiProperty({ example: false })
+  @IsBoolean()
   autoPlaceByScore: boolean;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   collectAvailability: boolean;
 
   @ApiProperty({ enum: ['kids', 'teens', 'adults'], isArray: true, example: ['kids', 'teens'] })
@@ -41,6 +45,7 @@ export class UpsertOnboardingSettingsRequestDto {
   ageBands: AgeBand[];
 
   @ApiProperty({ example: false })
+  @IsBoolean()
   collectAgeBand: boolean;
 
   @ApiProperty({ enum: ['auto', 'manual'], example: 'manual' })
