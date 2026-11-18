@@ -24,6 +24,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let statusCode: number;
     let error: string;
     let message: string;
+    // Extra fields of an object body (e.g. `requiredLevel` on ADMIN_LEVEL_REQUIRED) reach the client.
+    let extra: Record<string, unknown> = {};
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -34,7 +36,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = responseBody;
       } else if (typeof responseBody === 'object' && responseBody !== null) {
         const body = responseBody as Record<string, unknown>;
-        const raw = body['message'];
+        const { message: raw, statusCode: _status, error: _error, ...rest } = body;
+        extra = rest;
         message = Array.isArray(raw) ? raw.join('; ') : String(raw ?? exception.message);
       } else {
         message = exception.message;
@@ -58,6 +61,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     response.status(statusCode).json({
+      ...extra,
       statusCode,
       error,
       message,
