@@ -34,6 +34,10 @@ public sealed class AdminUserFilterTests
         typeof(User).GetProperty(nameof(User.LastLoginAt), BindingFlags.Public | BindingFlags.Instance)!
             .SetValue(user, at);
 
+    private static void SetDeletionRequested(User user, DateTimeOffset? at) =>
+        typeof(User).GetProperty(nameof(User.DeletionRequestedAt), BindingFlags.Public | BindingFlags.Instance)!
+            .SetValue(user, at);
+
     private static AdminUserCriteria Criteria(
         string? search = null,
         Guid? roleId = null,
@@ -185,6 +189,19 @@ public sealed class AdminUserFilterTests
 
         Run([never, yesterday, today], Criteria(sort: AdminUserSorts.LastLoginDesc))
             .Should().Equal(today, yesterday, never);
+    }
+
+    [Fact]
+    public void Sort_ByPurge_SoonestErasureFirst_NoRequestLast()
+    {
+        var none = NewUser("none@example.com");
+        var recent = NewUser("recent@example.com");
+        SetDeletionRequested(recent, Now.AddDays(-1));
+        var old = NewUser("old@example.com");
+        SetDeletionRequested(old, Now.AddDays(-20));
+
+        Run([none, recent, old], Criteria(sort: AdminUserSorts.PurgeAsc))
+            .Should().Equal(old, recent, none);
     }
 
     [Fact]

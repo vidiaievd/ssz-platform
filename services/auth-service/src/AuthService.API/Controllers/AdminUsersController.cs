@@ -29,7 +29,8 @@ public sealed class AdminUsersController(ISender mediator) : ControllerBase
     /// `search` — part of the e-mail (at least 2 characters, case ignored);
     /// `role` — student, tutor, teacher, school_admin, platform_admin, manager_platform or premium;
     /// `status` — active, blocked, locked (failed sign-ins), deletion_pending or unverified;
-    /// `sort` — -createdAt (default), createdAt, email, -email, -lastLoginAt (never signed in last);
+    /// `sort` — -createdAt (default), createdAt, email, -email, -lastLoginAt (never signed in last),
+    /// purgeAt (soonest erasure first, no deletion request last);
     /// `page` from 1; `limit` 1–100 (default 25);
     /// `ids` — up to 100 comma-separated account ids (unknown ones are simply absent).
     /// A bad argument → 400 `INVALID_FILTER`.

@@ -30,11 +30,16 @@ public static class AdminUserSorts
     public const string EmailDesc = "-email";
     /// <summary>Most recent sign-in first; accounts that never signed in go last.</summary>
     public const string LastLoginDesc = "-lastLoginAt";
+    /// <summary>
+    /// Soonest erasure first (the grace period is the same for everyone, so it is the oldest
+    /// deletion request); accounts without a request go last. The panel's deletion queue.
+    /// </summary>
+    public const string PurgeAsc = "purgeAt";
 
     public const string Default = CreatedDesc;
 
     public static readonly IReadOnlyList<string> All =
-        [CreatedDesc, CreatedAsc, EmailAsc, EmailDesc, LastLoginDesc];
+        [CreatedDesc, CreatedAsc, EmailAsc, EmailDesc, LastLoginDesc, PurgeAsc];
 }
 
 /// <summary>
@@ -88,6 +93,10 @@ public static class AdminUserFilter
         AdminUserSorts.LastLoginDesc => users
             .OrderBy(u => u.LastLoginAt == null)
             .ThenByDescending(u => u.LastLoginAt)
+            .ThenBy(u => u.Id),
+        AdminUserSorts.PurgeAsc => users
+            .OrderBy(u => u.DeletionRequestedAt == null)
+            .ThenBy(u => u.DeletionRequestedAt)
             .ThenBy(u => u.Id),
         _ => users.OrderByDescending(u => u.CreatedAt).ThenBy(u => u.Id),
     };
