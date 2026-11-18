@@ -140,6 +140,25 @@ without a level gets 403). `PUT { policies, reason }` — `reason` required (≤
 (role, client) pair (action `token_lifetime.changed`, targetType `token_lifetime`, targetId `<role>:<client>`, `before` /
 `after { hours }`; a new pair has no `before`; a pair with the same value writes nothing and leaves `updatedBy`) in the same
 transaction, then `admin.action.performed` after commit, one event per row. Applies to tokens issued or refreshed afterwards.
+Users in the panel (plan 90, phase 6): block by an administrator — `users.blocked_at` / `blocked_by` / `block_reason`, separate
+from the sign-in lockout (`is_locked`, which `RecordSuccessfulLogin` clears). `EnsureNotBlocked()` → 403 `ACCOUNT_BLOCKED` (reason
+never shown) on every path that issues a session: login (after the password — a wrong one is still 401), MFA code and backup
+code (not spent), refresh of all three clients (the family is revoked), the e-mail confirmation link (address confirmed, no
+session), panel MFA setup. An access token already issued lives out its ≤ 15 min (no revocation list). A blocked login does not
+cancel a deletion request. Reads (`AdminSupport`): `GET api/v1/auth/admin/users?search=&role=&status=&sort=&page=&limit=&ids=`
+(`search` ≥ 2 chars on `normalized_email`; `status` `active|blocked|locked|deletion_pending|unverified`; `sort`
+`-createdAt|createdAt|email|-email|-lastLoginAt|purgeAt`; `limit` 1–100; `ids` ≤ 100; bad argument → 400 `INVALID_FILTER`) →
+`{ items, total, page, limit }`; `GET …/users/:userId` adds `block`, `failedLogins`, `mfaCodes` (Redis
+`IRateLimitStore.InspectAsync`; Redis down → `available: false`), `backupCodesLeft`, `sessions[]` for web / mobile / admin.
+Actions `POST …/users/:userId/{block,unblock,unlock,sessions/revoke { clientType? },mfa/reset,deletion/cancel} { reason }`
+(≤ 500, else 422): level matrix at the head of `AdminUserCommands.cs` (Q9) — unlock / sessions / MFA reset `support`;
+block / unblock / deletion cancel `admin` (policy `AdminLevel`); block, unblock and MFA reset of a `platform_admin` (role **or**
+level row) — `super`. Refusals in order: self → 400 `ADMIN_SELF_CHANGE`, 404, level → 403 `ADMIN_LEVEL_REQUIRED` (with
+`requiredLevel`), no effect → 409 `NOTHING_TO_CHANGE` (no journal) / last super → 400 `ADMIN_LAST_SUPER`; `unlock` with Redis
+down → 503 `LOCKOUT_STORE_UNAVAILABLE`. Each answers 200 with the user card. "Last super" (`LastSuperRule`, also for
+`admin/admins`) counts unblocked supers only. Journal actions `user.blocked` / `user.unblocked` / `user.unlocked` /
+`user.sessions_revoked` / `user.mfa_reset` / `user.deletion_cancelled` (targetType `user`; `AUTH_ADMIN_ACTIONS` in
+`packages/contracts`); no `auth.user.*` domain events from these.
 
 ### 2. User Profile Service (NestJS)
 User profiles separated from auth. Student profiles (level, target language, progress summary),
@@ -181,6 +200,12 @@ in). Non-UUID / unknown school → 404 (deleted ones are found).
 
 Batch read (plan 90, phase 7, step 17): `GET admin/schools?ids=<uuid>,<uuid>` (1–100 UUIDs of any version, non-UUID or > 100
 → 400; unknown ids are simply absent; combines with the other filters) — the panel names the schools of the AI spend table.
+
+Schools of a user (plan 90, phase 6, step 4): `GET admin/users/:userId/schools` (level `support`, `AdminUsersController` in
+`admin-schools`) → `{ owned[], memberships[] }` — owned schools (with the groups the owner teaches today) and roster rows (role,
+status, groups, `joinedAt`); each school carries `id`, `name`, `slug`, `kind`, `status`, `closesAt`, `purgeAt`; `purged` ones are
+left out, closed ones shown. Unknown user → 200 with empty lists; non-UUID → 404 without a query. Gateway `location
+/api/v1/admin/users` → organization in all three nginx configs.
 
 Student seats (plan 90, phase 4): `GET schools/:id/seats` (owner / admin / manager) → `{ used, limit, ceiling, state }`; panel
 reads the plan limit from the `school_seat_limits` projection only. `admin/schools` rows carry `seats { used, limit }` and
