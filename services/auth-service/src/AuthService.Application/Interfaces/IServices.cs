@@ -88,6 +88,20 @@ public interface IRateLimitStore
 /// <param name="LockRemaining">How long the lockout still lasts; null when there is none.</param>
 public sealed record RateLimitSnapshot(int Attempts, TimeSpan? LockRemaining);
 
+public static class RateLimitStoreExtensions
+{
+    /// <summary>
+    /// When a lockout ends — for the 423 answer (`lockedUntil`), so a client can tell the user when
+    /// to try again. Null when there is no lockout or the store cannot tell.
+    /// </summary>
+    public static async Task<DateTimeOffset?> LockedUntilAsync(
+        this IRateLimitStore store, string key, CancellationToken ct = default)
+    {
+        var snapshot = await store.InspectAsync(key, ct);
+        return snapshot?.LockRemaining is { } remaining ? DateTimeOffset.UtcNow.Add(remaining) : null;
+    }
+}
+
 public interface IOtpReplayGuard
 {
     Task<bool> HasBeenUsedAsync(string userId, string code, CancellationToken ct = default);

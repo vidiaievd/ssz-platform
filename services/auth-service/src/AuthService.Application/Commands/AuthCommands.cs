@@ -52,7 +52,7 @@ public sealed class LoginCommandHandler(
 
         // IP-level rate limiting — checked before DB to stop brute-force bursts
         if (ipKey is not null && await rateLimitStore.IsLockedOutAsync(ipKey, ct))
-            throw new AccountLockedException(null);
+            throw new AccountLockedException(await rateLimitStore.LockedUntilAsync(ipKey, ct));
 
         var user = await userRepository.FindByEmailAsync(email, ct)
             ?? throw new InvalidCredentialsException();
