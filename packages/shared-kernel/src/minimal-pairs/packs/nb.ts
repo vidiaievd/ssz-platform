@@ -11,11 +11,22 @@ import type { LanguagePack } from './types.js';
 export const NB_PACK: LanguagePack = {
   language: 'nb',
   contrasts: [
-    { id: 'kjsj', label: 'kj / sj', ipa: 'ç – ʃ', tts: 'no', icon: 'target', needsDialect: false },
+    // Azure Finn, the word alone, says [ç]: the noise of kj sits ≥ 927 Hz above sj in every pair
+    // measured (plan 86 §4z, check 2). Not yet heard by a native ear — hence risky, not ok.
+    {
+      id: 'kjsj',
+      label: 'kj / sj',
+      ipa: 'ç – ʃ',
+      tts: 'no',
+      checkedVoices: ['nb-NO-FinnNeural'],
+      icon: 'target',
+      needsDialect: false,
+    },
     { id: 'length', label: 'Lengde', ipa: 'aː – a', tts: 'risky', icon: 'text', needsDialect: false },
     { id: 'vowel', label: 'Vokalkvalitet', ipa: 'a – ɔ – u – y', tts: 'ok', icon: 'sparkle', needsDialect: false },
     // Tonemes are inverted between Bergen and the East: without a dialect on every clip the set
-    // is unteachable outside one region (DECISIONS §2).
+    // is unteachable outside one region (DECISIONS §2). No voice is checked: a native teacher heard
+    // Azure Finn's toneme 1 as toneme 2 in 8 of 10 tries (plan 86 §4z, 18.11).
     { id: 'tone', label: 'Tonem 1 / 2', ipa: '¹ – ²', tts: 'no', icon: 'wave', needsDialect: true },
     { id: 'consonant', label: 'Konsonant', ipa: 'p – r – l', tts: 'ok', icon: 'split', needsDialect: false },
   ],

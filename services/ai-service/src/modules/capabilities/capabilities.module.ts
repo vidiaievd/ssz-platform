@@ -17,6 +17,7 @@ import { InternalSentenceChecksController } from './practice/presentation/intern
 import { InternalPrecheckController } from './practice/presentation/internal-precheck.controller.js';
 import { CheckReferenceWordsHandler } from './reference-synthesis/application/check-reference-words/check-reference-words.handler.js';
 import { MakeReferenceClipHandler } from './reference-synthesis/application/make-reference-clip/make-reference-clip.handler.js';
+import { MakeWordClipHandler } from './reference-synthesis/application/make-word-clip/make-word-clip.handler.js';
 import { InternalReferenceClipsController } from './reference-synthesis/presentation/internal-reference-clips.controller.js';
 import { SuggestPhraseMarksHandler } from './prosody-markup/application/suggest-phrase-marks/suggest-phrase-marks.handler.js';
 import { InternalPhraseMarksController } from './prosody-markup/presentation/internal-phrase-marks.controller.js';
@@ -212,6 +213,8 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     SentenceCheckHandler,
     { provide: SENTENCE_CHECK_LIMITER, useClass: RedisSentenceCheckLimiter },
     MakeReferenceClipHandler,
+    // a minimal-pairs word spoken alone by a named voice (plan 86, step 4z.2)
+    MakeWordClipHandler,
     CheckReferenceWordsHandler,
     CheckTonemeHandler,
     // the pronunciation session's door and its limits (plan 86, step 14.1)

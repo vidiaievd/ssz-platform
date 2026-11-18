@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsString, Length, MaxLength } from 'class-validator';
 import type { ReferenceClipOutcome } from '../domain/reference-clip.js';
+import type { WordClipOutcome } from '../domain/word-clip.js';
 
 export class ReferenceClipRequestDto {
   @ApiProperty({ example: 'nb', description: 'Course language; only `nb` has a carrier sentence and a lexicon' })
@@ -115,4 +116,50 @@ export class ReferenceWordCheckDto {
 export class ReferenceWordsCheckResponseDto {
   @ApiProperty({ type: [ReferenceWordCheckDto], description: 'One per word asked, in order' })
   words!: ReferenceWordCheckDto[];
+}
+
+export class WordClipRequestDto {
+  @ApiProperty({ example: 'nb', description: 'Course language' })
+  @IsString()
+  @Length(2, 8)
+  language!: string;
+
+  @ApiProperty({ example: 'kjære', description: 'One word as written; spoken alone' })
+  @IsString()
+  @MaxLength(64)
+  word!: string;
+
+  @ApiProperty({ example: 'nb-NO-FinnNeural', description: "One of the bound synthesis model's voices for the language" })
+  @IsString()
+  @MaxLength(64)
+  voice!: string;
+}
+
+export class WordClipDto {
+  @ApiProperty({ format: 'byte', description: 'WAV, PCM 16-bit, 16 kHz, mono, base64' }) wav!: string;
+  @ApiProperty({ example: 640 }) audioMs!: number;
+  @ApiProperty({ example: 'nb-NO-FinnNeural' }) voice!: string;
+  @ApiProperty({ example: 98, description: "Azure's 0–100 score of the word, heard back" }) accuracy!: number;
+}
+
+export class WordClipResponseDto {
+  @ApiProperty({ enum: ['ok', 'rejected', 'refused', 'failed'] }) status!: string;
+  @ApiPropertyOptional({ type: WordClipDto, description: 'When ok' }) clip?: WordClipDto;
+  @ApiPropertyOptional({ example: 'nb-NO-FinnNeural', description: 'When rejected: the voice heard back' }) voice?: string;
+  @ApiPropertyOptional({
+    type: Number,
+    nullable: true,
+    description: 'When rejected: the score of the word, null when Azure did not hear it',
+  })
+  accuracy?: number | null;
+  @ApiPropertyOptional({ enum: ['not_a_word', 'not_available'], description: 'When refused' }) reason?: string;
+  @ApiPropertyOptional({ example: 'provider_timeout', description: 'When failed' }) errorCode?: string;
+  @ApiPropertyOptional({ type: [String], description: 'Ledger rows of the calls made' }) aiCallIds?: string[];
+}
+
+/** The word clip as JSON: its audio as base64. */
+export function toWordClipResponse(outcome: WordClipOutcome): WordClipResponseDto {
+  if (outcome.status !== 'ok') return outcome;
+  const { audio, ...clip } = outcome.clip;
+  return { ...outcome, clip: { ...clip, wav: Buffer.from(audio).toString('base64') } };
 }

@@ -14,7 +14,8 @@
  * the teacher) and `minimal_pairs`. Each names its sound atoms as `SOUND` targets, which is what
  * the SRS and the analytics read (plan 86, step 8). A `minimal_pairs` is placed in its module only
  * once the kernel finds no blocker in it — every word has a clip, and no synthesized clip stands
- * in a `tts: 'no'` contrast (`kjsj`, `tone`): without clips the engine cannot deal a probe.
+ * in a `tts: 'no'` contrast by a voice the pack does not list as checked (`tone`; `kjsj` passes on
+ * Azure Finn — plan 86 §4z): without clips the engine cannot deal a probe.
  * The clips are not in the data: prisma/tools/clip-norsk-uttale.ts writes them into the row
  * (step 12.3), and a reseed carries them over to the word they were made for.
  *

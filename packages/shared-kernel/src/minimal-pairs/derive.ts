@@ -2,7 +2,7 @@
 
 import type { MinimalPairsContent, Pair, Word } from './model.js';
 import { hasClip } from './model.js';
-import { pairContrastId } from './packs/index.js';
+import { pairContrast, pairContrastId } from './packs/index.js';
 
 export interface PlacedWord extends Word {
   pairId: string;
@@ -66,6 +66,25 @@ export function syntheticByContrast(ex: MinimalPairsContent): Map<string, number
   const out = new Map<string, number>();
   for (const p of ex.pairs) {
     const n = filledWords(p).filter((w) => hasClip(w.clip) && w.clip.provenance === 'tts').length;
+    if (n === 0) continue;
+    const id = pairContrastId(ex, p);
+    out.set(id, (out.get(id) ?? 0) + n);
+  }
+  return out;
+}
+
+/**
+ * Synthetic clips per family whose voice the family lists in `checkedVoices` — the part of
+ * `syntheticByContrast` the family's `tts: 'no'` does not block.
+ */
+export function checkedSyntheticByContrast(ex: MinimalPairsContent): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const p of ex.pairs) {
+    const checked = pairContrast(ex, p)?.checkedVoices ?? [];
+    if (checked.length === 0) continue;
+    const n = filledWords(p).filter(
+      (w) => hasClip(w.clip) && w.clip.provenance === 'tts' && checked.includes(w.clip.voice.trim()),
+    ).length;
     if (n === 0) continue;
     const id = pairContrastId(ex, p);
     out.set(id, (out.get(id) ?? 0) + n);

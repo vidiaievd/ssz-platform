@@ -76,6 +76,7 @@ export {
   pairSpread,
   probePool,
   readyPairs,
+  checkedSyntheticByContrast,
   syntheticByContrast,
   syntheticCount,
   voicesOf,

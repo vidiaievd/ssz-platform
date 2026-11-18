@@ -18,6 +18,12 @@ export interface ContrastFamily {
   label: string;
   ipa: string;
   tts: TtsPolicy;
+  /**
+   * Synthetic voices checked for this family (by measure, by ear or both) — a clip spoken by
+   * one of them counts as `risky` here, whatever `tts` says. Compared with the clip's `voice`.
+   * Absent or empty: the policy applies to every synthetic clip (plan 86 §4z.1).
+   */
+  checkedVoices?: readonly string[];
   icon: ContrastIcon;
   /** Every clip of a pair in this family must say which dialect it was recorded in. */
   needsDialect: boolean;
