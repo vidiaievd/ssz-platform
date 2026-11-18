@@ -12,8 +12,9 @@ budget of new material. This skill turns that into explicit data (word
 statuses, known-words file, grammar spine), measures it with scripts, and
 fixes gaps with small, natural edits — in batches the author reviews.
 It also holds the exercise standard: every unit trains every skill, has
-graded speaking and ends with an essay, and every free-form task carries a
-key complete enough for the coming AI reviewer.
+graded speaking and ends with an essay, every free-form task carries a
+key complete enough for the AI reviewer, and every closed task has a key
+that is actually right.
 
 Read `references/formats.md` before touching course files and
 `references/norms.md` before judging numbers; read
@@ -26,7 +27,8 @@ Read `references/formats.md` before touching course files and
 | `grammar_audit.py <course> [--hits Gn]` | grammar topic uses per unit vs the rhythm norm; `--hits` shows matches |
 | `make_report.py <course> <out.json> <summary.txt>` | regenerates `AUDIT_recycling.md` below its hand-written header |
 | `base_overlap.py <course> <base…>` | entries already present in lower-level courses (seed vocab JSON or MD course dirs) |
-| `task_audit.py <course> [--unit N]` | exercises per template, graded speaking / reading aloud / essay per unit, missing AI-ready key fields |
+| `task_audit.py <course> [--unit N]` | the whole coverage norm per unit (exercises.md §2): meaning tasks, listening, dictation, recall, grammar stages, earlier units, speaking, essay, free-form load, key fields, bank integrity |
+| `seed_to_md.py <data_dir> <course> [--unit N]` | renders a converted unit's `04_oppgaver.md` from the seed data (`exercises.json` + `exercises.pending.json`) — the seed data is the source, see exercises.md §10 |
 
 ## Working agreements with this user
 
@@ -39,10 +41,11 @@ Read `references/formats.md` before touching course files and
 - Reports and explanations to the user are in Russian; course content stays
   in its own language.
 - **Speaking and an essay in every unit are required by the owner**, not
-  optional extras (exercises.md §1). Free-form tasks are checked by a
-  teacher today; an AI agent is the next stage of the app — write keys
-  (model answers, points with keywords, concrete rubric levels) as if the
-  model were already reading them.
+  optional extras (exercises.md §1) — and so is the rest of the coverage
+  norm (§2): listening, recall, the three grammar stages. Free-form tasks go
+  to a teacher and to the AI reviewers of ai-service; write keys (model
+  answers, points with keywords, concrete rubric levels) for a model that
+  reads them today.
 
 ## Mode A — review an existing course
 
@@ -83,7 +86,10 @@ Read `references/formats.md` before touching course files and
    (`read_aloud` in the unit's spoken situation + one `read`), the essay
    (last task of the grammar module), then missing axes. Rewrite existing
    free-form tasks into the field format (§8) instead of adding parallel
-   ones. One unit per step — the author checks the Norwegian.
+   ones. Read every closed item against the quality rules (§9) — the audit
+   cannot see a wrong key. One unit per step — the author checks the Norwegian.
+   A unit goes to the platform by exercises.md §10; after that its exercises
+   are edited in the seed data and the Markdown is rendered from it.
 8. **Report.** Keep the hand-written "what was done" header of
    `AUDIT_recycling.md` current; regenerate the rest with `make_report.py`;
    save the grammar audit output to `AUDIT_grammatikk.md`.
@@ -137,6 +143,11 @@ about 250 edits.
 - **Free-form keys quote the unit.** An essay's `Слова:` are A-words of
   this unit, its `Грамматика:` is this unit's spine topic; a `dialogue`
   prompt reuses the unit's situation and characters.
+- **A converted unit's exercises live in the seed data.** Editing its
+  `04_oppgaver.md` by hand recreates the drift the pilot hit (errors fixed in
+  the seed came back from the Markdown). Change the authoring script, render.
+- **"0 problems" from `task_audit.py` is coverage, not correctness.** It
+  counts task kinds; whether a key is right is read by a person (§9).
 - **Norms serve the text.** When a norm can only be met by stuffing, relax
   it in `course.json` and record the reason (norms.md §6).
 

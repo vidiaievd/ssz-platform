@@ -524,5 +524,612 @@
         }
       }
     ]
+  },
+  "2A": {
+    "title": "2A — Onboarding-programmet",
+    "words": [
+      {
+        "word": "onboarding",
+        "partOfSpeech": "NOUN",
+        "translation": "процесс адаптации новичка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "onboardingen"
+        }
+      },
+      {
+        "word": "nyansatt",
+        "partOfSpeech": "NOUN",
+        "translation": "новый сотрудник",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "den nyansatte",
+          "plural_form": "nyansatte",
+          "definite_plural": "de nyansatte"
+        }
+      },
+      {
+        "word": "bærbar PC",
+        "partOfSpeech": "NOUN",
+        "translation": "ноутбук",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "den bærbare PC-en",
+          "plural_form": "bærbare PC-er",
+          "definite_plural": "de bærbare PC-ene"
+        }
+      },
+      {
+        "word": "tilgang",
+        "partOfSpeech": "NOUN",
+        "translation": "доступ",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tilgangen",
+          "plural_form": "tilganger",
+          "definite_plural": "tilgangene"
+        }
+      },
+      {
+        "word": "kodebase",
+        "partOfSpeech": "NOUN",
+        "translation": "кодовая база",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kodebasen",
+          "plural_form": "kodebaser",
+          "definite_plural": "kodebasene"
+        }
+      },
+      {
+        "word": "buddy",
+        "partOfSpeech": "NOUN",
+        "translation": "«бадди», сопровождающий коллега для новичка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "buddyen",
+          "plural_form": "buddyer",
+          "definite_plural": "buddyene"
+        }
+      },
+      {
+        "word": "utviklingsmiljø",
+        "partOfSpeech": "NOUN",
+        "translation": "среда разработки",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "utviklingsmiljøet",
+          "plural_form": "utviklingsmiljøer",
+          "definite_plural": "utviklingsmiljøene"
+        }
+      },
+      {
+        "word": "klone (et prosjekt)",
+        "partOfSpeech": "VERB",
+        "translation": "клонировать (проект)",
+        "grammaticalProperties": {
+          "present_tense": "kloner",
+          "past_tense": "klonet",
+          "perfect_tense": "klonet"
+        }
+      },
+      {
+        "word": "gradvis",
+        "partOfSpeech": "ADVERB",
+        "translation": "постепенно"
+      }
+    ]
+  },
+  "2B": {
+    "title": "2B — Å bli kjent med teamet",
+    "words": [
+      {
+        "word": "strømmetjeneste",
+        "partOfSpeech": "NOUN",
+        "translation": "стриминговый сервис",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "strømmetjenesten",
+          "plural_form": "strømmetjenester",
+          "definite_plural": "strømmetjenestene"
+        }
+      },
+      {
+        "word": "uskreven regel",
+        "partOfSpeech": "PHRASE",
+        "translation": "неписаное правило"
+      }
+    ]
+  },
+  "2C": {
+    "title": "2C — Kontorkultur og forventninger",
+    "words": [
+      {
+        "word": "klesstil",
+        "partOfSpeech": "NOUN",
+        "translation": "стиль одежды",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "klesstilen",
+          "plural_form": "klesstiler",
+          "definite_plural": "klesstilene"
+        }
+      },
+      {
+        "word": "avslappet",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "расслабленный",
+        "grammaticalProperties": {
+          "neuter_form": "avslappet",
+          "plural_form": "avslappede"
+        }
+      },
+      {
+        "word": "hierarki",
+        "partOfSpeech": "NOUN",
+        "translation": "иерархия",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "hierarkiet",
+          "plural_form": "hierarkier",
+          "definite_plural": "hierarkiene"
+        }
+      },
+      {
+        "word": "begrunnelse",
+        "partOfSpeech": "NOUN",
+        "translation": "обоснование",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "begrunnelsen",
+          "plural_form": "begrunnelser",
+          "definite_plural": "begrunnelsene"
+        }
+      },
+      {
+        "word": "tillit",
+        "partOfSpeech": "NOUN",
+        "translation": "доверие",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tilliten"
+        }
+      },
+      {
+        "word": "stå fast",
+        "partOfSpeech": "VERB",
+        "translation": "застрять (на задаче)",
+        "grammaticalProperties": {
+          "present_tense": "står fast",
+          "past_tense": "sto fast",
+          "perfect_tense": "stått fast"
+        }
+      },
+      {
+        "word": "til gjengjeld",
+        "partOfSpeech": "PHRASE",
+        "translation": "взамен, в свою очередь"
+      }
+    ]
+  },
+  "2D": {
+    "title": "2D — Prøvetiden og den første tilbakemeldingen",
+    "words": [
+      {
+        "word": "prøvetid",
+        "partOfSpeech": "NOUN",
+        "translation": "испытательный срок",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "prøvetiden",
+          "plural_form": "prøvetider",
+          "definite_plural": "prøvetidene"
+        }
+      },
+      {
+        "word": "oppfølgingsmøte",
+        "partOfSpeech": "NOUN",
+        "translation": "контрольная встреча",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "oppfølgingsmøtet",
+          "plural_form": "oppfølgingsmøter",
+          "definite_plural": "oppfølgingsmøtene"
+        }
+      },
+      {
+        "word": "evaluering",
+        "partOfSpeech": "NOUN",
+        "translation": "оценка",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "evalueringen",
+          "plural_form": "evalueringer",
+          "definite_plural": "evalueringene"
+        }
+      },
+      {
+        "word": "levere (det man har lovet)",
+        "partOfSpeech": "VERB",
+        "translation": "выполнить (обещанное)",
+        "grammaticalProperties": {
+          "present_tense": "leverer",
+          "past_tense": "leverte",
+          "perfect_tense": "levert"
+        }
+      },
+      {
+        "word": "observasjon",
+        "partOfSpeech": "NOUN",
+        "translation": "наблюдение",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "observasjonen",
+          "plural_form": "observasjoner",
+          "definite_plural": "observasjonene"
+        }
+      },
+      {
+        "word": "dokumentasjon",
+        "partOfSpeech": "NOUN",
+        "translation": "документация",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "dokumentasjonen"
+        }
+      }
+    ]
+  },
+  "3A": {
+    "title": "3A — Smidig eller foss?",
+    "words": [
+      {
+        "word": "fossefallsmetode",
+        "partOfSpeech": "NOUN",
+        "translation": "waterfall-метод",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "fossefallsmetoden",
+          "plural_form": "fossefallsmetoder",
+          "definite_plural": "fossefallsmetodene"
+        }
+      },
+      {
+        "word": "tilnærming",
+        "partOfSpeech": "NOUN",
+        "translation": "подход",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "tilnærmingen",
+          "plural_form": "tilnærminger",
+          "definite_plural": "tilnærmingene"
+        }
+      },
+      {
+        "word": "kravspesifikasjon",
+        "partOfSpeech": "NOUN",
+        "translation": "спецификация требований",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kravspesifikasjonen",
+          "plural_form": "kravspesifikasjoner",
+          "definite_plural": "kravspesifikasjonene"
+        }
+      },
+      {
+        "word": "sprint",
+        "partOfSpeech": "NOUN",
+        "translation": "спринт",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "sprinten",
+          "plural_form": "sprinter",
+          "definite_plural": "sprintene"
+        }
+      },
+      {
+        "word": "overordnet",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "общий, вышестоящий",
+        "grammaticalProperties": {
+          "neuter_form": "overordnet",
+          "plural_form": "overordnede"
+        }
+      },
+      {
+        "word": "justere kursen",
+        "partOfSpeech": "PHRASE",
+        "translation": "скорректировать курс"
+      },
+      {
+        "word": "uforutsigbar",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "непредсказуемый",
+        "grammaticalProperties": {
+          "neuter_form": "uforutsigbart",
+          "plural_form": "uforutsigbare"
+        }
+      },
+      {
+        "word": "tavle",
+        "partOfSpeech": "NOUN",
+        "translation": "доска (напр. Kanban)",
+        "grammaticalProperties": {
+          "gender": "feminine",
+          "definite_singular": "tavla",
+          "plural_form": "tavler",
+          "definite_plural": "tavlene"
+        }
+      },
+      {
+        "word": "kolonne",
+        "partOfSpeech": "NOUN",
+        "translation": "колонка, столбец",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "kolonnen",
+          "plural_form": "kolonner",
+          "definite_plural": "kolonnene"
+        }
+      }
+    ]
+  },
+  "3B": {
+    "title": "3B — Roller i prosjektet",
+    "words": [
+      {
+        "word": "Scrum Master",
+        "partOfSpeech": "NOUN",
+        "translation": "скрам-мастер",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "Scrum Masteren"
+        }
+      },
+      {
+        "word": "forstyrre",
+        "partOfSpeech": "VERB",
+        "translation": "мешать, отвлекать",
+        "grammaticalProperties": {
+          "present_tense": "forstyrrer",
+          "past_tense": "forstyrret",
+          "perfect_tense": "forstyrret"
+        }
+      },
+      {
+        "word": "backlog",
+        "partOfSpeech": "NOUN",
+        "translation": "бэклог, список задач",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "backloggen",
+          "plural_form": "backlogger",
+          "definite_plural": "backloggene"
+        }
+      },
+      {
+        "word": "utviklingsteam",
+        "partOfSpeech": "NOUN",
+        "translation": "команда разработки",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "utviklingsteamet",
+          "plural_form": "utviklingsteam",
+          "definite_plural": "utviklingsteamene"
+        }
+      },
+      {
+        "word": "estimere",
+        "partOfSpeech": "VERB",
+        "translation": "оценивать (по времени/сложности)",
+        "grammaticalProperties": {
+          "present_tense": "estimerer",
+          "past_tense": "estimerte",
+          "perfect_tense": "estimert"
+        }
+      },
+      {
+        "word": "funksjonalitet",
+        "partOfSpeech": "NOUN",
+        "translation": "функциональность",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "funksjonaliteten"
+        }
+      },
+      {
+        "word": "uklar",
+        "partOfSpeech": "ADJECTIVE",
+        "translation": "неясный",
+        "grammaticalProperties": {
+          "neuter_form": "uklart",
+          "plural_form": "uklare"
+        }
+      },
+      {
+        "word": "forkortelse",
+        "partOfSpeech": "NOUN",
+        "translation": "сокращение, аббревиатура",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "forkortelsen",
+          "plural_form": "forkortelser",
+          "definite_plural": "forkortelsene"
+        }
+      }
+    ]
+  },
+  "3C": {
+    "title": "3C — Den daglige standupen",
+    "words": [
+      {
+        "word": "oppreist",
+        "partOfSpeech": "ADVERB",
+        "translation": "стоя"
+      },
+      {
+        "word": "ferdigstille",
+        "partOfSpeech": "VERB",
+        "translation": "завершать, доводить до готовности",
+        "grammaticalProperties": {
+          "present_tense": "ferdigstiller",
+          "past_tense": "ferdigstilte",
+          "perfect_tense": "ferdigstilt"
+        }
+      },
+      {
+        "word": "blokkering",
+        "partOfSpeech": "NOUN",
+        "translation": "блокирующая проблема",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "blokkeringen",
+          "plural_form": "blokkeringer",
+          "definite_plural": "blokkeringene"
+        }
+      },
+      {
+        "word": "betalingsmodul",
+        "partOfSpeech": "NOUN",
+        "translation": "платёжный модуль",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "betalingsmodulen",
+          "plural_form": "betalingsmoduler",
+          "definite_plural": "betalingsmodulene"
+        }
+      },
+      {
+        "word": "logge (en feil)",
+        "partOfSpeech": "VERB",
+        "translation": "зафиксировать (баг)",
+        "grammaticalProperties": {
+          "present_tense": "logger",
+          "past_tense": "logget",
+          "perfect_tense": "logget"
+        }
+      },
+      {
+        "word": "autentisering",
+        "partOfSpeech": "NOUN",
+        "translation": "аутентификация",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "autentiseringen"
+        }
+      },
+      {
+        "word": "sette av tid",
+        "partOfSpeech": "VERB",
+        "translation": "выделить время",
+        "grammaticalProperties": {
+          "present_tense": "setter av tid",
+          "past_tense": "satte av tid",
+          "perfect_tense": "satt av tid"
+        }
+      },
+      {
+        "word": "status",
+        "partOfSpeech": "NOUN",
+        "translation": "статус",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "statusen",
+          "plural_form": "statuser",
+          "definite_plural": "statusene"
+        }
+      },
+      {
+        "word": "kjøre på",
+        "partOfSpeech": "VERB",
+        "translation": "приступать, «поехали»",
+        "grammaticalProperties": {
+          "present_tense": "kjører på",
+          "past_tense": "kjørte på",
+          "perfect_tense": "kjørt på"
+        }
+      }
+    ]
+  },
+  "3D": {
+    "title": "3D — Sprint-planlegging og retrospektiv",
+    "words": [
+      {
+        "word": "sprint-planlegging",
+        "partOfSpeech": "NOUN",
+        "translation": "планирование спринта",
+        "grammaticalProperties": {
+          "gender": "masculine",
+          "definite_singular": "sprint-planleggingen"
+        }
+      },
+      {
+        "word": "retrospektiv",
+        "partOfSpeech": "NOUN",
+        "translation": "ретроспектива",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "retrospektivet",
+          "plural_form": "retrospektiver",
+          "definite_plural": "retrospektivene"
+        }
+      },
+      {
+        "word": "story points",
+        "partOfSpeech": "PHRASE",
+        "translation": "стори-поинты"
+      },
+      {
+        "word": "dukke opp",
+        "partOfSpeech": "VERB",
+        "translation": "возникать, всплывать",
+        "grammaticalProperties": {
+          "present_tense": "dukker opp",
+          "past_tense": "dukket opp",
+          "perfect_tense": "dukket opp"
+        }
+      },
+      {
+        "word": "se tilbake (på)",
+        "partOfSpeech": "VERB",
+        "translation": "оглядываться (на)",
+        "grammaticalProperties": {
+          "present_tense": "ser tilbake",
+          "past_tense": "så tilbake",
+          "perfect_tense": "sett tilbake"
+        }
+      },
+      {
+        "word": "poeng",
+        "partOfSpeech": "NOUN",
+        "translation": "замечание, довод",
+        "grammaticalProperties": {
+          "gender": "neuter",
+          "definite_singular": "poenget",
+          "plural_form": "poeng",
+          "definite_plural": "poengene"
+        }
+      },
+      {
+        "word": "nikke",
+        "partOfSpeech": "VERB",
+        "translation": "кивать",
+        "grammaticalProperties": {
+          "present_tense": "nikker",
+          "past_tense": "nikket",
+          "perfect_tense": "nikket"
+        }
+      },
+      {
+        "word": "følge opp",
+        "partOfSpeech": "VERB",
+        "translation": "отслеживать, доводить до конца",
+        "grammaticalProperties": {
+          "present_tense": "følger opp",
+          "past_tense": "fulgte opp",
+          "perfect_tense": "fulgt opp"
+        }
+      }
+    ]
   }
 }

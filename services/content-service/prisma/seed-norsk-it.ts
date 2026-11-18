@@ -8,12 +8,18 @@
  *        └─ MODULE per text sub-lesson (Nye ord → Tekst → Øvelser)
  *        └─ closing "Grammatikk og øvelser" module per Leksjon
  *
- * Source of truth is the Markdown course in docs/courses/norsk_it/ (git-ignored);
- * prisma/data/norsk-it/ holds the seed-ready form. Only leksjoner listed in
- * `levels` are seeded — they are added as each one is converted.
+ * Texts, word lists and grammar come from the Markdown course in
+ * docs/courses/norsk_it/ (git-ignored). The exercises of a converted leksjon
+ * live here: prisma/data/norsk-it/exercises.json is their source of truth,
+ * written by prisma/tools/norsk_it_units.py, and the course's 04_oppgaver.md
+ * is rendered from it. Only leksjoner listed in `levels` are seeded.
+ *
+ * exercises.pending.json (listening on the lesson narration, dictation) is
+ * NOT read here: those tasks wait for audio.
  *
  * Every unit carries graded speaking (read_aloud) and an essay (writing_task,
- * mode essay); both are reviewed by a teacher through the review queue.
+ * mode essay), reviewed by a teacher through the review queue; the author
+ * allows the AI stage on both, ai-service decides what a payer gets.
  *
  * Idempotent: ids are uuid v5 in a namespace of their own; writes upsert and
  * version item/section lists are rebuilt on every run.
@@ -125,6 +131,16 @@ const lessonMeta: Record<string, Meta> = {
   '1B': { title: '1B — CV og søknad på norsk', titleEn: '1B — CV and application in Norwegian', description: 'Hvordan en norsk CV og et søknadsbrev ser ut.' },
   '1C': { title: '1C — Jobbintervjuet', titleEn: '1C — The job interview', description: 'Dialog: et jobbintervju hos Nordly Tech.' },
   '1D': { title: '1D — Tilbudet og lønnsforhandlingen', titleEn: '1D — The offer and the salary negotiation', description: 'Jobbtilbud på e-post og en høflig lønnsforhandling.' },
+  // Leksjon 2 — Første uker på jobb
+  '2A': { title: '2A — Onboarding-programmet', titleEn: '2A — The onboarding programme', description: 'Første arbeidsdag: utstyr, tilganger og en buddy.' },
+  '2B': { title: '2B — Å bli kjent med teamet', titleEn: '2B — Getting to know the team', description: 'Lunsj med teamet og hvordan det er organisert.' },
+  '2C': { title: '2C — Kontorkultur og forventninger', titleEn: '2C — Office culture and expectations', description: 'Uskrevne regler: klesstil, møter, åpenhet og tillit.' },
+  '2D': { title: '2D — Prøvetiden og den første tilbakemeldingen', titleEn: '2D — The trial period and the first feedback', description: 'Dialog: oppfølgingsmøte etter tre uker.' },
+  // Leksjon 3 — Prosjektledelse og metodikk
+  '3A': { title: '3A — Smidig eller foss?', titleEn: '3A — Agile or waterfall?', description: 'Scrum, Kanban og fossefallsmetoden — når passer hva.' },
+  '3B': { title: '3B — Roller i prosjektet', titleEn: '3B — Roles in the project', description: 'Scrum Master, produkteier og utviklingsteam.' },
+  '3C': { title: '3C — Den daglige standupen', titleEn: '3C — The daily stand-up', description: 'Dialog: en standup med status og blokkeringer.' },
+  '3D': { title: '3D — Sprint-planlegging og retrospektiv', titleEn: '3D — Sprint planning and retrospective', description: 'Planlegging av en sprint og tilbakeblikk etter den.' },
 };
 
 const grammarMeta: Record<
@@ -132,6 +148,8 @@ const grammarMeta: Record<
   { title: string; titleEn: string; topic: string; subtopic: string; summary: string }
 > = {
   '1': { title: 'Formelt og uformelt register. Høflige uttrykk', titleEn: 'Formal and informal register. Polite phrases', topic: 'MOOD', subtopic: 'Høflighet', summary: 'Вежливые формы: kunne/ville вместо kan/vil, «jeg lurte på om», «jeg håpet på», смягчение отказа и несогласия.' },
+  '2': { title: 'Perfektum: erfaring og resultat så langt', titleEn: 'Present perfect: experience and results so far', topic: 'TENSES', subtopic: 'Perfektum og preteritum', summary: 'Perfektum для итога «на сегодня» (så langt, til nå, allerede) против preteritum для определённого времени в прошлом.' },
+  '3': { title: 'Passiv i prosess- og prosjektspråk', titleEn: 'The passive in process and project language', topic: 'VOICE', subtopic: 'Passiv', summary: 's-пассив для правил и рутины, bli-пассив для конкретного события, деятель с «av», модальный глагол + s-пассив.' },
 };
 
 // ─── Course layout: Level (Leksjon) → Module (sub-lesson) → Section → items ──
@@ -237,6 +255,8 @@ const leksjon = (num: number, title: string): LevelDef => {
 
 const levels: LevelDef[] = [
   leksjon(1, 'Leksjon 1 — Å søke jobb i IT-bransjen'),
+  leksjon(2, 'Leksjon 2 — Første uker på jobb'),
+  leksjon(3, 'Leksjon 3 — Prosjektledelse og metodikk'),
 ];
 
 // Flat list of every sub-lesson module, in course order.
