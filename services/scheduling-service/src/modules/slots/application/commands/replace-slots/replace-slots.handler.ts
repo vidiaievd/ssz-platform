@@ -15,6 +15,7 @@ export class ReplaceSlotsHandler implements ICommandHandler<ReplaceSlotsCommand,
   ) {}
 
   async execute(cmd: ReplaceSlotsCommand): Promise<Slot[]> {
+    await this.orgClient.assertSchoolActive(cmd.schoolId);
     const [group, teachers] = await Promise.all([
       this.orgClient.getGroup(cmd.schoolId, cmd.groupId),
       this.orgClient.getGroupTeachers(cmd.schoolId, cmd.groupId),

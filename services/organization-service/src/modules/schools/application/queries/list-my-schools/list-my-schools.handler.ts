@@ -39,6 +39,8 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
     const seen = new Set<string>();
     const all = [...owned, ...memberOf].filter((s) => {
       if (s.isSolo) return false;
+      // The owner's list keeps a closed school (it says when the purge comes); members lose it.
+      if (!s.isReadableBy(actorId)) return false;
       if (seen.has(s.id)) return false;
       seen.add(s.id);
       return true;
@@ -96,6 +98,9 @@ export class ListMySchoolsHandler implements IQueryHandler<ListMySchoolsQuery> {
         contactEmail: s.contactEmail,
         city: s.city,
         memberCount: s.members.length,
+        status: s.status,
+        closesAt: s.closesAt,
+        purgeAt: s.purgeAt,
         createdAt: s.createdAt,
         myRole,
         myCapabilities,

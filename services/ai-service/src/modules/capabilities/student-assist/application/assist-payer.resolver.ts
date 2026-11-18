@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { WORKSPACE_STATUS_STORE, type IWorkspaceStatusStore } from '../../../access/application/ports/workspace-status.js';
 import type { Payer } from '../../../access/domain/payer.js';
 import { Result } from '../../../../shared/kernel/result.js';
 import type { AssistContext } from '../domain/assist-answer.js';
@@ -70,6 +71,7 @@ export class AssistPayerResolver {
     @Inject(CLASS_SESSION_READER) private readonly classes: IClassSessionReader,
     @Inject(GROUP_ROSTER_READER) private readonly rosters: IGroupRosterReader,
     @Inject(STUDENT_STANDING_READER) private readonly standing: IStudentStandingReader,
+    @Inject(WORKSPACE_STATUS_STORE) private readonly workspaces: IWorkspaceStatusStore,
   ) {}
 
   async resolve(request: AssistTurnRequest): Promise<Result<AssistAccess, AssistAccessError>> {
@@ -92,7 +94,7 @@ export class AssistPayerResolver {
       if (context.courseId && !(await this.enrollments.enrollment(userId, context.courseId))) {
         return Result.fail({ code: 'not_enrolled' });
       }
-      const workspacePays = await this.standing.schoolPaysFor(session.schoolId, userId);
+      const workspacePays = await this.schoolPaysFor(session.schoolId, userId);
       const payer: Payer = workspacePays ? { type: 'workspace', id: session.schoolId } : { type: 'user', id: userId };
       return Result.ok({ payer, context });
     }
@@ -102,9 +104,18 @@ export class AssistPayerResolver {
     const enrollment = await this.enrollments.enrollment(userId, context.courseId);
     if (!enrollment) return Result.fail({ code: 'not_enrolled' });
     const schoolId = enrollment.status === 'active' ? enrollment.schoolId : null;
-    const schoolPays = schoolId !== null && (await this.standing.schoolPaysFor(schoolId, userId));
+    const schoolPays = schoolId !== null && (await this.schoolPaysFor(schoolId, userId));
     const payer: Payer = schoolPays ? { type: 'workspace', id: schoolId } : { type: 'user', id: userId };
     return Result.ok({ payer, context });
+  }
+
+  /**
+   * A school that is not `active` (suspended, closed, purged) is no payer at all — the learner's own
+   * plan answers instead (plan 90, phase 5, step 6). The status is read first: no call to the school.
+   */
+  private async schoolPaysFor(schoolId: string, userId: string): Promise<boolean> {
+    if ((await this.workspaces.get(schoolId)) !== 'active') return false;
+    return this.standing.schoolPaysFor(schoolId, userId);
   }
 }
 

@@ -1,5 +1,6 @@
 import {
   BadGatewayException,
+  ConflictException,
   BadRequestException,
   Body,
   Controller,
@@ -41,6 +42,7 @@ import {
   AssignmentDomainValidationError,
   InvalidContentRefError,
   ContentNotVisibleForAssigneeError,
+  CourseObsoleteError,
   InsufficientSchoolRoleError,
   ContentServiceUnavailableError,
   OrganizationServiceUnavailableError,
@@ -214,6 +216,7 @@ export class AssignmentsController {
     if (err instanceof AssignmentForbiddenError) throw new ForbiddenException(err.message);
     if (err instanceof AssignmentDomainValidationError) throw new UnprocessableEntityException(err.message);
     if (err instanceof InvalidContentRefError) throw new BadRequestException(err.message);
+    if (err instanceof CourseObsoleteError) throw new ConflictException(err.message);
     if (err instanceof ContentNotVisibleForAssigneeError) throw new UnprocessableEntityException(err.message);
     if (err instanceof InsufficientSchoolRoleError) throw new ForbiddenException(err.message);
     if (err instanceof ContentServiceUnavailableError) throw new BadGatewayException(err.message);
@@ -231,6 +234,7 @@ export class AssignmentsController {
     if (err instanceof GroupNotFoundError) throw new NotFoundException(err.message);
     if (err instanceof GroupEmptyError) throw new UnprocessableEntityException(err.message);
     if (err instanceof InvalidContentRefError) throw new BadRequestException(err.message);
+    if (err instanceof CourseObsoleteError) throw new ConflictException(err.message);
     if (err instanceof InsufficientSchoolRoleError) throw new ForbiddenException(err.message);
     if (err instanceof ContentServiceUnavailableError) throw new BadGatewayException(err.message);
     if (err instanceof OrganizationServiceUnavailableError) throw new BadGatewayException(err.message);

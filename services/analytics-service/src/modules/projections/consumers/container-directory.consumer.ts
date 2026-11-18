@@ -48,6 +48,20 @@ interface ContainerPublishedPayload {
   containerId: string;
 }
 
+/**
+ * content-service publishes some events flat (`content.container.published`) and others with the whole
+ * domain event as the payload (`created` / `updated` / `deleted` from the container repository), so
+ * the data sits at `payload.payload`. Both are read.
+ */
+export function unwrapContentPayload(payload: unknown): Record<string, unknown> {
+  const outer = (payload ?? {}) as Record<string, unknown>;
+  const inner = outer.payload;
+  if (typeof outer.eventType === 'string' && inner && typeof inner === 'object') {
+    return inner as Record<string, unknown>;
+  }
+  return outer;
+}
+
 @Injectable()
 export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ContainerDirectoryConsumer.name);
@@ -118,7 +132,15 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
         return;
       }
 
-      await this.applyEvent(eventType, envelope.payload as Record<string, unknown>);
+      const payload = unwrapContentPayload(envelope.payload);
+      if (typeof payload.containerId !== 'string' || payload.containerId.length === 0) {
+        // Prisma drops an undefined filter: `updateMany({ where: { containerId: undefined } })` is every
+        // row. Until plan 90, phase 5, step 4b one deleted container marked the whole directory deleted.
+        this.logger.error(`ContainerDirectoryConsumer: "${eventType}" [${eventId}] carries no containerId — discarding`);
+        channel.nack(msg, false, false);
+        return;
+      }
+      await this.applyEvent(eventType, payload);
 
       await this.prisma.processedEvent.create({
         data: { eventId, processorId: PROCESSOR_ID, eventType },

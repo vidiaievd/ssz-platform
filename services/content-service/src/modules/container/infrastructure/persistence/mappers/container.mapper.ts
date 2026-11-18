@@ -15,6 +15,10 @@ import {
   domainLevelSystemToPrisma,
   prismaGatingModeToDomain,
   domainGatingModeToPrisma,
+  prismaMaintenanceStatusToDomain,
+  domainMaintenanceStatusToPrisma,
+  prismaMaintenanceSourceToDomain,
+  domainMaintenanceSourceToPrisma,
 } from './enum-converters.js';
 
 // Shape of data passed to prisma.container.create({ data: ... })
@@ -43,6 +47,10 @@ export interface ContainerCreateData {
   updatedAt: Date;
   deletedAt: Date | null;
   archivedAt: Date | null;
+  maintenanceStatus: $Enums.MaintenanceStatus;
+  maintenanceSource: $Enums.MaintenanceSource | null;
+  maintenanceChangedAt: Date | null;
+  ownerSchoolName: string | null;
 }
 
 // Shape of data passed to prisma.container.update({ data: ... })
@@ -83,6 +91,10 @@ export class ContainerMapper {
       updatedAt: raw.updatedAt,
       deletedAt: raw.deletedAt,
       archivedAt: raw.archivedAt,
+      maintenanceStatus: prismaMaintenanceStatusToDomain(raw.maintenanceStatus),
+      maintenanceSource: prismaMaintenanceSourceToDomain(raw.maintenanceSource),
+      maintenanceChangedAt: raw.maintenanceChangedAt,
+      ownerSchoolName: raw.ownerSchoolName,
     });
   }
 
@@ -112,6 +124,10 @@ export class ContainerMapper {
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
       archivedAt: entity.archivedAt,
+      maintenanceStatus: domainMaintenanceStatusToPrisma(entity.maintenanceStatus),
+      maintenanceSource: domainMaintenanceSourceToPrisma(entity.maintenanceSource),
+      maintenanceChangedAt: entity.maintenanceChangedAt,
+      ownerSchoolName: entity.ownerSchoolName,
     };
   }
 
@@ -137,6 +153,10 @@ export class ContainerMapper {
       updatedAt: entity.updatedAt,
       deletedAt: entity.deletedAt,
       archivedAt: entity.archivedAt,
+      maintenanceStatus: domainMaintenanceStatusToPrisma(entity.maintenanceStatus),
+      maintenanceSource: domainMaintenanceSourceToPrisma(entity.maintenanceSource),
+      maintenanceChangedAt: entity.maintenanceChangedAt,
+      ownerSchoolName: entity.ownerSchoolName,
     };
   }
 }

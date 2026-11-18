@@ -8,6 +8,7 @@ import { ReviewEffortMinutes } from '../../domain/value-objects/review-effort-mi
 import { AssistantAccess, type AssistantMode } from '../../domain/value-objects/assistant-access.vo.js';
 import { AiPrecheckSettings } from '../../domain/value-objects/ai-precheck-settings.vo.js';
 import { SchoolMapper } from './school.mapper.js';
+import type { SchoolStatus } from '../../domain/school-access.policy.js';
 
 const INCLUDE_MEMBERS = { members: true } as const;
 
@@ -23,9 +24,11 @@ export class SchoolPrismaRepository implements ISchoolRepository {
     return raw ? SchoolMapper.toDomain(raw) : null;
   }
 
+  // Any status: a slug stays taken by a closed school and by a tombstone (the column is unique),
+  // so availability checks must see them; readers decide visibility from the status.
   async findBySlug(slug: string): Promise<School | null> {
     const raw = await (this.prisma as any).school.findFirst({
-      where: { slug, deletedAt: null },
+      where: { slug },
       include: INCLUDE_MEMBERS,
     });
     return raw ? SchoolMapper.toDomain(raw) : null;
@@ -41,7 +44,8 @@ export class SchoolPrismaRepository implements ISchoolRepository {
 
   async findByOwnerId(ownerId: string): Promise<School[]> {
     const rows = await (this.prisma as any).school.findMany({
-      where: { ownerId, deletedAt: null },
+      // A closed school stays in the owner's list (they learn when it is purged); a tombstone does not.
+      where: { ownerId, status: { not: 'purged' } },
       include: INCLUDE_MEMBERS,
       orderBy: { createdAt: 'desc' },
     });
@@ -58,6 +62,11 @@ export class SchoolPrismaRepository implements ISchoolRepository {
       orderBy: { createdAt: 'desc' },
     });
     return rows.map(SchoolMapper.toDomain);
+  }
+
+  async findStatus(schoolId: string): Promise<SchoolStatus | null> {
+    const row = await (this.prisma as any).school.findUnique({ where: { id: schoolId }, select: { status: true } });
+    return (row?.status as SchoolStatus | undefined) ?? null;
   }
 
   async findAllActive(): Promise<School[]> {
@@ -332,25 +341,25 @@ export class SchoolPrismaRepository implements ISchoolRepository {
           contactEmail: school.contactEmail ?? null,
           city: school.city ?? null,
           type: school.type,
-          isActive: school.isActive,
+          // No `isActive` / `deletedAt`: the lifecycle repository owns them (plan 90, phase 5), and a
+          // stale aggregate saved after a suspension must not open the school again.
           requireTutorReviewForSelfPaced: school.requireTutorReviewForSelfPaced,
           defaultExplanationLanguage: school.defaultExplanationLanguage ?? null,
           showGroupPositionToStudents: school.showGroupPositionToStudents,
           updatedAt: school.updatedAt,
-          deletedAt: school.deletedAt ?? null,
         },
       });
 
-      // Sync members by upserting what the aggregate holds and removing only what it
-      // dropped. Deleting the whole roster first would take the columns the aggregate
-      // does not carry (status, level) and, through the cascade, every member's
-      // teacher attrs and capability grants with it — one accepted invitation would
-      // quietly reset the rest of the roster.
-      const members = school.members;
-      for (const m of members) {
-        await tx.schoolMember.upsert({
-          where: { schoolId_userId: { schoolId: m.schoolId, userId: m.userId } },
-          create: {
+      // Write only the roster changes made through this aggregate. Syncing the whole loaded list
+      // would let a stale aggregate erase members another request added meanwhile (two learners
+      // added at once wiping each other, past the seat check — plan 90, phase 4) or bring back
+      // members another request removed. Deleting the whole roster first would also take the
+      // columns the aggregate does not carry (status, level) and, through the cascade, teacher
+      // attrs and capability grants. A row already written by the seat claim is skipped.
+      const added = school.addedMembers;
+      if (added.length > 0) {
+        await tx.schoolMember.createMany({
+          data: added.map((m) => ({
             id: m.id,
             schoolId: m.schoolId,
             userId: m.userId,
@@ -358,21 +367,15 @@ export class SchoolPrismaRepository implements ISchoolRepository {
             joinedAt: m.joinedAt,
             name: m.name,
             avatarUrl: m.avatarUrl,
-          },
-          update: {
-            role: m.role,
-            name: m.name,
-            avatarUrl: m.avatarUrl,
-          },
+          })),
+          skipDuplicates: true,
         });
       }
 
-      await tx.schoolMember.deleteMany({
-        where: {
-          schoolId: school.id,
-          ...(members.length > 0 ? { userId: { notIn: members.map((m) => m.userId) } } : {}),
-        },
-      });
+      const removed = school.removedMemberUserIds;
+      if (removed.length > 0) {
+        await tx.schoolMember.deleteMany({ where: { schoolId: school.id, userId: { in: removed } } });
+      }
     });
   }
 }

@@ -7,6 +7,8 @@ export class IssueGrantCommand {
     readonly externalId: string,
     readonly grant: {
       featureKey: string;
+      /** false = switch the key off for the term. */
+      enabled: boolean;
       monthlyCredits: string | null;
       limits: Record<string, number>;
       /** Undefined = now. */

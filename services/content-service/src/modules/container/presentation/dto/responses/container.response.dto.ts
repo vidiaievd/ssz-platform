@@ -84,6 +84,32 @@ export class ContainerResponseDto {
   @ApiPropertyOptional({ description: 'Set when the course has been archived (reversible).' })
   archivedAt!: Date | null;
 
+  @ApiProperty({
+    example: 'maintained',
+    enum: ['maintained', 'unmaintained', 'obsolete'],
+    description:
+      'Whether the course is still looked after (plan 90, Q5): `unmaintained` — in the catalogue with a badge; `obsolete` — out of the catalogue, no new enrolments, current learners carry on.',
+  })
+  maintenanceStatus!: string;
+
+  @ApiPropertyOptional({
+    example: 'author',
+    enum: ['author', 'school'],
+    nullable: true,
+    description: 'Who set the status last — the author by hand or the owning school’s lifecycle. Null: never changed.',
+  })
+  maintenanceSource!: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'When the maintenance status last changed.' })
+  maintenanceChangedAt!: Date | null;
+
+  @ApiPropertyOptional({
+    example: 'Nordic Language School',
+    nullable: true,
+    description: 'The owning school’s name kept from when it closed; null while the school is open.',
+  })
+  ownerSchoolName!: string | null;
+
   @ApiProperty({ type: () => ContainerLocalizationResponseDto, isArray: true })
   localizations!: ContainerLocalizationResponseDto[];
 
@@ -120,6 +146,10 @@ export class ContainerResponseDto {
     dto.updatedAt = entity.updatedAt;
     dto.deletedAt = entity.deletedAt;
     dto.archivedAt = entity.archivedAt;
+    dto.maintenanceStatus = entity.maintenanceStatus;
+    dto.maintenanceSource = entity.maintenanceSource;
+    dto.maintenanceChangedAt = entity.maintenanceChangedAt;
+    dto.ownerSchoolName = entity.ownerSchoolName;
     dto.localizations = localizations.map((l) => ContainerLocalizationResponseDto.from(l));
     dto.tags = tags.map((t) => ContainerTagResponseDto.from(t));
     return dto;

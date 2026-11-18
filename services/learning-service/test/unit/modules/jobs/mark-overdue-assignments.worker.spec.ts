@@ -26,6 +26,7 @@ function activeAssignment(): Assignment {
     cancelledReason: null,
     notes: null,
     deletedAt: null,
+    groupId: null,
   });
 }
 
@@ -44,6 +45,7 @@ function cancelledAssignment(): Assignment {
     cancelledReason: 'cancelled',
     notes: null,
     deletedAt: null,
+    groupId: null,
   });
 }
 

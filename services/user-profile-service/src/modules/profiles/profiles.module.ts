@@ -7,6 +7,7 @@ import { SeedProfileNameHandler } from './application/commands/seed-profile-name
 import { GetProfileByUserIdHandler } from './application/queries/get-profile-by-user-id/get-profile-by-user-id.handler.js';
 import { GetProfilesByUserIdsHandler } from './application/queries/get-profiles-by-user-ids/get-profiles-by-user-ids.handler.js';
 import { LookupUserByEmailHandler } from './application/queries/lookup-user-by-email/lookup-user-by-email.handler.js';
+import { GetUserContactHandler } from './application/queries/get-user-contact/get-user-contact.handler.js';
 import { PROFILE_REPOSITORY } from './domain/repositories/profile.repository.interface.js';
 import { ProfilePrismaRepository } from './infrastructure/persistence/profile.prisma.repository.js';
 import { GetStudentProfileByUserIdHandler } from '../students/application/queries/get-student-profile-by-user-id/get-student-profile-by-user-id.handler.js';
@@ -39,6 +40,7 @@ const QueryHandlers = [
   GetTeachingProfileByUserIdHandler,
   ListTutorsHandler,
   LookupUserByEmailHandler,
+  GetUserContactHandler,
 ];
 
 @Module({

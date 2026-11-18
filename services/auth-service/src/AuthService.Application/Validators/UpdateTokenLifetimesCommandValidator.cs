@@ -39,5 +39,9 @@ public sealed class UpdateTokenLifetimesCommandValidator
                 .All(g => g.Count() == 1))
             .When(x => x.Changes is not null && x.Changes.All(c => c.Role is not null && c.ClientType is not null))
             .WithMessage("Each role and client may appear only once.");
+
+        RuleFor(x => x.Reason)
+            .NotEmpty().WithMessage("A reason is required.")
+            .MaximumLength(500).WithMessage("The reason is at most 500 characters.");
     }
 }

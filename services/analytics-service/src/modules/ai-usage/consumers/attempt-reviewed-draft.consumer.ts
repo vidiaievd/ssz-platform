@@ -121,21 +121,23 @@ export class AttemptReviewedDraftConsumer implements OnModuleInit, OnModuleDestr
       for (const i of increments) {
         await tx.$executeRaw`
           INSERT INTO ai_draft_quality_daily (
-            id, day, capability, model_id, prompt_version, reviews,
+            id, day, capability, model_id, prompt_version, template_code, reviews, drafts_settled,
             remarks_accepted, remarks_edited, remarks_discarded, remarks_untouched,
             reviews_with_marks, marks_same, marks_different, marks_compared,
             marks_delta_sum, marks_abs_delta_sum,
             teacher_verdicts, teacher_overturned, updated_at
           ) VALUES (
-            gen_random_uuid()::text, ${day}::date, ${i.capability}, ${i.modelId}, ${i.promptVersion}, ${i.reviews},
+            gen_random_uuid()::text, ${day}::date, ${i.capability}, ${i.modelId}, ${i.promptVersion},
+            ${i.templateCode}, ${i.reviews}, ${i.draftsSettled},
             ${i.remarks.accepted}, ${i.remarks.edited}, ${i.remarks.discarded}, ${i.remarks.untouched},
             ${i.marks.reviews}, ${i.marks.same}, ${i.marks.different}, ${i.marks.compared},
             ${i.marks.deltaSum}, ${i.marks.absDeltaSum},
             ${i.teacherVerdicts}, ${i.teacherOverturned}, now()
           )
-          ON CONFLICT (day, capability, model_id, prompt_version)
+          ON CONFLICT (day, capability, model_id, prompt_version, template_code)
           DO UPDATE SET
             reviews           = ai_draft_quality_daily.reviews + EXCLUDED.reviews,
+            drafts_settled    = ai_draft_quality_daily.drafts_settled + EXCLUDED.drafts_settled,
             remarks_accepted  = ai_draft_quality_daily.remarks_accepted + EXCLUDED.remarks_accepted,
             remarks_edited    = ai_draft_quality_daily.remarks_edited + EXCLUDED.remarks_edited,
             remarks_discarded = ai_draft_quality_daily.remarks_discarded + EXCLUDED.remarks_discarded,

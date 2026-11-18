@@ -40,3 +40,11 @@ export class AssignmentDomainValidationError extends AssignmentApplicationError 
 export class InvalidContentRefError extends AssignmentApplicationError {
   constructor(detail: string) { super(`Invalid content reference: ${detail}`); }
 }
+
+/**
+ * The course is obsolete (plan 90, Q5): it takes no new learners, so it cannot be assigned
+ * either. The message is the code — the error filter passes only `message` to the client.
+ */
+export class CourseObsoleteError extends AssignmentApplicationError {
+  constructor() { super('COURSE_OBSOLETE'); }
+}

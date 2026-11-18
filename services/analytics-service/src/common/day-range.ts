@@ -14,6 +14,20 @@ export function parseDayRange(from: string | undefined, to: string | undefined):
   }
 }
 
+/**
+ * Either end may be left out (all time on that side); a given one must be a calendar day, and
+ * `from` not after `to`. No length cap — for readouts that sum over all time by default.
+ */
+export function parseOptionalDayRange(
+  from: string | undefined,
+  to: string | undefined,
+): { from: string | null; to: string | null } {
+  const fromDay = from === undefined || from === '' ? null : parseDay('from', from);
+  const toDay = to === undefined || to === '' ? null : parseDay('to', to);
+  if (fromDay && toDay && fromDay > toDay) throw new BadRequestException('"from" is after "to"');
+  return { from: fromDay ? from! : null, to: toDay ? to! : null };
+}
+
 function parseDay(name: string, value: string | undefined): Date {
   if (!value || !DAY_PATTERN.test(value)) {
     throw new BadRequestException(`"${name}" must be a day, YYYY-MM-DD`);

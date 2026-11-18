@@ -7,6 +7,10 @@ import { LevelSystem } from '../../../domain/value-objects/level-system.vo.js';
 import { GatingMode } from '../../../domain/value-objects/gating-mode.vo.js';
 import { VersionStatus } from '../../../domain/value-objects/version-status.vo.js';
 import { ContainerItemType } from '../../../domain/value-objects/item-type.vo.js';
+import {
+  MaintenanceSource,
+  MaintenanceStatus,
+} from '../../../domain/value-objects/maintenance-status.vo.js';
 
 // ─── ContainerType ───────────────────────────────────────────────────────────
 
@@ -198,4 +202,52 @@ export function prismaItemTypeToDomain(value: $Enums.ContainerItemType): Contain
 
 export function domainItemTypeToPrisma(value: ContainerItemType): $Enums.ContainerItemType {
   return DOMAIN_TO_PRISMA_ITEM_TYPE[value];
+}
+
+// ─── MaintenanceStatus / MaintenanceSource (plan 90, phase 5, Q5) ────────────
+
+const PRISMA_TO_DOMAIN_MAINTENANCE_STATUS: Record<$Enums.MaintenanceStatus, MaintenanceStatus> = {
+  MAINTAINED: MaintenanceStatus.MAINTAINED,
+  UNMAINTAINED: MaintenanceStatus.UNMAINTAINED,
+  OBSOLETE: MaintenanceStatus.OBSOLETE,
+};
+
+const DOMAIN_TO_PRISMA_MAINTENANCE_STATUS: Record<MaintenanceStatus, $Enums.MaintenanceStatus> = {
+  [MaintenanceStatus.MAINTAINED]: 'MAINTAINED',
+  [MaintenanceStatus.UNMAINTAINED]: 'UNMAINTAINED',
+  [MaintenanceStatus.OBSOLETE]: 'OBSOLETE',
+};
+
+export function prismaMaintenanceStatusToDomain(
+  value: $Enums.MaintenanceStatus,
+): MaintenanceStatus {
+  return PRISMA_TO_DOMAIN_MAINTENANCE_STATUS[value];
+}
+
+export function domainMaintenanceStatusToPrisma(
+  value: MaintenanceStatus,
+): $Enums.MaintenanceStatus {
+  return DOMAIN_TO_PRISMA_MAINTENANCE_STATUS[value];
+}
+
+const PRISMA_TO_DOMAIN_MAINTENANCE_SOURCE: Record<$Enums.MaintenanceSource, MaintenanceSource> = {
+  AUTHOR: MaintenanceSource.AUTHOR,
+  SCHOOL: MaintenanceSource.SCHOOL,
+};
+
+const DOMAIN_TO_PRISMA_MAINTENANCE_SOURCE: Record<MaintenanceSource, $Enums.MaintenanceSource> = {
+  [MaintenanceSource.AUTHOR]: 'AUTHOR',
+  [MaintenanceSource.SCHOOL]: 'SCHOOL',
+};
+
+export function prismaMaintenanceSourceToDomain(
+  value: $Enums.MaintenanceSource | null,
+): MaintenanceSource | null {
+  return value === null ? null : PRISMA_TO_DOMAIN_MAINTENANCE_SOURCE[value];
+}
+
+export function domainMaintenanceSourceToPrisma(
+  value: MaintenanceSource | null,
+): $Enums.MaintenanceSource | null {
+  return value === null ? null : DOMAIN_TO_PRISMA_MAINTENANCE_SOURCE[value];
 }

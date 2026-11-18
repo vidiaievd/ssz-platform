@@ -1,3 +1,4 @@
+import { SchoolActivityGate } from '../../services/school-activity-gate.js';
 import { CommandBus, CommandHandler, QueryBus, type ICommandHandler } from '@nestjs/cqrs';
 import type { AttemptReviewedAiDraft } from '@ssz/contracts';
 import { readRubricMarks } from '@ssz/shared-kernel/writing-task';
@@ -17,7 +18,7 @@ import {
   ATTEMPT_REPOSITORY,
   type IAttemptRepository,
 } from '../../../domain/repositories/attempt.repository.js';
-import { Inject, Logger } from '@nestjs/common';
+import { Inject, Logger, Optional } from '@nestjs/common';
 import { GetDraftForReviewQuery } from '../../../../ai-drafts/application/queries/get-draft-for-review/get-draft-for-review.query.js';
 import {
   teacherDraftCapability,
@@ -109,6 +110,8 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
     // from importing each other (as the review query does, plan 79 1.4).
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
+    // Plan 90, phase 5, step 7: a school that is not active takes no new work. Optional like the neighbours.
+    @Optional() @Inject(SchoolActivityGate) private readonly schoolGate: SchoolActivityGate | null = null,
   ) {}
 
   async execute(
@@ -116,6 +119,7 @@ export class ReviewAttemptHandler implements ICommandHandler<ReviewAttemptComman
   ): Promise<Result<ReviewAttemptResult, ReviewAttemptError>> {
     const attempt = await this.attempts.findById(command.attemptId);
     if (!attempt) return Result.fail({ code: 'ATTEMPT_NOT_FOUND' });
+    await this.schoolGate?.assertSchoolOpen(attempt.schoolId);
 
     // Someone has already answered this one. Said before anything else is computed,
     // because the answer the screen needs is who and what, not that it failed.

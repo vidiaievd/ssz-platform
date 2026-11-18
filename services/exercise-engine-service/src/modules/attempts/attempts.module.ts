@@ -33,6 +33,7 @@ import { ListMySubmissionsHandler } from './application/queries/list-my-submissi
 import { ListMyMistakesHandler } from './application/queries/list-my-mistakes/list-my-mistakes.handler.js';
 import { GetSubmissionForReviewHandler } from './application/queries/get-submission-for-review/get-submission-for-review.handler.js';
 import { ReviewScoring } from './application/services/review-scoring.js';
+import { SchoolActivityGate } from './application/services/school-activity-gate.js';
 import { ReviewContextResolver } from './application/services/review-context-resolver.js';
 import { ReviewerResolver } from './application/services/reviewer-resolver.js';
 import { ReviewPolicyResolver } from './application/services/review-policy-resolver.js';
@@ -89,6 +90,7 @@ const QueryHandlers = [
     PrismaAttemptRepository,
     { provide: ATTEMPT_REPOSITORY, useExisting: PrismaAttemptRepository },
     ReviewContextResolver,
+    SchoolActivityGate,
     ReviewerResolver,
     ReviewPolicyResolver,
     ReviewScoring,

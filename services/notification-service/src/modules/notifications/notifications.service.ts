@@ -6,6 +6,7 @@ import { emailVerificationTemplate } from '../../infrastructure/email/templates/
 import { passwordResetTemplate } from '../../infrastructure/email/templates/password-reset.template.js';
 import { schoolInvitationTemplate } from '../../infrastructure/email/templates/school-invitation.template.js';
 import { tutoringInvitationTemplate } from '../../infrastructure/email/templates/tutoring-invitation.template.js';
+import { schoolLifecycleTemplate, type SchoolLifecycleTemplateData } from '../../infrastructure/email/templates/school-lifecycle.template.js';
 import type { NotificationType, NotificationChannel } from '../../../generated/prisma/enums.js';
 
 export interface SendWelcomeEmailInput {
@@ -45,6 +46,12 @@ export interface SendTutoringInvitationInput {
   tutorName: string;
   invitationUrl: string;
   expiresAt: string;
+}
+
+export interface SendSchoolLifecycleEmailInput extends SchoolLifecycleTemplateData {
+  ownerId: string;
+  email: string;
+  schoolId: string;
 }
 
 @Injectable()
@@ -166,6 +173,30 @@ export class NotificationsService {
         tutorName: input.tutorName,
         invitationUrl: input.invitationUrl,
         expiresAt: input.expiresAt,
+      },
+    });
+
+    await this.sendEmail(notification.id, input.email, template);
+  }
+
+  /** A letter to a school's owner about its status (plan 90, phase 5, step 9). Stored as `GENERAL`. */
+  async sendSchoolLifecycleEmail(input: SendSchoolLifecycleEmailInput): Promise<void> {
+    const template = schoolLifecycleTemplate(input);
+
+    const notification = await this.repo.create({
+      type: 'GENERAL' as NotificationType,
+      channel: 'EMAIL' as NotificationChannel,
+      recipientId: input.ownerId,
+      recipientEmail: input.email,
+      subject: template.subject,
+      templateKey: `school-lifecycle-${input.letter}`,
+      templateData: {
+        schoolId: input.schoolId,
+        schoolName: input.schoolName,
+        letter: input.letter,
+        closesAt: input.closesAt ?? null,
+        purgeAt: input.purgeAt ?? null,
+        daysLeft: input.daysLeft ?? null,
       },
     });
 

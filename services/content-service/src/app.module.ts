@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, RequestMethod } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { CqrsModule } from '@nestjs/cqrs';
@@ -28,6 +28,7 @@ import { InternalModule } from './modules/internal/internal.module.js';
 import { GroupEntitlementModule } from './infrastructure/messaging/group-entitlement.module.js';
 import { CanDoModule } from './modules/can-do/can-do.module.js';
 import { UserErasureModule } from './modules/user-erasure/user-erasure.module.js';
+import { SchoolLifecycleModule } from './modules/school-lifecycle/school-lifecycle.module.js';
 import { SkillsModule } from './shared/skills/skills.module.js';
 import { CoverageRecipeModule } from './modules/coverage-recipe/coverage-recipe.module.js';
 import { PersonalVocabularyModule } from './modules/personal-vocabulary/personal-vocabulary.module.js';
@@ -44,6 +45,8 @@ import { SoundAtomModule } from './modules/sound-atom/sound-atom.module.js';
         const level = config.get<AppConfig['app']>('app')?.logLevel ?? 'debug';
 
         return {
+          // Nest 11 / path-to-regexp 8 rejects the library's default '*' route.
+          forRoutes: [{ path: '*path', method: RequestMethod.ALL }],
           pinoHttp: {
             transport: isDev
               ? {
@@ -85,6 +88,7 @@ import { SoundAtomModule } from './modules/sound-atom/sound-atom.module.js';
     GroupEntitlementModule,
     CanDoModule,
     UserErasureModule,
+    SchoolLifecycleModule,
   ],
   controllers: [],
   providers: [

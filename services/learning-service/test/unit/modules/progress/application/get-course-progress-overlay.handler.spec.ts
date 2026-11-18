@@ -86,7 +86,7 @@ describe('GetCourseProgressOverlayHandler', () => {
 
   it('throws when the content client fails', async () => {
     const { handler, contentClient } = makeHandler();
-    (contentClient.getCourseLeafItems as jest.Mock).mockResolvedValue(
+    (contentClient.getCourseLeafItems as jest.Mock<() => Promise<unknown>>).mockResolvedValue(
       Result.fail(new ContentClientError('course not found', 404)),
     );
 

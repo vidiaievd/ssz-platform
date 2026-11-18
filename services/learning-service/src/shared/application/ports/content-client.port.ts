@@ -41,6 +41,18 @@ export type AccessTier =
   | 'ENTITLEMENT_REQUIRED'
   | 'ASSIGNED_ONLY';
 
+/**
+ * Whether a course is still looked after (content-service, plan 90, Q5). An `obsolete`
+ * course takes no new enrolments; its learners carry on.
+ */
+export type CourseMaintenanceStatus = 'maintained' | 'unmaintained' | 'obsolete';
+
+/** What enrolling in a container depends on, as content-service tells it. */
+export interface ContainerAccessTerms {
+  accessTier: AccessTier;
+  maintenanceStatus: CourseMaintenanceStatus;
+}
+
 // Mirrors content-service's RelatableEntityType/RelationKind wire values
 // exactly (plan 21 §1) — lowercase, snake_case, as sent/received over HTTP.
 export type RelatableEntityType =
@@ -109,9 +121,11 @@ export interface IContentClient {
     userId: string,
   ): Promise<Result<VisibilityResult, ContentClientError>>;
 
+  // Access tier and maintenance status of a container.
+  // Calls GET /api/v1/internal/containers/{id}/access-tier on Content Service.
   getAccessTier(
     containerId: string,
-  ): Promise<Result<AccessTier, ContentClientError>>;
+  ): Promise<Result<ContainerAccessTerms, ContentClientError>>;
 
   // Owner of a container — the author and, when there is one, their school.
   // Calls GET /api/v1/internal/containers/{id}/directory on Content Service.

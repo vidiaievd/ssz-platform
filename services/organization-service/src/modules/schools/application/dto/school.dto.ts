@@ -1,5 +1,13 @@
 import type { MemberRole } from '../../domain/value-objects/member-role.vo.js';
 import type { SchoolType } from '../../domain/value-objects/school-type.vo.js';
+import type { SchoolStatus } from '../../domain/school-access.policy.js';
+
+/** Where the school stands in its lifecycle (plan 90, phase 5). */
+export interface SchoolLifecycleDto {
+  status: SchoolStatus;
+  closesAt: Date | null;
+  purgeAt: Date | null;
+}
 
 export interface AvailabilityWindow {
   weekday: number; // 1-7
@@ -25,7 +33,7 @@ export interface SchoolMemberDto {
   joinedAt: Date;
 }
 
-export interface SchoolDto {
+export interface SchoolDto extends SchoolLifecycleDto {
   id: string;
   name: string;
   slug: string;
@@ -45,7 +53,7 @@ export interface SchoolDto {
   members: SchoolMemberDto[];
 }
 
-export interface SchoolSummaryDto {
+export interface SchoolSummaryDto extends SchoolLifecycleDto {
   id: string;
   name: string;
   slug: string;

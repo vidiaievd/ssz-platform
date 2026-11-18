@@ -77,4 +77,14 @@ describe('admin trail of plan changes', () => {
     await expect(new ArchivePlanHandler(again.as).execute(new ArchivePlanCommand('tutor_pro', actor, 'again'))).rejects.toThrow();
     expect(again.plans.save).not.toHaveBeenCalled();
   });
+
+  it('archive: a free plan is refused before anything is written', async () => {
+    const free = Plan.create({ id: 'p0', code: 'free_workspace', name: 'Free', audience: 'workspace', features: credits('0'), createdBy: 'seed', now }).value;
+    const r = repo(free);
+    await expect(new ArchivePlanHandler(r.as).execute(new ArchivePlanCommand('free_workspace', actor, 'cleanup'))).rejects.toMatchObject({
+      response: { code: 'free_plan_not_archivable' },
+    });
+    expect(r.plans.save).not.toHaveBeenCalled();
+    expect(free.status).toBe('active');
+  });
 });

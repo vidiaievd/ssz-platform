@@ -9,9 +9,12 @@ export type PlanError =
   | { code: 'invalid_credits'; featureKey: string; value: string }
   | { code: 'unknown_limit'; featureKey: string; limit: string }
   | { code: 'invalid_limit'; featureKey: string; limit: string }
+  | { code: 'limit_required'; featureKey: string; limit: string }
+  | { code: 'feature_not_for_audience'; featureKey: string; audience: string }
   | { code: 'invalid_plan_code'; value: string }
   | { code: 'plan_archived'; planCode: string }
-  | { code: 'plan_already_archived'; planCode: string };
+  | { code: 'plan_already_archived'; planCode: string }
+  | { code: 'free_plan_not_archivable'; planCode: string };
 
 export function describePlanError(error: PlanError): string {
   switch (error.code) {
@@ -27,11 +30,17 @@ export function describePlanError(error: PlanError): string {
       return `Feature key "${error.featureKey}" has no limit "${error.limit}"`;
     case 'invalid_limit':
       return `Limit "${error.limit}" of "${error.featureKey}" must be a non-negative number`;
+    case 'limit_required':
+      return `Feature key "${error.featureKey}" needs the limit "${error.limit}" while it is on`;
+    case 'feature_not_for_audience':
+      return `Feature key "${error.featureKey}" is not for ${error.audience} plans`;
     case 'invalid_plan_code':
       return `Plan code must be lower_snake_case, got "${error.value}"`;
     case 'plan_archived':
       return `Plan "${error.planCode}" is archived and cannot be assigned`;
     case 'plan_already_archived':
       return `Plan "${error.planCode}" is already archived`;
+    case 'free_plan_not_archivable':
+      return `Plan "${error.planCode}" is the free plan of its audience and cannot be archived`;
   }
 }

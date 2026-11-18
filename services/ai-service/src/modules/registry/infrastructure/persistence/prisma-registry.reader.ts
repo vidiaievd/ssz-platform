@@ -6,7 +6,7 @@ import type {
   ModelWithCurrentPrice,
   ProviderWithModelCount,
 } from '../../application/ports/registry.reader.js';
-import type { AiModelPrice } from '../../domain/registry.types.js';
+import type { AiModelPrice, AiProvider } from '../../domain/registry.types.js';
 import { toModel, toPrice, toProvider } from './registry.mapper.js';
 
 @Injectable()
@@ -19,6 +19,11 @@ export class PrismaRegistryReader implements IRegistryReader {
       include: { _count: { select: { models: true } } },
     });
     return rows.map((row) => ({ ...toProvider(row), modelCount: row._count.models }));
+  }
+
+  async getProvider(providerId: string): Promise<AiProvider | null> {
+    const row = await this.prisma.aiProvider.findUnique({ where: { id: providerId } });
+    return row ? toProvider(row) : null;
   }
 
   async listModels(filter: { providerId?: string }, at: Date): Promise<ModelWithCurrentPrice[]> {

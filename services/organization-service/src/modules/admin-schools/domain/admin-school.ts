@@ -4,20 +4,14 @@
  * commands with a reason (later phases).
  */
 
+import type { SchoolLifecycleStatus } from '@ssz/contracts';
+import type { SeatUsage } from '../../schools/domain/value-objects/seat-policy.vo.js';
+
 export type SchoolKindValue = 'SCHOOL' | 'SOLO';
 
-/**
- * Where a school stands today. `deleted` is a soft-deleted row, `inactive` a row switched
- * off without deleting it. The lifecycle of phase 5 (suspended → closed → purged) will
- * replace this derivation with a stored status.
- */
-export type AdminSchoolStatus = 'active' | 'inactive' | 'deleted';
-export const ADMIN_SCHOOL_STATUSES: readonly AdminSchoolStatus[] = ['active', 'inactive', 'deleted'];
-
-export function schoolStatus(isActive: boolean, deletedAt: Date | null): AdminSchoolStatus {
-  if (deletedAt) return 'deleted';
-  return isActive ? 'active' : 'inactive';
-}
+/** Where a school stands in its lifecycle — the stored `schools.status` (plan 90, phase 5). */
+export type AdminSchoolStatus = SchoolLifecycleStatus;
+export const ADMIN_SCHOOL_STATUSES: readonly AdminSchoolStatus[] = ['active', 'suspended', 'closed', 'purged'];
 
 /** Sort keys; a leading `-` means descending. Ties always break by id, so pages never overlap. */
 export type AdminSchoolSort = 'createdAt' | '-createdAt' | 'name' | '-name';
@@ -30,10 +24,24 @@ export const ADMIN_SCHOOLS_PAGE_MAX = 100;
 export interface AdminSchoolFilter {
   /** Case-insensitive substring of the name or the slug. */
   search?: string;
+  /** Exactly these schools (a batch read of names, e.g. the AI spend per payer); unknown ids are just absent. */
+  ids?: readonly string[];
   kind?: SchoolKindValue;
-  /** No status = every row, soft-deleted ones included: the admin sees what is there. */
+  /** No status = every row, closed and purged ones included: the admin sees what is there. */
   status?: AdminSchoolStatus;
+  seats?: AdminSchoolSeatsFilter;
 }
+
+/**
+ * Seat filter of the list (plan 90, phase 4). `near` = at 90 % of the limit or more, not yet
+ * over it; `over` = more active learners than the limit. Schools without a numeric limit
+ * (none stated, or not projected yet) match neither.
+ */
+export type AdminSchoolSeatsFilter = 'near' | 'over';
+export const ADMIN_SCHOOL_SEATS_FILTERS: readonly AdminSchoolSeatsFilter[] = ['near', 'over'];
+
+/** Share of the limit from which a school counts as `near`. */
+export const SEATS_NEAR_RATIO = 0.9;
 
 /** Head counts on the roster; the owner is not a roster row and counts in none of them. */
 export interface AdminSchoolCounts {
@@ -48,10 +56,16 @@ export interface AdminSchoolListItem {
   slug: string;
   kind: SchoolKindValue;
   status: AdminSchoolStatus;
+  /** When a suspended school closes by itself; null in any other status. */
+  closesAt: Date | null;
+  /** When a closed school is purged; null in any other status. */
+  purgeAt: Date | null;
   ownerId: string;
   city: string | null;
   createdAt: Date;
   counts: AdminSchoolCounts;
+  /** `used` = `counts.students`; `limit` null = no limit stated or not projected yet. */
+  seats: { used: number; limit: number | null };
 }
 
 export interface AdminSchoolPage {
@@ -80,12 +94,18 @@ export interface AdminSchoolDetail {
   kind: SchoolKindValue;
   type: 'ONLINE' | 'HYBRID';
   status: AdminSchoolStatus;
+  statusChangedAt: Date | null;
+  /** The admin's reason for the current status; null when the owner or the timer moved it. */
+  statusReason: string | null;
+  closesAt: Date | null;
+  purgeAt: Date | null;
   description: string | null;
   avatarUrl: string | null;
   contacts: { email: string | null; website: string | null; city: string | null };
   owner: { userId: string; name: string | null; email: string | null };
   createdAt: Date;
   updatedAt: Date;
+  /** Mirrors the status: when the school was closed (set while `closed` / `purged`). */
   deletedAt: Date | null;
   counts: AdminSchoolCounts & {
     archivedStudents: number;
@@ -95,6 +115,8 @@ export interface AdminSchoolDetail {
     pendingApplications: number;
     pendingInvitations: number;
   };
+  /** From the local projection of the plan's limit, so a school never seen by the projection shows no limit. */
+  seats: SeatUsage;
   /** Groups not deleted, newest first. */
   groups: AdminSchoolGroup[];
   /** Distinct courses the groups teach — main material and additional ones; names live in content-service. */

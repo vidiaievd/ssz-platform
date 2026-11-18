@@ -6,4 +6,6 @@ export const SCHOOL_ROLE_READER = Symbol('ISchoolRoleReader');
  */
 export interface ISchoolRoleReader {
   getMemberRole(schoolId: string, userId: string): Promise<string | null>;
+  /** 409 `SCHOOL_NOT_ACTIVE` when the school is suspended, closed or purged; fails open on an outage. */
+  assertSchoolActive(schoolId: string): Promise<void>;
 }

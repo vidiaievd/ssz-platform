@@ -323,6 +323,7 @@ describe('Assignment.reconstitute', () => {
       cancelledReason: null,
       notes: null,
       deletedAt: null,
+      groupId: null,
     });
 
     expect(a.status).toBe('OVERDUE');

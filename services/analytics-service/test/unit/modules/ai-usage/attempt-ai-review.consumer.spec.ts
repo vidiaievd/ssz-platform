@@ -17,9 +17,27 @@ describe('AttemptAiReviewConsumer — foldOf (plan 79, 2.3b)', () => {
       capability: 'review_direct',
       modelId: 'fake-model',
       promptVersion: 'review_direct@1',
+      templateCode: 'translate_to_target',
       day: '2026-10-24',
       column: 'reviews',
     });
+  });
+
+  // Plan 90, phase 7, step 10.
+  it('folds an event without a template on the "not recorded" row', () => {
+    const { templateCode: _dropped, ...noTemplate } = axes;
+    expect(foldOf('exercise.attempt.ai_reviewed', { ...noTemplate, occurredAt: '2026-10-24T10:00:00Z' })).toMatchObject({
+      templateCode: null,
+      column: 'reviews',
+    });
+    expect(
+      foldOf('exercise.attempt.ai_review_disputed', {
+        ...axes,
+        reviewedAt: '2026-10-24T10:00:00Z',
+        withReason: true,
+        occurredAt: '2026-10-25T10:00:00Z',
+      }),
+    ).toMatchObject({ templateCode: 'translate_to_target', column: 'disputes' });
   });
 
   it('adds a dispute on its review’s day, not on the day it was pressed', () => {

@@ -8,6 +8,7 @@ import type { Payer } from '../domain/payer.js';
 import { DEFAULT_POLICY } from '../domain/payer-policy.js';
 import type { QuotaInForce } from '../domain/quota.js';
 import type { RefusalCode } from '../domain/refusal.js';
+import { WORKSPACE_STATUS_STORE, type IWorkspaceStatusStore } from './ports/workspace-status.js';
 import { ENTITLEMENT_READER, type IEntitlementReader } from './ports/entitlement.reader.js';
 import { PAYER_POLICY_REPOSITORY, type IPayerPolicyRepository } from './ports/payer-policy.repository.js';
 import { QUOTA_COUNTER, type IQuotaCounter } from './ports/quota-counter.js';
@@ -38,6 +39,8 @@ export type GateFailure =
  * before the call and the charge after it, so calls in flight together can overshoot the
  * allowance by their own cost — a reservation would close that, at a write per call.
  *
+ * A workspace that is not `active` (suspended, closed, purged) is refused first, `school_not_active`.
+ *
  * The platform pays for admin checks only and has neither a policy nor a tariff.
  */
 @Injectable()
@@ -49,6 +52,7 @@ export class AccessGate {
     @Inject(ENTITLEMENT_READER) private readonly entitlements: IEntitlementReader,
     @Inject(QUOTA_COUNTER) private readonly counter: IQuotaCounter,
     @Inject(LEDGER_USAGE_READER) private readonly usage: ILedgerUsageReader,
+    @Inject(WORKSPACE_STATUS_STORE) private readonly workspaces: IWorkspaceStatusStore,
   ) {}
 
   async check(capability: string, payer: Payer): Promise<Result<GateGrant, GateFailure>> {
@@ -57,6 +61,10 @@ export class AccessGate {
     let allowedRegions: AiRegion[] | null;
     let feature: FeatureEntitlement;
     try {
+      // A school that is not active does not pay, whatever its policy and tariff say (plan 90, phase 5).
+      if (payer.type === 'workspace' && (await this.workspaces.get(payer.id)) !== 'active') {
+        return Result.fail({ kind: 'refused', code: 'school_not_active' });
+      }
       const policy = (await this.policies.get(payer)) ?? DEFAULT_POLICY;
       if (!policy.aiEnabled) return Result.fail({ kind: 'refused', code: 'ai_disabled' });
 
@@ -85,6 +93,7 @@ export class AccessGate {
   async allows(capability: string, payer: Payer): Promise<boolean> {
     if (payer.type === 'platform') return true;
     try {
+      if (payer.type === 'workspace' && (await this.workspaces.get(payer.id)) !== 'active') return false;
       const policy = (await this.policies.get(payer)) ?? DEFAULT_POLICY;
       if (!policy.aiEnabled) return false;
       return (await this.entitlements.getFeature(payer, featureKeyOf(capability)))?.enabled === true;

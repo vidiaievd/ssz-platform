@@ -25,7 +25,15 @@ export class OrganizationClientError extends Error {
   }
 }
 
+/** A school's lifecycle status (plan 90, phase 5); only `active` takes new work. */
+export type SchoolLifecycleStatus = 'active' | 'suspended' | 'closed' | 'purged';
+
 export interface IOrganizationClient {
+  /** Where a school stands; a 404 error for an unknown school. */
+  getSchoolStatus(
+    schoolId: string,
+  ): Promise<Result<SchoolLifecycleStatus, OrganizationClientError>>;
+
   getMemberRole(
     schoolId: string,
     userId: string,

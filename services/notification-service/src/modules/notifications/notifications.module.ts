@@ -25,6 +25,14 @@ import { AttemptReviewedHandler } from './handlers/attempt-reviewed.handler.js';
 import { AiReviewedHandler } from './handlers/ai-reviewed.handler.js';
 import { AssignmentCreatedHandler } from './handlers/assignment-created.handler.js';
 import { LessonChangedHandler } from './handlers/lesson-changed.handler.js';
+import {
+  SchoolOwnerMailer,
+  SchoolSuspendedHandler,
+  SchoolClosedHandler,
+  SchoolRestoredHandler,
+  SchoolPurgeReminderHandler,
+} from './handlers/school-lifecycle.handlers.js';
+import { OwnerContactClient } from './schedules/clients/owner-contact.client.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
@@ -66,6 +74,12 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     AiReviewedHandler,
     AssignmentCreatedHandler,
     LessonChangedHandler,
+    OwnerContactClient,
+    SchoolOwnerMailer,
+    SchoolSuspendedHandler,
+    SchoolClosedHandler,
+    SchoolRestoredHandler,
+    SchoolPurgeReminderHandler,
     AnalyticsConsumerService,
     SchedulingConsumerService,
     OrganizationConsumerService,

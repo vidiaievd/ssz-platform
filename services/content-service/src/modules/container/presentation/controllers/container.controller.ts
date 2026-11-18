@@ -21,6 +21,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
@@ -86,6 +87,8 @@ import type { ContainerCoverageRecipeResult } from '../../application/queries/ge
 import { SetContainerCoverageRecipeCommand } from '../../application/commands/set-coverage-recipe/set-container-coverage-recipe.command.js';
 import { SetContainerCoverageRecipeRequestDto } from '../dto/requests/coverage-recipe.request.dto.js';
 import { ContainerCoverageRecipeResponseDto } from '../dto/responses/coverage-recipe.response.dto.js';
+import { SetContainerMaintenanceStatusCommand } from '../../application/commands/set-maintenance-status/set-container-maintenance-status.command.js';
+import { SetContainerMaintenanceStatusRequestDto } from '../dto/requests/maintenance-status.request.dto.js';
 
 @ApiTags('Containers')
 @ApiBearerAuth()
@@ -447,6 +450,33 @@ export class ContainerController {
 
     if (applied.isFail) throwHttpException(applied.error);
     return this.getReviewAiPolicy(id);
+  }
+
+  /**
+   * The author's say on whether the course is still looked after (plan 90, phase 5, Q5).
+   * Answers the course as it now stands; the same status again changes nothing.
+   */
+  @Put(':id/maintenance')
+  @UseGuards(VisibilityGuard)
+  @RequireAccess('edit', { entityType: TaggableEntityType.CONTAINER })
+  @ApiOperation({ summary: 'Mark a course maintained, no longer maintained, or obsolete' })
+  @ApiOkResponse({ type: ContainerResponseDto })
+  @ApiBadRequestResponse({ description: 'INVALID_MAINTENANCE_STATUS' })
+  @ApiResponse({ status: 422, description: 'MAINTENANCE_ONLY_FOR_COURSES — modules and collections carry no status' })
+  @ApiResponse({ status: 409, description: 'CONTAINER_ALREADY_DELETED' })
+  async setMaintenanceStatus(
+    @Param('id') id: string,
+    @Body() dto: SetContainerMaintenanceStatusRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ContainerResponseDto> {
+    const result = await this.commandBus.execute<
+      SetContainerMaintenanceStatusCommand,
+      Result<ContainerEntity, ContainerDomainError>
+    >(new SetContainerMaintenanceStatusCommand(user.userId, id, dto.status));
+
+    if (result.isFail) throwHttpException(result.error);
+    const tags = await this.tagsOf([result.value.id]);
+    return ContainerResponseDto.from(result.value, [], tags.get(result.value.id));
   }
 
   @Patch(':id')

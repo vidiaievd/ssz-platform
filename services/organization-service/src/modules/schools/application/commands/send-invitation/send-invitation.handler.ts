@@ -30,6 +30,7 @@ import {
 } from '../../../../../shared/application/ports/profile-service.interface.js';
 import { PrismaService } from '../../../../../infrastructure/database/prisma.service.js';
 import type { Env } from '../../../../../config/configuration.js';
+import { StudentSeatGate } from '../../services/student-seat-gate.service.js';
 
 const INVITATION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -45,11 +46,14 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     private readonly capabilityResolver: CapabilityResolverService,
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env>,
+    private readonly seatGate: StudentSeatGate,
   ) {}
 
   async execute(command: SendInvitationCommand): Promise<{ invitationId: string; token: string; kind: string; expiresAt: string; deliveryStatus: 'queued' }> {
     const school = await this.schoolRepository.findById(command.schoolId);
     if (!school) throw new SchoolNotFoundException(command.schoolId);
+    // Read only unless active (plan 90, phase 5) — the tutor's invitation routes come here too.
+    school.assertWritable();
 
     const isOwner = command.actorId === school.ownerId;
     const actorRole = school.getMemberRole(command.actorId);
@@ -67,6 +71,12 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
     );
     if (existing) {
       throw new InvitationAlreadyPendingException(command.email);
+    }
+
+    // At the seat ceiling the invitation is refused now rather than on acceptance (plan 90,
+    // phase 4). Below it nothing is reserved — pending invitations take no seat.
+    if (command.role === MemberRole.STUDENT) {
+      await this.seatGate.assertRoomForOneMore(command.schoolId);
     }
 
     const now = new Date();

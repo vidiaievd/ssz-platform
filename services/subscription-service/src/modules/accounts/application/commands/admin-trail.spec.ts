@@ -124,7 +124,7 @@ describe('admin trail of account changes', () => {
       new IssueGrantCommand(
         'workspace',
         's1',
-        { featureKey: 'ai.review_direct', monthlyCredits: '50', limits: {}, startsAt: undefined, endsAt, reason: 'pilot' },
+        { featureKey: 'ai.review_direct', enabled: true, monthlyCredits: '50', limits: {}, startsAt: undefined, endsAt, reason: 'pilot' },
         actor,
       ),
     );
@@ -133,8 +133,23 @@ describe('admin trail of account changes', () => {
       action: 'grant.issued',
       reason: 'pilot',
       before: null,
-      after: { grantId: grant.id, featureKey: 'ai.review_direct', monthlyCredits: '50', endsAt: endsAt.toISOString() },
+      after: { grantId: grant.id, featureKey: 'ai.review_direct', enabled: true, monthlyCredits: '50', endsAt: endsAt.toISOString() },
     });
+  });
+
+  it('grant issue switching a key off: after says enabled false', async () => {
+    const r = repos(account());
+    const endsAt = new Date(Date.now() + 30 * 86_400_000);
+    await new IssueGrantHandler(r.asAccounts, r.asGrants, r.asReader).execute(
+      new IssueGrantCommand(
+        'workspace',
+        's1',
+        { featureKey: 'ai.review_direct', enabled: false, monthlyCredits: null, limits: {}, startsAt: undefined, endsAt, reason: 'abuse' },
+        actor,
+      ),
+    );
+    const [, audit] = r.grants.insert.mock.calls[0]! as [Grant, AdminAuditEntry];
+    expect(audit).toMatchObject({ action: 'grant.issued', after: { featureKey: 'ai.review_direct', enabled: false, monthlyCredits: null } });
   });
 
   it('grant revoke: before is the live grant, after its revocation', async () => {

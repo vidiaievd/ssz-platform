@@ -1,4 +1,8 @@
-import { ForbiddenException, UnprocessableEntityException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { ReviewBlockAccessService, decideBlockAccess } from './review-block-access.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 
@@ -43,8 +47,19 @@ describe('decideBlockAccess', () => {
 });
 
 describe('ReviewBlockAccessService', () => {
-  const rolesIn = (roles: Record<string, string | null>) => ({
+  const rolesIn = (roles: Record<string, string | null>, inactive = false) => ({
     getMemberRole: jest.fn(async (_school: string, userId: string) => roles[userId] ?? null),
+    assertSchoolActive: jest.fn(async () => {
+      if (inactive) throw new ConflictException({ code: 'SCHOOL_NOT_ACTIVE' });
+    }),
+  });
+
+  it('refuses a new block in a school that is not active, before any role is read (plan 90, phase 5)', async () => {
+    const roles = rolesIn({ t1: 'TEACHER' }, true);
+    await expect(new ReviewBlockAccessService(roles).requireCanWrite('s1', 't1', user('t1'))).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(roles.getMemberRole).not.toHaveBeenCalled();
   });
 
   it('asks only about the teacher when they write their own', async () => {

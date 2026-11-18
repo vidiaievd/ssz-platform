@@ -13,6 +13,7 @@ export class CreateSlotHandler implements ICommandHandler<CreateSlotCommand, Slo
   ) {}
 
   async execute(cmd: CreateSlotCommand): Promise<Slot> {
+    await this.orgClient.assertSchoolActive(cmd.schoolId);
     const group = await this.orgClient.getGroup(cmd.schoolId, cmd.groupId);
     if (!group) throw new NotFoundException(`Group ${cmd.groupId} not found in school ${cmd.schoolId}`);
     return this.slots.create({

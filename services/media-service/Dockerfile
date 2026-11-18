@@ -1,5 +1,5 @@
 # Build context: repo root (ssz-platform/)
-# Required because @ssz/contracts and @ssz/shared-kernel are local file: dependencies.
+# Required because @ssz/contracts, @ssz/shared-kernel and @ssz/messaging are local file: dependencies.
 
 # ── Stage 1: build contracts ───────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS contracts-builder
@@ -23,7 +23,21 @@ COPY packages/shared-kernel/src ./src
 COPY packages/shared-kernel/tsconfig.json ./
 RUN npm run build
 
-# ── Stage 3: build service ────────────────────────────────────────────────────
+# ── Stage 3: build messaging (outbox relay, plan 90 phase 8) ──────────────────
+FROM node:22-bookworm-slim AS messaging-builder
+
+COPY --from=contracts-builder /workspace/packages/contracts/package.json /workspace/packages/contracts/package.json
+COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
+
+WORKDIR /workspace/packages/messaging
+
+COPY packages/messaging/package*.json ./
+RUN npm install --install-links
+COPY packages/messaging/src ./src
+COPY packages/messaging/tsconfig.json ./
+RUN npm run build
+
+# ── Stage 4: build service ────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 ARG NODE_ENV=development
 
@@ -32,6 +46,8 @@ COPY --from=contracts-builder /workspace/packages/contracts/package.json /worksp
 COPY --from=contracts-builder /workspace/packages/contracts/dist         /workspace/packages/contracts/dist
 COPY --from=kernel-builder /workspace/packages/shared-kernel/package.json /workspace/packages/shared-kernel/package.json
 COPY --from=kernel-builder /workspace/packages/shared-kernel/dist         /workspace/packages/shared-kernel/dist
+COPY --from=messaging-builder /workspace/packages/messaging/package.json /workspace/packages/messaging/package.json
+COPY --from=messaging-builder /workspace/packages/messaging/dist         /workspace/packages/messaging/dist
 
 WORKDIR /workspace/services/media-service
 
@@ -48,7 +64,7 @@ RUN npx prisma generate
 RUN npm run build
 RUN if [ "$NODE_ENV" = "production" ]; then npm prune --production; fi
 
-# ── Stage 4: runtime ──────────────────────────────────────────────────────────
+# ── Stage 5: runtime ──────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app

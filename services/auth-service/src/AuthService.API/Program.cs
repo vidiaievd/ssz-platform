@@ -67,8 +67,10 @@ builder.Services
 
 builder.Services.AddAuthorization(opts =>
 {
-    opts.AddPolicy("AdminOnly",      p => p.RequireRole(RoleNames.PlatformAdmin));
-    // `admin_level` is on the access tokens of the admin client only (plan 90).
+    // `admin_level` is on the access tokens of the admin client only (plan 90), so a web
+    // session of a platform administrator passes neither policy.
+    opts.AddPolicy("AdminSupport",   p => p.RequireRole(RoleNames.PlatformAdmin)
+                                          .RequireClaim("admin_level", AdminLevels.All));
     opts.AddPolicy("SuperAdmin",     p => p.RequireRole(RoleNames.PlatformAdmin)
                                           .RequireClaim("admin_level", AdminLevels.Super));
     opts.AddPolicy("PremiumOrAdmin", p => p.RequireRole(RoleNames.Premium, RoleNames.PlatformAdmin));

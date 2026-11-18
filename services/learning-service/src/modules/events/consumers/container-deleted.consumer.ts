@@ -29,6 +29,16 @@ interface EventEnvelope {
   payload: unknown;
 }
 
+/**
+ * content-service's container repository publishes the whole domain event as the envelope's payload,
+ * so the id sits one level down (`payload.payload.containerId`); a flat payload is read too.
+ */
+export function readDeletedContainerId(payload: unknown): string | null {
+  const outer = (payload ?? {}) as Partial<ContainerDeletedPayload> & { payload?: Partial<ContainerDeletedPayload> };
+  const id = typeof outer.containerId === 'string' ? outer.containerId : outer.payload?.containerId;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
 const QUEUE = 'learning-service.container-deleted';
 const ROUTING_KEY = 'content.container.deleted';
 const BATCH_SIZE = 50;
@@ -97,12 +107,19 @@ export class ContainerDeletedConsumer implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const p = payload as ContainerDeletedPayload;
-      this.logger.log(`Container deleted: ${p.containerId} — starting cascade cancel`);
+      const containerId = readDeletedContainerId(payload);
+      if (!containerId) {
+        // Without an id every repository filter below would drop out and the cascade would hit every
+        // container on the platform — which is what this consumer did until plan 90, phase 5, step 4b.
+        this.logger.error(`${eventType} [${eventId}] carries no containerId — discarding`);
+        channel.nack(msg, false, false);
+        return;
+      }
+      this.logger.log(`Container deleted: ${containerId} — starting cascade cancel`);
 
-      await this.cascadeCancelAssignments(p.containerId);
-      await this.cascadeUnenrollEnrollments(p.containerId);
-      await this.cache.invalidate(p.containerId);
+      await this.cascadeCancelAssignments(containerId);
+      await this.cascadeUnenrollEnrollments(containerId);
+      await this.cache.invalidate(containerId);
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });
       channel.ack(msg);

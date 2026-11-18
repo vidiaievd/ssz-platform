@@ -45,6 +45,8 @@ export class ReviewBlockAccessService {
   constructor(@Inject(SCHOOL_ROLE_READER) private readonly roles: ISchoolRoleReader) {}
 
   async requireCanWrite(schoolId: string, teacherId: string, user: AuthenticatedUser): Promise<void> {
+    // Plan 90, phase 5, step 8: no new time for marking in a school that is not active.
+    await this.roles.assertSchoolActive(schoolId);
     const self = teacherId === user.userId;
     const [targetRole, callerRole] = await Promise.all([
       this.roles.getMemberRole(schoolId, teacherId),

@@ -28,6 +28,9 @@ import { InvalidReviewSettingsException } from '../../modules/schools/domain/exc
 import { InvalidAssistantAccessException } from '../../modules/schools/domain/exceptions/invalid-assistant-access.exception.js';
 import { InvalidAiPrecheckSettingsException } from '../../modules/schools/domain/exceptions/invalid-ai-precheck-settings.exception.js';
 import { FeatureNotEntitledException } from '../../modules/schools/domain/exceptions/feature-not-entitled.exception.js';
+import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions/seats-exhausted.exception.js';
+import { SchoolTransitionNotAllowedException } from '../../modules/school-lifecycle/domain/school-transition-not-allowed.exception.js';
+import { SchoolNotActiveException } from '../../modules/schools/domain/exceptions/school-not-active.exception.js';
 
 @Catch(
   SchoolNotFoundException,
@@ -38,6 +41,9 @@ import { FeatureNotEntitledException } from '../../modules/schools/domain/except
   InvalidAssistantAccessException,
   InvalidAiPrecheckSettingsException,
   FeatureNotEntitledException,
+  SeatsExhaustedException,
+  SchoolTransitionNotAllowedException,
+  SchoolNotActiveException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -64,7 +70,18 @@ export class DomainExceptionFilter implements ExceptionFilter {
     this.logger.warn(`Domain exception: ${exception.message}`);
 
     response.status(status).json({
-      error: { code, message: exception.message },
+      error: {
+        code,
+        message: exception.message,
+        // The school's screen shows "110 / 100" from it (plan 90, phase 4).
+        ...(exception instanceof SeatsExhaustedException ? { seats: exception.seats } : {}),
+        // Where the school stands, so the panel can redraw its danger zone (plan 90, phase 5).
+        ...(exception instanceof SchoolTransitionNotAllowedException
+          ? { status: exception.status, transition: exception.transition }
+          : {}),
+        // A read-only school: the screen names the status (plan 90, phase 5, step 3).
+        ...(exception instanceof SchoolNotActiveException ? { status: exception.status } : {}),
+      },
     });
   }
 
@@ -93,6 +110,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof FeatureNotEntitledException) {
       return { status: HttpStatus.FORBIDDEN, code: 'FEATURE_NOT_ENTITLED' };
+    }
+    if (exception instanceof SchoolTransitionNotAllowedException) {
+      return { status: HttpStatus.CONFLICT, code: 'SCHOOL_TRANSITION_NOT_ALLOWED' };
+    }
+    if (exception instanceof SchoolNotActiveException) {
+      return { status: HttpStatus.CONFLICT, code: 'SCHOOL_NOT_ACTIVE' };
+    }
+    if (exception instanceof SeatsExhaustedException) {
+      return { status: HttpStatus.CONFLICT, code: 'SEATS_EXHAUSTED' };
     }
     if (exception instanceof SchoolAlreadyExistsException) {
       return { status: HttpStatus.CONFLICT, code: 'SCHOOL_ALREADY_EXISTS' };

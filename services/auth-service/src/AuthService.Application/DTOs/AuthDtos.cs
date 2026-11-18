@@ -104,7 +104,9 @@ public sealed record TokenLifetimeChange(
     int RefreshLifetimeHours);
 
 public sealed record UpdateTokenLifetimesRequest(
-    IReadOnlyList<TokenLifetimeChange> Policies);
+    IReadOnlyList<TokenLifetimeChange> Policies,
+    /// <summary>Why the lifetimes change (plan 90): required, at most 500 characters.</summary>
+    string Reason);
 
 // ── Admin panel session (plan 90) ─────────────────────────────────────────────
 

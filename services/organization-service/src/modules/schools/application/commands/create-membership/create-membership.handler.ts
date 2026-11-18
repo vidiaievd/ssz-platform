@@ -11,6 +11,8 @@ import { MemberRole } from '../../../domain/value-objects/member-role.vo.js';
 import { AddMemberCommand } from '../add-member/add-member.command.js';
 import { CreateMembershipCommand } from './create-membership.command.js';
 import { EnrollmentRequestEvent } from '../../../domain/events/enrollment-request.event.js';
+import { SeatsExhaustedException } from '../../../domain/exceptions/seats-exhausted.exception.js';
+import type { School } from '../../../domain/entities/school.entity.js';
 import {
   EVENT_PUBLISHER,
   type IEventPublisher,
@@ -50,25 +52,12 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
     });
 
     if (settings.approvalMode === 'auto') {
-      membership.transitionTo('onboarding');
-      await this.membershipRepo.save(membership);
-
-      // Auto-approved → immediately add to school roster so the student
-      // can see this school and be assigned to groups without waiting.
-      // Use the school owner as actor since no admin is present in this flow.
-      if (!school.getMemberRole(command.studentId)) {
-        try {
-          await this.commandBus.execute(
-            new AddMemberCommand(school.ownerId, command.schoolId, command.studentId, MemberRole.STUDENT),
-          );
-        } catch (e) {
-          this.logger.warn(
-            `Could not add student ${command.studentId} as school member during auto-approve: ${(e as Error).message}`,
-          );
-        }
-      }
-
-      return membership;
+      const blocked = await this.autoApprove(school, membership, command.studentId);
+      if (!blocked) return membership;
+      // No seat (plan 90, phase 4): the application joins the manual queue marked `no_seats`
+      // and the school hears about it like about any other application — the learner is not
+      // refused.
+      membership.markBlocked('no_seats');
     }
 
     await this.membershipRepo.save(membership);
@@ -100,5 +89,42 @@ export class CreateMembershipHandler implements ICommandHandler<CreateMembership
     );
 
     return membership;
+  }
+
+  /**
+   * Puts an auto-approved learner on the roster and moves the application on. The pending
+   * application is stored first: AddMember finds it and leaves its pipeline alone. True = no
+   * seat was left; the application stays pending for the caller to mark.
+   *
+   * Any other failure to add keeps the old behaviour — logged, and the application still moves
+   * to onboarding.
+   */
+  private async autoApprove(
+    school: School,
+    membership: SchoolMembership,
+    studentId: string,
+  ): Promise<boolean> {
+    await this.membershipRepo.save(membership);
+
+    // Use the school owner as actor since no admin is present in this flow.
+    if (!school.getMemberRole(studentId)) {
+      try {
+        await this.commandBus.execute(
+          new AddMemberCommand(school.ownerId, school.id, studentId, MemberRole.STUDENT),
+        );
+      } catch (e) {
+        if (e instanceof SeatsExhaustedException) {
+          this.logger.log(`Auto-approve of ${studentId} into ${school.id} held back: no student seat left`);
+          return true;
+        }
+        this.logger.warn(
+          `Could not add student ${studentId} as school member during auto-approve: ${(e as Error).message}`,
+        );
+      }
+    }
+
+    membership.transitionTo('onboarding');
+    await this.membershipRepo.save(membership);
+    return false;
   }
 }

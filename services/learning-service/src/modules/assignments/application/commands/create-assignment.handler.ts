@@ -13,6 +13,7 @@ import {
   AssignmentApplicationError,
   ContentNotVisibleForAssigneeError,
   ContentServiceUnavailableError,
+  CourseObsoleteError,
   InsufficientSchoolRoleError,
   InvalidContentRefError,
   OrganizationServiceUnavailableError,
@@ -41,6 +42,18 @@ export class CreateAssignmentHandler
       return Result.fail(new InvalidContentRefError(refResult.error.message));
     }
     const contentRef = refResult.value;
+
+    // An obsolete course takes no new learners, so it cannot be assigned (plan 90, Q5).
+    // The group-enrolment consumer trusts an accepted assignment, so the refusal is here.
+    if (contentRef.type === 'CONTAINER') {
+      const termsResult = await this.contentClient.getAccessTier(contentRef.id);
+      if (termsResult.isFail) {
+        return Result.fail(new ContentServiceUnavailableError(termsResult.error.message));
+      }
+      if (termsResult.value.maintenanceStatus === 'obsolete') {
+        return Result.fail(new CourseObsoleteError());
+      }
+    }
 
     // 2. Check content is visible to assignee
     const visibilityResult = await this.contentClient.checkVisibilityForUser(contentRef, cmd.assigneeId);

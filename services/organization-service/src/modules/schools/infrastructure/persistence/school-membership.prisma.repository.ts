@@ -51,6 +51,7 @@ function rowToEntity(row: any): SchoolMembership {
     availability: row.availability ?? undefined,
     ageBand: row.ageBand ?? undefined,
     groupAssignedSeenAt: row.groupAssignedSeenAt ?? undefined,
+    blockedReason: row.blockedReason ?? undefined,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   });
@@ -74,6 +75,7 @@ export class SchoolMembershipPrismaRepository implements ISchoolMembershipReposi
         availability: membership.availability ?? null,
         ageBand: membership.ageBand ?? null,
         groupAssignedSeenAt: membership.groupAssignedSeenAt ?? null,
+        blockedReason: membership.blockedReason ?? null,
         createdAt: membership.createdAt,
         updatedAt: membership.updatedAt,
       },
@@ -82,6 +84,7 @@ export class SchoolMembershipPrismaRepository implements ISchoolMembershipReposi
         availability: membership.availability ?? null,
         ageBand: membership.ageBand ?? null,
         groupAssignedSeenAt: membership.groupAssignedSeenAt ?? null,
+        blockedReason: membership.blockedReason ?? null,
         updatedAt: membership.updatedAt,
       },
     });

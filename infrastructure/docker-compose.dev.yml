@@ -261,6 +261,8 @@ services:
       # turned on deliberately, not by being deployed.
       EXERCISE_SERVICE_URL: http://exercise-engine-service:3006
       ORGANIZATION_SERVICE_URL: http://organization-service:3002
+      # School owner's address and language for lifecycle letters (plan 90, phase 5, step 9)
+      PROFILE_SERVICE_URL: http://user-profile-service:3001
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
       REVIEW_DIGEST_ENABLED: ${REVIEW_DIGEST_ENABLED:-false}
       REVIEW_DIGEST_INTERVAL_HOURS: ${REVIEW_DIGEST_INTERVAL_HOURS:-6}
