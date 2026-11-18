@@ -15,20 +15,26 @@ import { AdminStatsPrismaReader } from './infrastructure/persistence/admin-stats
 import { AdminSchoolsPrismaReader } from './infrastructure/persistence/admin-schools.prisma.reader.js';
 import { AdminSchoolsController } from './presentation/controllers/admin-schools.controller.js';
 import { AdminStatsController } from './presentation/controllers/admin-stats.controller.js';
+import { AdminUsersController } from './presentation/controllers/admin-users.controller.js';
+import { ADMIN_USER_SCHOOLS_READER } from './domain/admin-user-schools.js';
+import { GetAdminUserSchoolsHandler } from './application/queries/get-admin-user-schools.handler.js';
+import { AdminUserSchoolsPrismaReader } from './infrastructure/persistence/admin-user-schools.prisma.reader.js';
 
-/** The platform admin panel's read of schools and their numbers (plan 90). */
+/** The platform admin panel's read of schools and their numbers, and of a user's schools (plan 90). */
 @Module({
   imports: [CqrsModule],
-  controllers: [AdminSchoolsController, AdminStatsController],
+  controllers: [AdminSchoolsController, AdminStatsController, AdminUsersController],
   providers: [
     ListAdminSchoolsHandler,
     GetAdminSchoolHandler,
     GetAdminStatsHandler,
     ListAdminSchoolMembersHandler,
     GetAdminSchoolSettingsHandler,
+    GetAdminUserSchoolsHandler,
     { provide: ADMIN_SCHOOLS_READER, useClass: AdminSchoolsPrismaReader },
     { provide: ADMIN_STATS_READER, useClass: AdminStatsPrismaReader },
     { provide: ADMIN_SCHOOL_ROSTER_READER, useClass: AdminSchoolRosterPrismaReader },
+    { provide: ADMIN_USER_SCHOOLS_READER, useClass: AdminUserSchoolsPrismaReader },
     { provide: PROFILE_SERVICE_PORT, useClass: ProfileServiceHttpClient },
   ],
 })
