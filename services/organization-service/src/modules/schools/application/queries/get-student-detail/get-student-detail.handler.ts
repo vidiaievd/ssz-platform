@@ -31,7 +31,7 @@ export class GetStudentDetailHandler
     const { actorId, schoolId, studentUserId } = query;
 
     const school = await this.schoolRepository.findById(schoolId);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(schoolId);
+    if (!school || !school.isReadableBy(actorId)) throw new SchoolNotFoundException(schoolId);
 
     const targetRole = school.getMemberRole(studentUserId);
     if (targetRole !== MemberRole.STUDENT) {

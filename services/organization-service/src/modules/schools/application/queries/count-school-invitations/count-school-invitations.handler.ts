@@ -25,7 +25,7 @@ export class CountSchoolInvitationsHandler
 
   async execute(query: CountSchoolInvitationsQuery): Promise<number> {
     const school = await this.schoolRepository.findById(query.schoolId);
-    if (!school || school.isDeleted) {
+    if (!school || !school.isReadableBy(query.actorId)) {
       throw new SchoolNotFoundException(query.schoolId);
     }
 
