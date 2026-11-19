@@ -43,6 +43,11 @@ export class AnalyticsConsumerService implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`AnalyticsConsumerService listening on queue "${QUEUE}"`);
       },
     });
+    // Without a listener an 'error' from the channel (a setup failing while the broker
+    // restarts) is an unhandled event and takes the whole process down.
+    this.channelWrapper.on('error', (err: unknown) =>
+      this.logger.error(`RabbitMQ channel error: ${err instanceof Error ? err.message : String(err)}`),
+    );
   }
 
   private async handleMessage(channel: ConfirmChannel, msg: ConsumeMessage | null): Promise<void> {

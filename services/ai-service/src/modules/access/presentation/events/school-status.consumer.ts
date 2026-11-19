@@ -64,6 +64,11 @@ export class SchoolStatusConsumer implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`SchoolStatusConsumer listening on "${QUEUE}"`);
       },
     });
+    // Without a listener an 'error' from the channel (a setup failing while the broker
+    // restarts) is an unhandled event and takes the whole process down.
+    this.channelWrapper.on('error', (err: unknown) =>
+      this.logger.error(`RabbitMQ channel error: ${err instanceof Error ? err.message : String(err)}`),
+    );
   }
 
   async handle(channel: Pick<ConfirmChannel, 'ack' | 'nack'>, msg: ConsumeMessage | null): Promise<void> {
