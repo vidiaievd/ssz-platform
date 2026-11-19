@@ -270,11 +270,16 @@ their own. `internal/containers/:id/access-tier` → `{ accessTier, maintenanceS
 `obsolete` course with 409 `COURSE_OBSOLETE`. Module `school-lifecycle` (queue `content-service.school-lifecycle`, prefetch
 1, `processed_events` key `school-lifecycle`): `closed` → the school's courses `unmaintained` / `school`; `restored` → back to
 `maintained` only what the school set; `purged` → courses that others still hold become `obsolete` / `school`, the rest is
-deleted. Held = active learner (ACTIVE enrolment or open assignment, activity within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90),
-a live `content_share`, or another owner's item pointing inside; whatever a held course reaches is held too. Purge retry:
+deleted. Held = a live `content_share` or another owner's row pointing inside (a learner's own word included); whatever a
+held course reaches is held too. Learners hold nothing of a purged school (Q11): its `obsolete` course is history to read,
+nobody practises it. Before deleting, the purge announces through the outbox `content.school.study_retired { schoolId,
+exerciseIds, vocabularyItemIds }` (≤ 1000 ids per message): every exercise of the school, kept or deleted, and the words of
+the deleted lists — learning takes them out of review queues. Purge retry:
 table `school_purges`; `ContentCleanupJob` (`CONTENT_CLEANUP_INTERVAL_MS`, 1 h, `pg_try_advisory_xact_lock`) finishes
 unfinished purges (after `CONTENT_PURGE_RETRY_AFTER_MS`, 30 min) and deletes `obsolete` courses older than
-`CONTENT_OBSOLETE_GRACE_HOURS` (24) that nothing holds. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
+`CONTENT_OBSOLETE_GRACE_HOURS` (24) that nothing holds. An active learner (ACTIVE enrolment or open assignment, activity
+within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90; learning `internal/content/active-learners`) holds only a course its author
+retired; a purged school's (known from `school_purges`) is not asked about. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
 (`VisibilityCheckerService`); reads stay open.
 
 ### 5. Learning Service (NestJS)
@@ -291,8 +296,11 @@ Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 
 card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).
 School lifecycle (plan 90, phase 5, step 8): `SchoolPurgedConsumer` (queue `learning-service.school-purged`, prefetch 1,
 `processed_events` in the same transaction): the school's open enrolments and assignments become `COMPLETED`, **without
-events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) can still be read by its active learners.
-Internal `internal/content/active-learners` is what content asks for the cleanup (plan 90, phase 5, step 4c).
+events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) is read only (Q11): the engine refuses a
+start with 409 `SCHOOL_NOT_ACTIVE`. `SchoolStudyRetiredConsumer` (queue `learning-service.school-study-retired`, prefetch 1,
+`processed_events`) takes `content.school.study_retired`: exercise, gap and word cards on those ids become `SUSPENDED` in one
+statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped. Internal
+`internal/content/active-learners` is what content asks before its cleanup deletes a course the author retired.
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
@@ -383,6 +391,11 @@ Admin journal also reads `organization.events` (queue `analytics-service.admin-a
 rows from the timer or the owner carry `actorLevel: null`.
 Admin journal also reads `media.events` (phase 8, step 5; queue `analytics-service.admin-audit.media`, `service: 'media'`,
 filter `service=media`; no migration, the column is TEXT).
+School lifecycle (plan 90, Q13): school screens check access against the `school_membership` projection; `MembershipConsumer`
+(queue `analytics-service.projections.membership`, prefetch 1) moves a school's rows to `closed_school_membership` on
+`school.closed` (no role in `closed`, as in organization → 404, the owner too), back on `school.restored`; `school.purged`
+deletes both, groups and their members, `school_activity` and `review_term_acceptance`. The learner's history
+(`enrollment_projection`, evidence, mastery, `weak_rules_daily`) stays. `suspended` changes nothing.
 Weekly AI usage by agent (phase 8, step 1): `admin/ai/usage?groupBy=week` gives each week `byCapability[]` (same figures as
 a row; a capability without calls that week is omitted; one query over `ai_usage_daily`, folded in `admin-usage.ts`).
 AI review gate (plan 90, phase 7, step 10): `ai_draft_quality_daily` has `template_code` (old rows `null` = "template not
@@ -613,12 +626,12 @@ subscription (`no_free_plan`).
 Lessons, slots, review blocks, absences and exam marks for schools and tutors.
 Database: `scheduling_db`
 School lifecycle (plan 90, phase 5, step 8): `SchoolLifecycleConsumer` (queue `scheduling-service.school-lifecycle`).
-`suspended` / `closed` → lessons from today in `scheduled` / `moved` become `cancelled` (note `School suspended|closed`),
-review blocks from today are removed, a running series is cut at yesterday. `purged` → everything the school has in
-scheduling is deleted, exam marks included — a choice beyond the plan: if exam marks must stay as learner history they
-need anonymising, not deletion. New records in a non-active school → 409 `SCHOOL_NOT_ACTIVE` (creating a slot, replacing
+`suspended` → nothing (Q14: short and reversible, the timetable stays under the banner; the queue's old binding is taken off
+on start). `closed` → lessons from today in `scheduled` / `moved` become `cancelled` (note `School closed`), review blocks
+from today are removed, a running series is cut at yesterday; `restored` brings none back. `purged` → everything the school
+has in scheduling is deleted, exam marks included (Q12: deleted, not anonymised; analytics holds no copy). New records in a non-active school → 409 `SCHOOL_NOT_ACTIVE` (creating a slot, replacing
 slots, creating a lesson, booking a review block), checked through `OrgServiceHttpClient.assertSchoolActive`
-(`internal/schools/:id/status`, fail open). Editing existing rows is not gated (the future is already cancelled).
+(`internal/schools/:id/status`, fail open). Editing existing rows is not gated.
 
 ## API Documentation Strategy
 
