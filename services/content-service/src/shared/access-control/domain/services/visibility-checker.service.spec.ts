@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-veri
 import type { IOrganizationClient } from '../ports/organization-client.port.js';
 import type { IContentShareLookup } from '../ports/content-share-lookup.port.js';
 import type { IEntitlementLookup } from '../ports/entitlement-lookup.port.js';
+import type { ISchoolLearnerLookup } from '../ports/school-learner-lookup.port.js';
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ function makeService(mocks?: {
   hasActiveShare?: jest.Mock;
   hasActiveEditShare?: jest.Mock;
   hasActiveEntitlement?: jest.Mock;
+  wasSchoolLearner?: jest.Mock;
 }): VisibilityCheckerService {
   const orgClient: IOrganizationClient = {
     getMemberRole: mocks?.getMemberRole ?? jest.fn().mockResolvedValue(null),
@@ -57,12 +59,110 @@ function makeService(mocks?: {
   const entitlementLookup: IEntitlementLookup = {
     hasActiveEntitlement: mocks?.hasActiveEntitlement ?? jest.fn().mockResolvedValue(false),
   };
-  return new VisibilityCheckerService(orgClient, shareLookup, entitlementLookup);
+  const schoolLearners: ISchoolLearnerLookup = {
+    wasSchoolLearner: mocks?.wasSchoolLearner ?? jest.fn().mockResolvedValue(false),
+  };
+  return new VisibilityCheckerService(orgClient, shareLookup, entitlementLookup, schoolLearners);
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('VisibilityCheckerService', () => {
+  // Plan 90, Q11: a closed or purged school's material stays readable to its former learners.
+  describe('a former learner of a school that is gone', () => {
+    const privateEntity = (overrides: Partial<AccessibleEntity> = {}) =>
+      makeEntity({
+        ownerSchoolId: SCHOOL_ID,
+        visibility: Visibility.SCHOOL_PRIVATE,
+        accessTier: AccessTier.FREE_WITHIN_SCHOOL,
+        ...overrides,
+      });
+
+    it.each(['closed', 'purged'])('reads school_private material of a %s school', async (status) => {
+      const wasSchoolLearner = jest.fn().mockResolvedValue(true);
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockResolvedValue(status),
+        wasSchoolLearner,
+      });
+      const result = await svc.canAccess(makeUser(), privateEntity(), 'view');
+      expect(result).toEqual({ allowed: true, reason: 'former_school_learner' });
+      expect(isStaffGrant(result)).toBe(false);
+      expect(wasSchoolLearner).toHaveBeenCalledWith(OTHER_ID, SCHOOL_ID);
+    });
+
+    it('reads a lesson as well as a course: the rule is by school, not by enrolment', async () => {
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockResolvedValue('purged'),
+        wasSchoolLearner: jest.fn().mockResolvedValue(true),
+      });
+      const lesson = privateEntity({ entityType: TaggableEntityType.LESSON, accessTier: undefined });
+      const result = await svc.canAccess(makeUser(), lesson, 'view');
+      expect(result).toEqual({ allowed: true, reason: 'former_school_learner' });
+    });
+
+    it('refuses someone who never studied in the school', async () => {
+      const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue('closed') });
+      const result = await svc.canAccess(makeUser(), privateEntity(), 'view');
+      expect(result).toEqual({ allowed: false, reason: 'private' });
+    });
+
+    it('never lets a former learner enrol or edit', async () => {
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockResolvedValue('closed'),
+        wasSchoolLearner: jest.fn().mockResolvedValue(true),
+      });
+      expect((await svc.canAccess(makeUser(), privateEntity(), 'enroll')).allowed).toBe(false);
+      expect((await svc.canAccess(makeUser(), privateEntity(), 'edit')).allowed).toBe(false);
+    });
+
+    it.each(['active', 'suspended'])('does not ask learning while the school is %s', async (status) => {
+      const wasSchoolLearner = jest.fn().mockResolvedValue(true);
+      const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue(status), wasSchoolLearner });
+      const result = await svc.canAccess(makeUser(), privateEntity(), 'view');
+      expect(result.allowed).toBe(false);
+      expect(wasSchoolLearner).not.toHaveBeenCalled();
+    });
+
+    it.each([Visibility.PRIVATE, Visibility.SHARED])(
+      'keeps %s material closed: a learner never read it while the school was active',
+      async (visibility) => {
+        const wasSchoolLearner = jest.fn().mockResolvedValue(true);
+        const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue('purged'), wasSchoolLearner });
+        const result = await svc.canAccess(makeUser(), privateEntity({ visibility }), 'view');
+        expect(result.allowed).toBe(false);
+        expect(wasSchoolLearner).not.toHaveBeenCalled();
+      },
+    );
+
+    it('keeps soft-deleted material closed', async () => {
+      const wasSchoolLearner = jest.fn().mockResolvedValue(true);
+      const svc = makeService({ getSchoolStatus: jest.fn().mockResolvedValue('purged'), wasSchoolLearner });
+      const result = await svc.canAccess(makeUser(), privateEntity({ deletedAt: new Date() }), 'view');
+      expect(result).toEqual({ allowed: false, reason: 'soft_deleted' });
+      expect(wasSchoolLearner).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when learning cannot answer', async () => {
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockResolvedValue('closed'),
+        wasSchoolLearner: jest.fn().mockRejectedValue(new Error('down')),
+      });
+      const result = await svc.canAccess(makeUser(), privateEntity(), 'view');
+      expect(result).toEqual({ allowed: false, reason: 'private' });
+    });
+
+    it('fails closed when the school status cannot be read', async () => {
+      const wasSchoolLearner = jest.fn().mockResolvedValue(true);
+      const svc = makeService({
+        getSchoolStatus: jest.fn().mockRejectedValue(new Error('down')),
+        wasSchoolLearner,
+      });
+      const result = await svc.canAccess(makeUser(), privateEntity(), 'view');
+      expect(result.allowed).toBe(false);
+      expect(wasSchoolLearner).not.toHaveBeenCalled();
+    });
+  });
+
   // Plan 90, phase 5, step 7: a school that is not active is read only.
   describe('a school that is not active', () => {
     const schoolEntity = () => makeEntity({ ownerSchoolId: SCHOOL_ID, ownerUserId: OWNER_ID });

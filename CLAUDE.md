@@ -281,6 +281,11 @@ unfinished purges (after `CONTENT_PURGE_RETRY_AFTER_MS`, 30 min) and deletes `ob
 within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90; learning `internal/content/active-learners`) holds only a course its author
 retired; a purged school's (known from `school_purges`) is not asked about. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
 (`VisibilityCheckerService`); reads stay open.
+Former learners (Q11, (а′)): a `view` refused on `school_private` material of a `closed` / `purged` school is asked once more —
+`ISchoolLearnerLookup` → learning `internal/content/schools/:schoolId/learners/:userId` (`x-service-token`); a user with an
+enrolment or assignment of the school in any status reads it (reason `former_school_learner`, a learner grant, not staff) on every
+level (course, lesson, exercise — the rule is by `ownerSchoolId`). Never `enroll` / `edit`; `suspended` is not asked (the roster
+still answers); unreadable status or answer → refused.
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.
@@ -302,7 +307,9 @@ start with 409 `SCHOOL_NOT_ACTIVE`. `SchoolStudyRetiredConsumer` (queue `learnin
 statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped. A `content.container.deleted`
 from a purge carries `reason: 'school_purged'` and `schoolId`: `ContainerDeletedConsumer` leaves that school's enrolments
 and assignments to `school.purged` (COMPLETED, silent) and unenrols only the others. Internal
-`internal/content/active-learners` is what content asks before its cleanup deletes a course the author retired.
+`internal/content/active-learners` is what content asks before its cleanup deletes a course the author retired;
+`GET internal/content/schools/:schoolId/learners/:userId` → `{ learner }` (an enrolment or assignment with that `school_id`, any
+status, not soft-deleted) is what content asks before it lets a former learner read a closed or purged school's material (Q11).
 
 ### 6. Exercise Engine Service (NestJS)
 Exercise generation and validation, scoring logic, LLM integration.
