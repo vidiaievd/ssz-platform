@@ -7,12 +7,10 @@ import type { AppConfig } from '../../config/configuration.js';
 import { PrismaService } from '../database/prisma.service.js';
 
 const QUEUE = 'scheduling-service.school-lifecycle';
-const HANDLED = [
-  ORGANIZATION_EVENT_TYPES.SCHOOL_SUSPENDED,
-  ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED,
-  ORGANIZATION_EVENT_TYPES.SCHOOL_PURGED,
-] as const;
+const HANDLED = [ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED, ORGANIZATION_EVENT_TYPES.SCHOOL_PURGED] as const;
 type Handled = (typeof HANDLED)[number];
+// Bound until Q14 (plan 90): the binding is taken off on start, a message already queued is let go.
+const NO_LONGER_HANDLED: readonly string[] = [ORGANIZATION_EVENT_TYPES.SCHOOL_SUSPENDED];
 
 interface Envelope {
   eventId?: string;
@@ -24,11 +22,13 @@ const DAY_MS = 86_400_000;
 /**
  * Plan 90, phase 5, step 8. A school's timetable follows its lifecycle:
  *
- * - `suspended` / `closed` — the future is cancelled: lessons from today on that were still
- *   `scheduled` or `moved` become `cancelled` (the note says why), review blocks that start
- *   from today on are removed and a series already running is cut off yesterday. Past lessons,
- *   held ones and the log are left as they are. A school reactivated later gets no lessons
- *   back — its timetable is planned again.
+ * - `suspended` — nothing (Q14): a suspension is short and reversible (a late payment), so the
+ *   timetable stays under the banner; new records are refused with 409 `SCHOOL_NOT_ACTIVE`.
+ * - `closed` — the future is cancelled: lessons from today on that were still `scheduled` or
+ *   `moved` become `cancelled` (note `School closed`), review blocks that start from today on are
+ *   removed and a series already running is cut off yesterday. Past lessons, held ones and the log
+ *   are left as they are. A school restored later gets no lessons back — its timetable is planned
+ *   again (as its tariff is assigned again).
  * - `purged` — everything the school has here is deleted: lessons (with their exam scores),
  *   slots, absences and substitutions, curriculum plans, review blocks, alerts, policies and the
  *   membership projection.
@@ -66,6 +66,8 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
         await channel.assertExchange(EXCHANGES.ORGANIZATION!, 'topic', { durable: true });
         await channel.assertQueue(QUEUE, { durable: true });
         for (const key of HANDLED) await channel.bindQueue(QUEUE, EXCHANGES.ORGANIZATION!, key);
+        // Unbinding a binding that is not there is a no-op in RabbitMQ.
+        for (const key of NO_LONGER_HANDLED) await channel.unbindQueue(QUEUE, EXCHANGES.ORGANIZATION!, key);
         await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => {
           if (msg) void this.handleMessage(channel, msg);
@@ -88,6 +90,10 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    if (NO_LONGER_HANDLED.includes(msg.fields.routingKey)) {
+      channel.ack(msg);
+      return;
+    }
     const eventType = msg.fields.routingKey as Handled;
     const { eventId } = envelope;
     const schoolId = envelope.payload?.schoolId;
@@ -104,7 +110,7 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
         return;
       }
       if (eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_PURGED) await this.purge(schoolId);
-      else await this.cancelFuture(schoolId, eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED ? 'closed' : 'suspended', now);
+      else await this.cancelFuture(schoolId, now);
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });
       channel.ack(msg);
     } catch (err) {
@@ -113,14 +119,14 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async cancelFuture(schoolId: string, why: 'suspended' | 'closed', now: Date): Promise<void> {
+  private async cancelFuture(schoolId: string, now: Date): Promise<void> {
     const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
     const yesterday = new Date(today.getTime() - DAY_MS);
 
     const [lessons, removed, cut] = await this.prisma.$transaction([
       this.prisma.lesson.updateMany({
         where: { schoolId, date: { gte: today }, status: { in: ['scheduled', 'moved'] } },
-        data: { status: 'cancelled', note: `School ${why}` },
+        data: { status: 'cancelled', note: 'School closed' },
       }),
       this.prisma.reviewBlock.deleteMany({ where: { schoolId, startsOn: { gte: today } } }),
       this.prisma.reviewBlock.updateMany({
@@ -129,7 +135,7 @@ export class SchoolLifecycleConsumer implements OnModuleInit, OnModuleDestroy {
       }),
     ]);
     this.logger.log(
-      `School ${schoolId} ${why}: ${lessons.count} lesson(s) cancelled, ${removed.count} review block(s) removed, ${cut.count} series cut`,
+      `School ${schoolId} closed: ${lessons.count} lesson(s) cancelled, ${removed.count} review block(s) removed, ${cut.count} series cut`,
     );
   }
 

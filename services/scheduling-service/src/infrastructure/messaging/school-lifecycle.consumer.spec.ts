@@ -15,6 +15,7 @@ jest.mock(
 jest.mock('../database/prisma.service.js', () => ({ PrismaService: class {} }));
 
 import type { ConsumeMessage } from 'amqplib';
+import amqp from 'amqp-connection-manager';
 import { SchoolLifecycleConsumer } from './school-lifecycle.consumer.js';
 
 const SCHOOL = '11111111-0000-4000-8000-000000000001';
@@ -56,16 +57,13 @@ function setup(seen = false) {
 const body = { eventId: 'e1', payload: { schoolId: SCHOOL } };
 
 describe('SchoolLifecycleConsumer (plan 90, phase 5, step 8)', () => {
-  it.each([
-    ['school.suspended', 'suspended'],
-    ['school.closed', 'closed'],
-  ])('%s cancels the future of the school and nothing in the past', async (key, why) => {
+  it('school.closed cancels the future of the school and nothing in the past', async () => {
     const { prisma, channel, consumer } = setup();
-    await consumer.handleMessage(channel, msg(key, body), NOW);
+    await consumer.handleMessage(channel, msg('school.closed', body), NOW);
 
     expect(prisma.lesson.updateMany).toHaveBeenCalledWith({
       where: { schoolId: SCHOOL, date: { gte: TODAY }, status: { in: ['scheduled', 'moved'] } },
-      data: { status: 'cancelled', note: `School ${why}` },
+      data: { status: 'cancelled', note: 'School closed' },
     });
     expect(prisma.reviewBlock.deleteMany).toHaveBeenCalledWith({ where: { schoolId: SCHOOL, startsOn: { gte: TODAY } } });
     expect(prisma.reviewBlock.updateMany).toHaveBeenCalledWith({
@@ -74,6 +72,45 @@ describe('SchoolLifecycleConsumer (plan 90, phase 5, step 8)', () => {
     });
     expect(prisma.lesson.deleteMany).not.toHaveBeenCalled();
     expect(channel.ack).toHaveBeenCalled();
+  });
+
+  it('school.suspended leaves the timetable alone (Q14): acked, nothing written, not even the marker', async () => {
+    const { prisma, channel, consumer } = setup();
+    await consumer.handleMessage(channel, msg('school.suspended', body), NOW);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(prisma.processedEvent.findUnique).not.toHaveBeenCalled();
+    expect(prisma.processedEvent.create).not.toHaveBeenCalled();
+    expect(channel.ack).toHaveBeenCalled();
+    expect(channel.nack).not.toHaveBeenCalled();
+  });
+
+  it('binds closed and purged and takes the old suspended binding off', async () => {
+    let setupChannel: ((ch: unknown) => Promise<void>) | undefined;
+    (amqp.connect as jest.Mock).mockReturnValue({
+      on: jest.fn(),
+      createChannel: ({ setup: fn }: { setup: (ch: unknown) => Promise<void> }) => {
+        setupChannel = fn;
+        return { close: jest.fn() };
+      },
+      close: jest.fn(),
+    });
+    const consumer = new SchoolLifecycleConsumer(
+      { get: () => ({ url: 'amqp://x' }) } as never,
+      {} as never,
+    );
+    consumer.onModuleInit();
+    const ch = {
+      assertExchange: jest.fn(),
+      assertQueue: jest.fn(),
+      bindQueue: jest.fn(),
+      unbindQueue: jest.fn(),
+      prefetch: jest.fn(),
+      consume: jest.fn(),
+    };
+    await setupChannel!(ch);
+
+    expect(ch.bindQueue.mock.calls.map((c) => c[2])).toEqual(['school.closed', 'school.purged']);
+    expect(ch.unbindQueue).toHaveBeenCalledWith('scheduling-service.school-lifecycle', 'organization.events', 'school.suspended');
   });
 
   it('school.purged deletes the school\'s data children first, in one transaction', async () => {
