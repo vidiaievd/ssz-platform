@@ -394,7 +394,7 @@ filter `service=media`; no migration, the column is TEXT).
 School lifecycle (plan 90, Q13): school screens check access against the `school_membership` projection; `MembershipConsumer`
 (queue `analytics-service.projections.membership`, prefetch 1) moves a school's rows to `closed_school_membership` on
 `school.closed` (no role in `closed`, as in organization → 404, the owner too), back on `school.restored`; `school.purged`
-deletes both, groups and their members, `school_activity` and `review_term_acceptance`. The learner's history
+deletes both, groups and their members, `school_activity` and `review_term_acceptances`. The learner's history
 (`enrollment_projection`, evidence, mastery, `weak_rules_daily`) stays. `suspended` changes nothing.
 Weekly AI usage by agent (phase 8, step 1): `admin/ai/usage?groupBy=week` gives each week `byCapability[]` (same figures as
 a row; a capability without calls that week is omitted; one query over `ai_usage_daily`, folded in `admin-usage.ts`).

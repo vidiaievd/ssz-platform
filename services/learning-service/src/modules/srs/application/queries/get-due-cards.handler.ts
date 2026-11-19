@@ -99,7 +99,11 @@ export class GetDueCardsHandler implements IQueryHandler<GetDueCardsQuery, DueCa
 
     if (cachedIds !== null) {
       const cards = await Promise.all(cachedIds.map((id) => this.repo.findById(id)));
-      const present = cards.filter((c): c is NonNullable<typeof c> => c !== null);
+      // A card suspended behind the cache's back (a purged school's, plan 90, Q11) never comes
+      // due from a stale list: the database query leaves SUSPENDED out, so does this path.
+      const present = cards.filter(
+        (c): c is NonNullable<typeof c> => c !== null && c.state !== 'SUSPENDED',
+      );
       return present.map((c) => toReviewCardDto(c, this.scheduler.predictIntervals(c, now)));
     }
 
