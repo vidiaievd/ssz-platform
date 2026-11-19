@@ -5,12 +5,13 @@
  * Everything the school owns (`owner_school_id`) is deleted unless somebody else still uses it.
  * "Uses" is a hold, and a hold spreads to everything the held material needs to work:
  *
- * - **roots** — an active learner (learning-service's count), a live share, and any row outside the
- *   school that points into it: a foreign course's item, a foreign lesson's listening stage / video
- *   question / glossary mark / text span, a foreign rule's exercise pool entry, a foreign exercise's
+ * - **roots** — a live share and any row outside the school that points into it: a foreign
+ *   course's item, a foreign lesson's listening stage / video question / glossary mark / text span, a foreign rule's exercise pool entry, a foreign exercise's
  *   target, a learner's own word ("Мои слова") on the school's vocabulary item, a foreign material
  *   tagged with the school's tag or linked to its can-do descriptor. Deleting the target would change
- *   or cascade away a row that is not the school's.
+ *   or cascade away a row that is not the school's. An active learner (learning-service's count)
+ *   is a root only in the cleanup of a course its author retired: a purged school's course is read
+ *   only, so its learners hold nothing (Q11).
  * - **edges** — inside the school: a container to the items of each of its versions, a lesson to
  *   the exercises, vocabulary lists and rules its variants name, an exercise to the vocabulary
  *   lists and rules its targets name, a rule to the exercises of its pool, any material to the

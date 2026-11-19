@@ -158,10 +158,13 @@ class FakeLedger implements ISchoolPurgeLedger {
       .slice(0, limit)
       .map(({ schoolId, schoolName, attempts }) => ({ schoolId, schoolName, attempts }));
   }
+  async findPurged(schoolIds: readonly string[]) {
+    return new Set(schoolIds.filter((id) => this.rows.has(id)));
+  }
 }
 
-function purgeHandler(store: FakeStore, learners: FakeLearners, ledger = new FakeLedger()) {
-  return new PurgeSchoolMaterialsHandler(store, learners, ledger, SETTINGS);
+function purgeHandler(store: FakeStore, ledger = new FakeLedger()) {
+  return new PurgeSchoolMaterialsHandler(store, ledger);
 }
 
 describe('school.closed / school.restored', () => {
@@ -212,7 +215,10 @@ describe('school.closed / school.restored', () => {
 });
 
 describe('school.purged', () => {
-  /** kept: course K (active learner) with lesson KL; shared lesson S; deleted: course D with lesson DL. */
+  /**
+   * kept: course K (a foreign course's item points at it) with lesson KL; shared lesson S;
+   * deleted: course D with lesson DL.
+   */
   function school() {
     const store = new FakeStore();
     store.addCourse('K', UNMAINTAINED, BY_SCHOOL);
@@ -227,16 +233,17 @@ describe('school.purged', () => {
       { from: { kind: 'container', id: 'D' }, to: { kind: 'lesson', id: 'DL' } },
       { from: { kind: 'container', id: 'D' }, to: { kind: 'lesson', id: 'S' } },
     );
-    store.holds.push({ to: { kind: 'lesson', id: 'S' }, reason: 'share' });
-    const learners = new FakeLearners();
-    learners.active.add('container:K');
-    return { store, learners };
+    store.holds.push(
+      { to: { kind: 'lesson', id: 'S' }, reason: 'share' },
+      { to: { kind: 'container', id: 'K' }, reason: 'foreign_reference' },
+    );
+    return { store };
   }
 
   it('keeps what is used, makes kept courses obsolete and deletes the rest', async () => {
-    const { store, learners } = school();
+    const { store } = school();
 
-    const result = await purgeHandler(store, learners).execute(
+    const result = await purgeHandler(store).execute(
       new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'),
     );
 
@@ -252,29 +259,30 @@ describe('school.purged', () => {
     expect(result).toMatchObject({ kept: 3, obsoleteCourses: 1 });
   });
 
-  it('asks learning about containers with their leaves and about every studied material', async () => {
-    const { store, learners } = school();
-    await purgeHandler(store, learners).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
-    const asked = learners.asked[0];
-    expect(asked.find((q) => q.id === 'D')?.leafIds.sort()).toEqual(['DL', 'S']);
-    expect(asked.find((q) => q.id === 'S')).toEqual({ kind: 'lesson', id: 'S', leafIds: [] });
+  it("a learner holds nothing (Q11): only shares and others' rows keep a course", async () => {
+    // Course D has had learners right up to the purge; the result is the same whether learning
+    // has already closed their enrolments or not, because nobody asks it.
+    const { store } = school();
+    await purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
+    expect(store.deletedKeys).toContain('container:D');
+    expect(store.courses.has('D')).toBe(false);
   });
 
-  it('deletes nothing when learning cannot answer', async () => {
-    const { store, learners } = school();
-    learners.fail = true;
+  it('deletes nothing when the materials cannot be read', async () => {
+    const { store } = school();
+    store.failGraphFor.add(ownerKey(SCHOOL_OWNER));
 
     await expect(
-      purgeHandler(store, learners).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk')),
-    ).rejects.toThrow(/503/);
+      purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk')),
+    ).rejects.toThrow(/database is down/);
 
     expect(store.deletedKeys).toEqual([]);
     expect(store.courses.get('K')).toMatchObject({ status: UNMAINTAINED });
   });
 
   it('is safe to run again: nothing new is deleted, nothing rewritten', async () => {
-    const { store, learners } = school();
-    const handler = purgeHandler(store, learners);
+    const { store } = school();
+    const handler = purgeHandler(store);
     await handler.execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
     store.deletedKeys = [];
 
@@ -289,11 +297,10 @@ describe('school.purged', () => {
     ]);
   });
 
-  it('a learner gone quiet keeps nothing', async () => {
-    const { store, learners } = school();
-    learners.active.clear();
+  it('nothing held → everything goes', async () => {
+    const { store } = school();
     store.holds = [];
-    await purgeHandler(store, learners).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
+    await purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
     expect(store.materials).toEqual([]);
   });
 });
@@ -304,9 +311,7 @@ describe('school.purged — the purge ledger (step 4c)', () => {
     store.addCourse('D');
     const ledger = new FakeLedger();
 
-    await purgeHandler(store, new FakeLearners(), ledger).execute(
-      new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'),
-    );
+    await purgeHandler(store, ledger).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
 
     expect(ledger.rows.get(SCHOOL)).toMatchObject({
       schoolName: 'Nordisk',
@@ -320,19 +325,16 @@ describe('school.purged — the purge ledger (step 4c)', () => {
   it('keeps a failed purge unfinished with its error', async () => {
     const store = new FakeStore();
     store.addCourse('D');
-    const learners = new FakeLearners();
-    learners.fail = true;
+    store.failGraphFor.add(ownerKey(SCHOOL_OWNER));
     const ledger = new FakeLedger();
 
     await expect(
-      purgeHandler(store, learners, ledger).execute(
-        new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'),
-      ),
-    ).rejects.toThrow(/503/);
+      purgeHandler(store, ledger).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk')),
+    ).rejects.toThrow(/database is down/);
 
     expect(ledger.rows.get(SCHOOL)).toMatchObject({
       done: false,
-      error: expect.stringMatching(/503/),
+      error: expect.stringMatching(/database is down/),
     });
   });
 });
@@ -363,8 +365,8 @@ describe('obsolete cleanup (step 4c)', () => {
     return { store, learners: new FakeLearners() };
   }
 
-  const cleanup = (store: FakeStore, learners: FakeLearners) =>
-    new CleanupObsoleteCoursesHandler(store, learners, SETTINGS).execute();
+  const cleanup = (store: FakeStore, learners: FakeLearners, ledger = new FakeLedger()) =>
+    new CleanupObsoleteCoursesHandler(store, learners, ledger, SETTINGS).execute();
 
   it('deletes the course and what only it used; the owner keeps the rest', async () => {
     const { store, learners } = author();
@@ -428,6 +430,53 @@ describe('obsolete cleanup (step 4c)', () => {
     expect(store.deletedKeys).toContain('container:S1');
     expect(store.deletedKeys).not.toContain('container:O');
     expect(result.failedOwners).toBe(1);
+  });
+
+  it("a purged school's course: learners hold nothing and learning is not asked (Q11)", async () => {
+    const store = new FakeStore();
+    store.addCourse('P', OBSOLETE, BY_SCHOOL);
+    store.materials.push({ kind: 'lesson', id: 'PL' });
+    store.edges.push({ from: { kind: 'container', id: 'P' }, to: { kind: 'lesson', id: 'PL' } });
+    store.obsolete.push({ id: 'P', owner: SCHOOL_OWNER });
+    const learners = new FakeLearners();
+    learners.active.add('container:P');
+    learners.fail = true;
+    const ledger = new FakeLedger();
+    await ledger.started(SCHOOL, 'Nordisk', new Date());
+    await ledger.completed(SCHOOL);
+
+    const result = await cleanup(store, learners, ledger);
+
+    expect(store.deletedKeys.sort()).toEqual(['container:P', 'lesson:PL']);
+    expect(learners.asked).toEqual([]);
+    expect(result).toMatchObject({ deletedCourses: 1, failedOwners: 0 });
+  });
+
+  it("a purged school's course a share holds stays", async () => {
+    const store = new FakeStore();
+    store.addCourse('P', OBSOLETE, BY_SCHOOL);
+    store.obsolete.push({ id: 'P', owner: SCHOOL_OWNER });
+    store.holds.push({ to: { kind: 'container', id: 'P' }, reason: 'share' });
+    const ledger = new FakeLedger();
+    await ledger.started(SCHOOL, 'Nordisk', new Date());
+
+    const result = await cleanup(store, new FakeLearners(), ledger);
+
+    expect(store.deletedKeys).toEqual([]);
+    expect(result.deletedCourses).toBe(0);
+  });
+
+  it('a course retired by its author in a school that is still there keeps its learners', async () => {
+    const store = new FakeStore();
+    store.addCourse('R', OBSOLETE, AUTHOR);
+    store.obsolete.push({ id: 'R', owner: SCHOOL_OWNER });
+    const learners = new FakeLearners();
+    learners.active.add('container:R');
+
+    await cleanup(store, learners);
+
+    expect(learners.asked).toHaveLength(1);
+    expect(store.deletedKeys).toEqual([]);
   });
 
   it('learning silent → nothing deleted', async () => {

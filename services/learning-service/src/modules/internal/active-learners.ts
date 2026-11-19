@@ -1,9 +1,9 @@
 import { UnprocessableEntityException } from '@nestjs/common';
 
 /**
- * Who still uses a piece of content (plan 90, phase 5, step 4b). content-service asks before it
- * deletes a purged school's materials, and again for obsolete courses (step 4c): a course with an
- * active learner is kept as `obsolete` instead of being deleted.
+ * Who still uses a piece of content (plan 90, phase 5, step 4c). content-service asks before its
+ * cleanup deletes a course the author retired (`obsolete`): a course with an active learner is
+ * kept. A purged school's materials are not asked about — their learners hold nothing (Q11).
  *
  * An active learner holds the content — an `ACTIVE` enrolment (containers only) or an open
  * assignment (`ACTIVE` / `OVERDUE`) — **and** has been active in it within the window: the hold

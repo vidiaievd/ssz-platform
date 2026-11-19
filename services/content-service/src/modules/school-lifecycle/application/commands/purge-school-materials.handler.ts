@@ -3,21 +3,13 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { onSchoolPurgedKept } from '../../domain/school-course-maintenance.js';
 import { planSchoolPurge } from '../../domain/school-materials.js';
 import {
-  ACTIVE_LEARNERS_READER,
-  type IActiveLearnersReader,
-} from '../ports/active-learners.reader.port.js';
-import {
   SCHOOL_MATERIALS_STORE,
   type DeletedMaterials,
   type ISchoolMaterialsStore,
 } from '../ports/school-materials.store.port.js';
 import { SCHOOL_PURGE_LEDGER, type ISchoolPurgeLedger } from '../ports/school-purge.ledger.port.js';
-import { countByReason, learnerHoldsOn } from './learner-holds.js';
-import {
-  PurgeSchoolMaterialsCommand,
-  SCHOOL_PURGE_SETTINGS,
-  type SchoolPurgeSettings,
-} from './school-lifecycle.commands.js';
+import { countByReason } from './learner-holds.js';
+import { PurgeSchoolMaterialsCommand } from './school-lifecycle.commands.js';
 import { applyMaintenanceRule } from './school-maintenance.handlers.js';
 
 export interface PurgeSchoolMaterialsResult {
@@ -31,6 +23,11 @@ export interface PurgeSchoolMaterialsResult {
  * (plan 90, phase 5, step 4b). Safe to run again: the graph is read afresh, deleted rows are gone,
  * kept courses already `obsolete` are not written twice. Every attempt is written to the purge
  * ledger, so a purge that fails past the consumer's retry is finished by the cleanup job (4c).
+ *
+ * Learners do not hold anything here (Q11): a purged school's course is history to read, nobody
+ * practises it (the engine refuses since `suspended`). Only shares and rows of others that point
+ * inside (a learner's own word included) keep a material, so the outcome never depends on whether learning has already closed the
+ * school's enrolments.
  */
 @CommandHandler(PurgeSchoolMaterialsCommand)
 export class PurgeSchoolMaterialsHandler implements ICommandHandler<
@@ -41,9 +38,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
 
   constructor(
     @Inject(SCHOOL_MATERIALS_STORE) private readonly store: ISchoolMaterialsStore,
-    @Inject(ACTIVE_LEARNERS_READER) private readonly learners: IActiveLearnersReader,
     @Inject(SCHOOL_PURGE_LEDGER) private readonly ledger: ISchoolPurgeLedger,
-    @Inject(SCHOOL_PURGE_SETTINGS) private readonly settings: SchoolPurgeSettings,
   ) {}
 
   async execute({
@@ -75,16 +70,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
   ): Promise<PurgeSchoolMaterialsResult> {
     const owner = { kind: 'school', schoolId } as const;
     const graph = await this.store.loadGraph(owner, now);
-    // Throws when learning cannot answer: nothing is deleted and the purge is tried again.
-    const learnerHolds = await learnerHoldsOn(
-      graph.materials,
-      graph,
-      this.learners,
-      now,
-      this.settings.activeDays,
-    );
-
-    const plan = planSchoolPurge(graph, learnerHolds);
+    const plan = planSchoolPurge(graph, []);
 
     const kept = new Set(plan.keptCourseIds);
     const keptCourses = (await this.store.findCourses(schoolId)).filter((c) => kept.has(c.id));
@@ -101,7 +87,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
 
     this.logger.log(
       `School ${schoolId} purged: kept ${plan.kept.length} material(s) (${keptCourses.length} course(s), ` +
-        `${obsoleteCourses} newly obsolete; holds: ${countByReason([...graph.holds, ...learnerHolds])}), ` +
+        `${obsoleteCourses} newly obsolete; holds: ${countByReason(graph.holds)}), ` +
         `deleted ${JSON.stringify(deleted)}`,
     );
     return { kept: plan.kept.length, obsoleteCourses, deleted };

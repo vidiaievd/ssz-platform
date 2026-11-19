@@ -14,6 +14,7 @@ import {
   SCHOOL_MATERIALS_STORE,
   type ISchoolMaterialsStore,
 } from '../ports/school-materials.store.port.js';
+import { SCHOOL_PURGE_LEDGER, type ISchoolPurgeLedger } from '../ports/school-purge.ledger.port.js';
 import { countByReason, learnerHoldsOn } from './learner-holds.js';
 import {
   CleanupObsoleteCoursesCommand,
@@ -35,11 +36,12 @@ export interface CleanupObsoleteCoursesResult {
 
 /**
  * Obsolete courses nobody holds go, with whatever of their owner only they used (plan 90, phase
- * 5, step 4c; Q5). Any source: a purged school's kept course once its last learner is quiet, or
- * a course its author retired. What holds a course or a piece of it is the purge's rule — an
- * active learner, a live share, a row of anybody else, a learner's own word — plus the owner's
- * other materials. Owner by owner: one failure never stops the rest, and nothing of an owner is
- * deleted when learning cannot answer.
+ * 5, step 4c; Q5). Any source: a purged school's kept course once its last share or foreign row is gone, or
+ * a course its author retired. What holds a course or a piece of it is the purge's rule — a live
+ * share, a row of anybody else, a learner's own word — plus the owner's other materials. An active
+ * learner holds an author's retired course (its learners carry on), never a purged school's (Q11:
+ * read only, so learning is not asked). Owner by owner: one failure never stops the rest, and
+ * nothing of an owner is deleted when learning cannot answer.
  */
 @CommandHandler(CleanupObsoleteCoursesCommand)
 export class CleanupObsoleteCoursesHandler implements ICommandHandler<
@@ -51,6 +53,7 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
   constructor(
     @Inject(SCHOOL_MATERIALS_STORE) private readonly store: ISchoolMaterialsStore,
     @Inject(ACTIVE_LEARNERS_READER) private readonly learners: IActiveLearnersReader,
+    @Inject(SCHOOL_PURGE_LEDGER) private readonly ledger: ISchoolPurgeLedger,
     @Inject(SCHOOL_PURGE_SETTINGS) private readonly settings: SchoolPurgeSettings,
   ) {}
 
@@ -67,6 +70,12 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
       else byOwner.set(key, { owner: course.owner, ids: [course.id] });
     }
 
+    const purged = await this.ledger.findPurged(
+      [...byOwner.values()].flatMap(({ owner }) =>
+        owner.kind === 'school' ? [owner.schoolId] : [],
+      ),
+    );
+
     const result: CleanupObsoleteCoursesResult = {
       courses: courses.length,
       deletedCourses: 0,
@@ -75,7 +84,8 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
     };
     for (const [key, { owner, ids }] of byOwner) {
       try {
-        const deleted = await this.cleanup(owner, ids, now);
+        const learnersHold = !(owner.kind === 'school' && purged.has(owner.schoolId));
+        const deleted = await this.cleanup(owner, ids, now, learnersHold);
         result.deletedCourses += deleted.courses;
         result.deletedOther += deleted.other;
       } catch (err) {
@@ -93,15 +103,18 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
     owner: MaterialOwner,
     courseIds: string[],
     now: Date,
+    learnersHold: boolean,
   ): Promise<{ courses: number; other: number }> {
     const graph = await this.store.loadGraph(owner, now);
-    const learnerHolds = await learnerHoldsOn(
-      cleanupCandidates(graph, courseIds),
-      graph,
-      this.learners,
-      now,
-      this.settings.activeDays,
-    );
+    const learnerHolds = learnersHold
+      ? await learnerHoldsOn(
+          cleanupCandidates(graph, courseIds),
+          graph,
+          this.learners,
+          now,
+          this.settings.activeDays,
+        )
+      : [];
     const plan = planObsoleteCleanup(graph, courseIds, learnerHolds);
     if (plan.deleted.length === 0) return { courses: 0, other: 0 };
 
@@ -115,7 +128,7 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
       deleted.canDo;
     this.logger.log(
       `Obsolete cleanup of ${ownerKey(owner)}: ${courseIds.length} course(s) looked at, kept ` +
-        `${plan.keptCourseIds.length} (holds: ${countByReason(learnerHolds)}), deleted ${JSON.stringify(deleted)}`,
+        `${plan.keptCourseIds.length} (holds: ${countByReason([...graph.holds, ...learnerHolds])}), deleted ${JSON.stringify(deleted)}`,
     );
     return { courses: deleted.containers, other };
   }

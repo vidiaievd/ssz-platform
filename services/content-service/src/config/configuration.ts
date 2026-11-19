@@ -46,11 +46,12 @@ export const envSchema = z.object({
   // A suggestion of phrase marks waits on a model (plan 86, step 5c.2); under the gateway's 120 s.
   AI_SERVICE_SUGGESTION_TIMEOUT_MS: z.coerce.number().int().positive().default(110_000),
 
-  // A purged school's materials stay while learning-service counts active learners on them
-  // (plan 90, phase 5, step 4b). Learning wants `x-service-token` and the /api/v1 prefix.
+  // A course its author retired (`obsolete`) stays while learning-service counts active learners on
+  // it (plan 90, phase 5, step 4c); a purged school's are not asked about (Q11). Learning wants
+  // `x-service-token` and the /api/v1 prefix.
   LEARNING_SERVICE_URL: z.string().default('http://learning-service:3007'),
   LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
-  // A learner who did nothing in a course for longer no longer keeps it alive (Q5).
+  // A learner who did nothing in a retired course for longer no longer keeps it alive (Q5).
   CONTENT_OBSOLETE_ACTIVE_DAYS: z.coerce.number().int().positive().default(90),
   // The cleanup job: unfinished school purges, then obsolete courses (plan 90, phase 5, step 4c).
   CONTENT_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
