@@ -112,6 +112,22 @@ class FakeStore implements ISchoolMaterialsStore {
       canDo: 0,
     };
   }
+  retired: { schoolId: string; exerciseIds: string[]; listIds: string[]; afterDeletes: number }[] =
+    [];
+  failAnnounce = false;
+  async announceStudyRetired(
+    schoolId: string,
+    exerciseIds: readonly string[],
+    listIds: readonly string[],
+  ) {
+    if (this.failAnnounce) throw new Error('outbox is down');
+    this.retired.push({
+      schoolId,
+      exerciseIds: [...exerciseIds],
+      listIds: [...listIds],
+      afterDeletes: this.deletedKeys.length,
+    });
+  }
   async deleteWorkspaceRows() {
     this.workspaceRowsDeleted += 1;
   }
@@ -266,6 +282,41 @@ describe('school.purged', () => {
     await purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
     expect(store.deletedKeys).toContain('container:D');
     expect(store.courses.has('D')).toBe(false);
+  });
+
+  it('announces every exercise of the school and the deleted lists before deleting (Q11)', async () => {
+    const { store } = school();
+    store.materials.push(
+      { kind: 'exercise', id: 'KE' },
+      { kind: 'exercise', id: 'DE' },
+      { kind: 'vocabulary_list', id: 'KV' },
+      { kind: 'vocabulary_list', id: 'DV' },
+    );
+    store.edges.push(
+      { from: { kind: 'lesson', id: 'KL' }, to: { kind: 'exercise', id: 'KE' } },
+      { from: { kind: 'lesson', id: 'KL' }, to: { kind: 'vocabulary_list', id: 'KV' } },
+      { from: { kind: 'lesson', id: 'DL' }, to: { kind: 'exercise', id: 'DE' } },
+      { from: { kind: 'lesson', id: 'DL' }, to: { kind: 'vocabulary_list', id: 'DV' } },
+    );
+
+    await purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk'));
+
+    expect(store.retired).toHaveLength(1);
+    expect(store.retired[0].schoolId).toBe(SCHOOL);
+    // The kept exercise too: an obsolete course of a purged school is read only.
+    expect(store.retired[0].exerciseIds.sort()).toEqual(['DE', 'KE']);
+    expect(store.retired[0].listIds).toEqual(['DV']);
+    expect(store.retired[0].afterDeletes).toBe(0);
+    expect(store.deletedKeys).toContain('exercise:DE');
+  });
+
+  it('deletes nothing when the announcement fails', async () => {
+    const { store } = school();
+    store.failAnnounce = true;
+    await expect(
+      purgeHandler(store).execute(new PurgeSchoolMaterialsCommand(SCHOOL, 'Nordisk')),
+    ).rejects.toThrow(/outbox is down/);
+    expect(store.deletedKeys).toEqual([]);
   });
 
   it('deletes nothing when the materials cannot be read', async () => {

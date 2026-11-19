@@ -82,6 +82,14 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
     );
     if (plan.kept.length > 0) await this.store.snapshotSchoolName(schoolId, schoolName, true);
 
+    // Learners' review queues lose the school's exercises (kept ones are read only, deleted ones
+    // gone) and the words about to be deleted — before the delete, so a failure deletes nothing.
+    await this.store.announceStudyRetired(
+      schoolId,
+      graph.materials.filter((m) => m.kind === 'exercise').map((m) => m.id),
+      plan.deleted.filter((m) => m.kind === 'vocabulary_list').map((m) => m.id),
+    );
+
     const deleted = await this.store.deleteMaterials(owner, plan.deleted);
     await this.store.deleteWorkspaceRows(schoolId);
 

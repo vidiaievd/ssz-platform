@@ -10,6 +10,9 @@ export const CONTENT_EVENT_TYPES = {
   CONTAINER_ARCHIVED: 'content.container.archived',
   CONTAINER_DEPRECATED: 'content.container.deprecated',
   CONTAINER_DELETED: 'content.container.deleted',
+  // A purged school's exercises and the words of its deleted lists leave learners' review queues
+  // (plan 90, Q11).
+  SCHOOL_STUDY_RETIRED: 'content.school.study_retired',
   // Lesson
   LESSON_CREATED: 'content.lesson.created',
   LESSON_UPDATED: 'content.lesson.updated',
@@ -74,6 +77,17 @@ export interface ContainerUpdatedPayload {
 export interface ContainerDeletedPayload {
   containerId: string;
   ownerUserId: string;
+}
+
+/**
+ * Sent by the purge of a school, before its materials are deleted, in chunks (plan 90, Q11).
+ * `exerciseIds` — every exercise the school owned, deleted or kept (`obsolete` is read only);
+ * `vocabularyItemIds` — the words of the lists being deleted (kept words still render).
+ */
+export interface SchoolStudyRetiredPayload {
+  schoolId: string;
+  exerciseIds: string[];
+  vocabularyItemIds: string[];
 }
 
 export interface LessonPayload {
@@ -254,6 +268,7 @@ export type ContainerPublishedEvent = BaseEvent<ContainerPublishedPayload>;
 export type ContainerArchivedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeprecatedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeletedEvent = BaseEvent<ContainerDeletedPayload>;
+export type SchoolStudyRetiredEvent = BaseEvent<SchoolStudyRetiredPayload>;
 
 export type LessonCreatedEvent = BaseEvent<LessonPayload>;
 export type LessonUpdatedEvent = BaseEvent<LessonUpdatedPayload>;

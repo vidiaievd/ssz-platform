@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { CONTENT_EVENT_TYPES, type SchoolStudyRetiredPayload } from '@ssz/contracts';
 import type { $Enums } from '../../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import {
@@ -34,6 +35,8 @@ import type {
 
 /** Rows per delete transaction. */
 export const PURGE_BATCH = 100;
+/** Ids per `content.school.study_retired` message. */
+export const RETIRED_IDS_PER_EVENT = 1000;
 /** Ids per `IN (…)` read, far below Postgres' 32 767 bind parameters. */
 const READ_CHUNK = 5000;
 
@@ -494,6 +497,32 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
       });
     }
     return deleted;
+  }
+
+  async announceStudyRetired(
+    schoolId: string,
+    exerciseIds: readonly string[],
+    vocabularyListIds: readonly string[],
+  ): Promise<void> {
+    const words =
+      vocabularyListIds.length === 0
+        ? []
+        : await this.prisma.vocabularyItem.findMany({
+            where: { vocabularyListId: { in: [...vocabularyListIds] } },
+            select: { id: true },
+          });
+    const ids = [
+      ...exerciseIds.map((id) => ({ kind: 'exercise' as const, id })),
+      ...words.map((w) => ({ kind: 'word' as const, id: w.id })),
+    ];
+    for (const batch of chunks(ids, RETIRED_IDS_PER_EVENT)) {
+      const payload: SchoolStudyRetiredPayload = {
+        schoolId,
+        exerciseIds: batch.filter((i) => i.kind === 'exercise').map((i) => i.id),
+        vocabularyItemIds: batch.filter((i) => i.kind === 'word').map((i) => i.id),
+      };
+      await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_RETIRED, payload);
+    }
   }
 
   async deleteWorkspaceRows(schoolId: string): Promise<void> {

@@ -68,6 +68,17 @@ export interface ISchoolMaterialsStore {
     materials: readonly SchoolMaterial[],
   ): Promise<DeletedMaterials>;
 
+  /**
+   * Tells learning that these exercises and the words of these vocabulary lists leave learners'
+   * review queues (`content.school.study_retired`, plan 90, Q11), in chunks. Through the outbox,
+   * so it is called before the delete: a failure throws and nothing is deleted.
+   */
+  announceStudyRetired(
+    schoolId: string,
+    exerciseIds: readonly string[],
+    vocabularyListIds: readonly string[],
+  ): Promise<void>;
+
   /** Rows keyed by the school alone (its coverage recipe). */
   deleteWorkspaceRows(schoolId: string): Promise<void>;
 }
