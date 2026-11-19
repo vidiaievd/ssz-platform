@@ -11,6 +11,15 @@ describe('schoolLifecycleTemplate', () => {
     }
   });
 
+  // uk / ru dates end with their own dot («2027 р.»); a sentence must not add a second one.
+  it.each(['uk', 'ru', 'nb', 'en'])('never doubles a dot after a date (%s)', (locale) => {
+    for (const letter of ['suspended', 'closed', 'restored', 'purge_reminder'] as const) {
+      const out = schoolLifecycleTemplate({ ...base, letter, locale, daysLeft: 7 });
+      expect(out.text).not.toMatch(/\.\./);
+      expect(out.html).not.toMatch(/\.\./);
+    }
+  });
+
   it('escapes the school name in html', () => {
     const out = schoolLifecycleTemplate({ ...base, letter: 'closed', locale: 'en' });
     expect(out.html).toContain('Nordic &lt;Skole&gt;');
