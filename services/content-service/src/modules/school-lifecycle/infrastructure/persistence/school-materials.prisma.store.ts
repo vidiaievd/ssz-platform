@@ -27,6 +27,7 @@ import {
   type StudiedKind,
 } from '../../domain/school-materials.js';
 import type {
+  DeleteMaterialsOptions,
   DeletedMaterials,
   ISchoolMaterialsStore,
   ObsoleteCourse,
@@ -396,8 +397,13 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
   async deleteMaterials(
     owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
+    options: DeleteMaterialsOptions = {},
   ): Promise<DeletedMaterials> {
     const owned = ownedWhere(owner);
+    const purgedSchool =
+      options.schoolPurged && owner.kind === 'school'
+        ? { reason: 'school_purged' as const, schoolId: owner.schoolId }
+        : {};
     const byKind = (kind: MaterialKind) =>
       materials.filter((m) => m.kind === kind).map((m) => m.id);
     const deleted: DeletedMaterials = {
@@ -423,6 +429,7 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
         const event = new ContainerDeletedEvent({
           containerId: row.id,
           ownerUserId: row.ownerUserId,
+          ...purgedSchool,
         });
         await this.events.publish(event.eventType, event);
       }

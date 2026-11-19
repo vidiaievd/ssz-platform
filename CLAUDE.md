@@ -299,7 +299,9 @@ School lifecycle (plan 90, phase 5, step 8): `SchoolPurgedConsumer` (queue `lear
 events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) is read only (Q11): the engine refuses a
 start with 409 `SCHOOL_NOT_ACTIVE`. `SchoolStudyRetiredConsumer` (queue `learning-service.school-study-retired`, prefetch 1,
 `processed_events`) takes `content.school.study_retired`: exercise, gap and word cards on those ids become `SUSPENDED` in one
-statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped. Internal
+statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped. A `content.container.deleted`
+from a purge carries `reason: 'school_purged'` and `schoolId`: `ContainerDeletedConsumer` leaves that school's enrolments
+and assignments to `school.purged` (COMPLETED, silent) and unenrols only the others. Internal
 `internal/content/active-learners` is what content asks before its cleanup deletes a course the author retired.
 
 ### 6. Exercise Engine Service (NestJS)

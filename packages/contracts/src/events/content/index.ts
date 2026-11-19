@@ -77,6 +77,12 @@ export interface ContainerUpdatedPayload {
 export interface ContainerDeletedPayload {
   containerId: string;
   ownerUserId: string;
+  /**
+   * Set when a school's purge deletes the container (plan 90, Q11): that school's enrolments and
+   * assignments are closed by `school.purged`, without events; the consumer leaves them alone.
+   */
+  reason?: 'school_purged';
+  schoolId?: string;
 }
 
 /**

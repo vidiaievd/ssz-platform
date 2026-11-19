@@ -179,6 +179,32 @@ describe('SchoolMaterialsPrismaStore.deleteMaterials', () => {
     expect(containerDelete?.[2]).toEqual({ where: { id: { in: ['C1'] }, ownerSchoolId: SCHOOL } });
   });
 
+  it("a purged school's container is announced with the reason and the school (Q11)", async () => {
+    const { store: s, published } = store({ container: [{ id: 'C1', ownerUserId: 'author' }] });
+
+    await s.deleteMaterials(OWNER, [{ kind: 'container', id: 'C1', containerType: 'course' }], {
+      schoolPurged: true,
+    });
+
+    expect((published[0][1] as { payload: unknown }).payload).toEqual({
+      containerId: 'C1',
+      ownerUserId: 'author',
+      reason: 'school_purged',
+      schoolId: SCHOOL,
+    });
+  });
+
+  it('an author never gets a school reason, even if asked', async () => {
+    const { store: s, published } = store({ container: [{ id: 'C1', ownerUserId: 'author-1' }] });
+    await s.deleteMaterials(AUTHOR, [{ kind: 'container', id: 'C1', containerType: 'course' }], {
+      schoolPurged: true,
+    });
+    expect((published[0][1] as { payload: unknown }).payload).toEqual({
+      containerId: 'C1',
+      ownerUserId: 'author-1',
+    });
+  });
+
   it("touches nothing for a container that is not the school's (already gone, or another owner)", async () => {
     const { store: s, log, published } = store({ container: [] });
     await s.deleteMaterials(OWNER, [{ kind: 'container', id: 'C-other', containerType: 'course' }]);

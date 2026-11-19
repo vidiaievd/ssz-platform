@@ -84,8 +84,8 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
     };
     for (const [key, { owner, ids }] of byOwner) {
       try {
-        const learnersHold = !(owner.kind === 'school' && purged.has(owner.schoolId));
-        const deleted = await this.cleanup(owner, ids, now, learnersHold);
+        const schoolPurged = owner.kind === 'school' && purged.has(owner.schoolId);
+        const deleted = await this.cleanup(owner, ids, now, schoolPurged);
         result.deletedCourses += deleted.courses;
         result.deletedOther += deleted.other;
       } catch (err) {
@@ -103,10 +103,11 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
     owner: MaterialOwner,
     courseIds: string[],
     now: Date,
-    learnersHold: boolean,
+    schoolPurged: boolean,
   ): Promise<{ courses: number; other: number }> {
     const graph = await this.store.loadGraph(owner, now);
-    const learnerHolds = learnersHold
+    // Learners hold an author's retired course, never a purged school's (Q11).
+    const learnerHolds = !schoolPurged
       ? await learnerHoldsOn(
           cleanupCandidates(graph, courseIds),
           graph,
@@ -118,7 +119,8 @@ export class CleanupObsoleteCoursesHandler implements ICommandHandler<
     const plan = planObsoleteCleanup(graph, courseIds, learnerHolds);
     if (plan.deleted.length === 0) return { courses: 0, other: 0 };
 
-    const deleted = await this.store.deleteMaterials(owner, plan.deleted);
+    // A purged school's course: learning leaves the school's enrolments to `school.purged`.
+    const deleted = await this.store.deleteMaterials(owner, plan.deleted, { schoolPurged });
     const other =
       deleted.lessons +
       deleted.exercises +

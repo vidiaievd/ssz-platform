@@ -119,6 +119,59 @@ const validEnvelope = {
 };
 
 describe('ContainerDeletedConsumer', () => {
+  describe('a container deleted by a school purge (plan 90, Q11)', () => {
+    const SCHOOL = 'school-001';
+    const enrollment = (id: string, schoolId: string | null) =>
+      Enrollment.reconstitute({
+        id,
+        userId: `student-${id}`,
+        containerId: CONTAINER_ID,
+        schoolId,
+        status: 'ACTIVE',
+        enrolledAt: new Date('2026-01-01T00:00:00Z'),
+        completedAt: null,
+        unenrolledAt: null,
+        unenrollReason: null,
+        deletedAt: null,
+      });
+
+    it.each([
+      ['flat', { containerId: CONTAINER_ID, ownerUserId: 'u', reason: 'school_purged', schoolId: SCHOOL }],
+      ['wrapped', { eventId: 'x', payload: { containerId: CONTAINER_ID, ownerUserId: 'u', reason: 'school_purged', schoolId: SCHOOL } }],
+    ])("leaves the school's rows to school.purged and closes the rest (%s payload)", async (_label, payload) => {
+      const school = enrollment('e-school', SCHOOL);
+      const other = enrollment('e-other', 'school-002');
+      const none = enrollment('e-none', null);
+      const { consumer, enrollmentRepo, assignmentRepo, publisher } = makeConsumer({
+        enrollmentRepo: { findActiveByContainerId: jest.fn<() => Promise<Enrollment[]>>().mockResolvedValue([school, other, none]) },
+        assignmentRepo: { findActiveByContent: jest.fn<() => Promise<Assignment[]>>().mockResolvedValue([activeAssignment()]) },
+      });
+      const channel = makeChannel();
+
+      await (consumer as any).handleMessage(
+        channel,
+        makeMsg({ eventId: 'evt-purge-1', eventType: 'content.container.deleted', payload }),
+      );
+
+      const saved = (enrollmentRepo.save as jest.Mock).mock.calls.map(([e]) => (e as Enrollment).id);
+      expect(saved.sort()).toEqual(['e-none', 'e-other']);
+      expect(school.status).toBe('ACTIVE');
+      // The assignment is the purged school's too (`school-001`): no cancellation, no event for it.
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
+      expect((publisher.publish as jest.Mock).mock.calls).toHaveLength(2);
+      expect(channel.ack).toHaveBeenCalled();
+    });
+
+    it('without the reason every active row is closed, as before', async () => {
+      const school = enrollment('e-school', SCHOOL);
+      const { consumer, enrollmentRepo } = makeConsumer({
+        enrollmentRepo: { findActiveByContainerId: jest.fn<() => Promise<Enrollment[]>>().mockResolvedValue([school]) },
+      });
+      await (consumer as any).handleMessage(makeChannel(), makeMsg(validEnvelope));
+      expect(enrollmentRepo.save).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('handleMessage', () => {
     it('cascades cancel + unenroll, invalidates cache, marks processed, and acks', async () => {
       const assignment = activeAssignment();

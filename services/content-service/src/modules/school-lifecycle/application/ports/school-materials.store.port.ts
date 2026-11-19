@@ -20,6 +20,14 @@ export interface ObsoleteCourse {
   owner: MaterialOwner;
 }
 
+export interface DeleteMaterialsOptions {
+  /**
+   * The owner is a purged school: each `content.container.deleted` carries `reason: 'school_purged'`
+   * and the school, so learning leaves the school's enrolments to `school.purged` (Q11).
+   */
+  schoolPurged?: boolean;
+}
+
 export interface DeletedMaterials {
   containers: number;
   lessons: number;
@@ -66,6 +74,7 @@ export interface ISchoolMaterialsStore {
   deleteMaterials(
     owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
+    options?: DeleteMaterialsOptions,
   ): Promise<DeletedMaterials>;
 
   /**

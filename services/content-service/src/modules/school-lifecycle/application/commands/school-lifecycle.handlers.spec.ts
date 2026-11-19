@@ -93,11 +93,14 @@ class FakeStore implements ISchoolMaterialsStore {
     if (this.failGraphFor.has(ownerKey(owner))) throw new Error('database is down');
     return { materials: [...this.materials], edges: [...this.edges], holds: [...this.holds] };
   }
+  deleteOptions: Array<{ schoolPurged?: boolean } | undefined> = [];
   async deleteMaterials(
     owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
+    options?: { schoolPurged?: boolean },
   ): Promise<DeletedMaterials> {
     this.deletedBy.push(ownerKey(owner));
+    this.deleteOptions.push(options);
     const gone = new Set(materials.map(materialKey));
     this.deletedKeys.push(...gone);
     this.materials = this.materials.filter((m) => !gone.has(materialKey(m)));
@@ -272,6 +275,7 @@ describe('school.purged', () => {
     expect(store.courses.get('K')).toMatchObject({ status: OBSOLETE, source: BY_SCHOOL });
     expect(store.names.get('K')).toBe('Nordisk');
     expect(store.workspaceRowsDeleted).toBe(1);
+    expect(store.deleteOptions).toEqual([{ schoolPurged: true }]);
     expect(result).toMatchObject({ kept: 3, obsoleteCourses: 1 });
   });
 
@@ -426,6 +430,7 @@ describe('obsolete cleanup (step 4c)', () => {
 
     expect(store.deletedKeys.sort()).toEqual(['container:O', 'lesson:OL']);
     expect(store.deletedBy).toEqual([ownerKey(AUTHOR_OWNER)]);
+    expect(store.deleteOptions).toEqual([{ schoolPurged: false }]);
     expect(store.materials.map(materialKey).sort()).toEqual([
       'container:M',
       'lesson:LOOSE',
@@ -499,6 +504,7 @@ describe('obsolete cleanup (step 4c)', () => {
     const result = await cleanup(store, learners, ledger);
 
     expect(store.deletedKeys.sort()).toEqual(['container:P', 'lesson:PL']);
+    expect(store.deleteOptions).toEqual([{ schoolPurged: true }]);
     expect(learners.asked).toEqual([]);
     expect(result).toMatchObject({ deletedCourses: 1, failedOwners: 0 });
   });

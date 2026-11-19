@@ -90,7 +90,7 @@ export class PurgeSchoolMaterialsHandler implements ICommandHandler<
       plan.deleted.filter((m) => m.kind === 'vocabulary_list').map((m) => m.id),
     );
 
-    const deleted = await this.store.deleteMaterials(owner, plan.deleted);
+    const deleted = await this.store.deleteMaterials(owner, plan.deleted, { schoolPurged: true });
     await this.store.deleteWorkspaceRows(schoolId);
 
     this.logger.log(
