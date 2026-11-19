@@ -31,6 +31,7 @@ import { FeatureNotEntitledException } from '../../modules/schools/domain/except
 import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions/seats-exhausted.exception.js';
 import { SchoolTransitionNotAllowedException } from '../../modules/school-lifecycle/domain/school-transition-not-allowed.exception.js';
 import { SchoolNotActiveException } from '../../modules/schools/domain/exceptions/school-not-active.exception.js';
+import { SoloWorkspaceNotDeletableException } from '../../modules/schools/domain/exceptions/solo-workspace-not-deletable.exception.js';
 
 @Catch(
   SchoolNotFoundException,
@@ -44,6 +45,7 @@ import { SchoolNotActiveException } from '../../modules/schools/domain/exception
   SeatsExhaustedException,
   SchoolTransitionNotAllowedException,
   SchoolNotActiveException,
+  SoloWorkspaceNotDeletableException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -116,6 +118,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof SchoolNotActiveException) {
       return { status: HttpStatus.CONFLICT, code: 'SCHOOL_NOT_ACTIVE' };
+    }
+    if (exception instanceof SoloWorkspaceNotDeletableException) {
+      return { status: HttpStatus.CONFLICT, code: 'SOLO_WORKSPACE_NOT_DELETABLE' };
     }
     if (exception instanceof SeatsExhaustedException) {
       return { status: HttpStatus.CONFLICT, code: 'SEATS_EXHAUSTED' };

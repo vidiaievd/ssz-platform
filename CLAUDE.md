@@ -243,6 +243,9 @@ non-GET under a school id (except the owner's `DELETE`); paths without a school 
 role is answered (`members/:userId/role`, `members-batch` → 404); `GET schools/:id` is visible to the owner only.
 `GET internal/schools/:id/status` → `{ schoolId, status }` (any status; unknown → 404). Admin reads answer on the stored
 status (`admin/schools`, card with `closesAt` / `purgeAt`).
+A tutor's SOLO workspace (live check, block 9): `tutoring/workspace` and provisioning return it in any status but `purged`
+(read only, nothing written into a non-active one); after a purge a new one opens as `solo-<tutorId>-<n>` (the tombstone keeps
+the slug). The owner's `DELETE` of their SOLO → 409 `SOLO_WORKSPACE_NOT_DELETABLE`; an admin still closes it.
 
 ### 4. Content Service (NestJS)
 Learning material management: courses → modules → lessons → exercises.

@@ -256,7 +256,11 @@ export class SchoolsController {
   @ApiResponse({ status: 204 })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'School not found' })
-  @ApiResponse({ status: 409, description: '`SCHOOL_TRANSITION_NOT_ALLOWED` — already closed' })
+  @ApiResponse({
+    status: 409,
+    description:
+      '`SCHOOL_TRANSITION_NOT_ALLOWED` — already closed; `SOLO_WORKSPACE_NOT_DELETABLE` — a tutor\'s own workspace',
+  })
   async deleteSchool(
     @CurrentUser() user: JwtPayload,
     @Param('schoolId', ParseUUIDPipe) schoolId: string,
