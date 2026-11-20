@@ -172,6 +172,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
       value: activeStudents,
       ...(activeDelta ? { delta: activeDelta.delta, trend: activeDelta.trend } : {}),
       hint: `of ${totalEnrolled} enrolled`,
+      hintValues: { enrolled: totalEnrolled },
       spark: normalizeToScale(activeSpark),
     };
 
@@ -193,6 +194,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
       value: completed7d,
       ...(completedDelta ? { delta: completedDelta.delta, trend: completedDelta.trend } : {}),
       hint: `across ${activeCourses.length} course${activeCourses.length !== 1 ? 's' : ''}`,
+      hintValues: { courses: activeCourses.length },
       spark: normalizeToScale(completedSpark),
     };
 
@@ -236,6 +238,7 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
         value: atRiskCount,
         ...(atRiskDelta ? { delta: atRiskDelta.delta, trend: atRiskDelta.trend } : {}),
         hint: `haven't logged in ${this.atRiskDays}+ days`,
+        hintValues: { days: this.atRiskDays },
       });
     }
 

@@ -20,6 +20,14 @@ export class KpiDto {
   @ApiPropertyOptional({ example: 'of 487 enrolled' })
   hint?: string;
 
+  @ApiPropertyOptional({
+    example: { enrolled: 487 },
+    description:
+      'The numbers inside `hint`, so a client can word it in its own language: active_students_7d ' +
+      '{ enrolled }, lessons_completed_7d { courses }, at_risk { days }. `hint` stays English.',
+  })
+  hintValues?: Record<string, number>;
+
   @ApiPropertyOptional({ type: [Number], example: [35, 42, 38, 55, 48, 62, 70] })
   spark?: number[];
 
