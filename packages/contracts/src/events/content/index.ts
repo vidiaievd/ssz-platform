@@ -13,6 +13,10 @@ export const CONTENT_EVENT_TYPES = {
   // A purged school's exercises and the words of its deleted lists leave learners' review queues
   // (plan 90, Q11).
   SCHOOL_STUDY_RETIRED: 'content.school.study_retired',
+  // A closed school's exercises leave learners' review queues until it is restored (plan 90, live
+  // check step 7); `resumed` brings back only the cards `paused` took.
+  SCHOOL_STUDY_PAUSED: 'content.school.study_paused',
+  SCHOOL_STUDY_RESUMED: 'content.school.study_resumed',
   // Lesson
   LESSON_CREATED: 'content.lesson.created',
   LESSON_UPDATED: 'content.lesson.updated',
@@ -94,6 +98,20 @@ export interface SchoolStudyRetiredPayload {
   schoolId: string;
   exerciseIds: string[];
   vocabularyItemIds: string[];
+}
+
+/**
+ * `content.school.study_paused` — the school was closed: cards on these exercises (and their gaps)
+ * are suspended, marked with the school, until `content.school.study_resumed`. Sent in chunks.
+ */
+export interface SchoolStudyPausedPayload {
+  schoolId: string;
+  exerciseIds: string[];
+}
+
+/** `content.school.study_resumed` — the school was restored: what `paused` suspended comes back. */
+export interface SchoolStudyResumedPayload {
+  schoolId: string;
 }
 
 export interface LessonPayload {
@@ -275,6 +293,8 @@ export type ContainerArchivedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeprecatedEvent = BaseEvent<ContainerPayload>;
 export type ContainerDeletedEvent = BaseEvent<ContainerDeletedPayload>;
 export type SchoolStudyRetiredEvent = BaseEvent<SchoolStudyRetiredPayload>;
+export type SchoolStudyPausedEvent = BaseEvent<SchoolStudyPausedPayload>;
+export type SchoolStudyResumedEvent = BaseEvent<SchoolStudyResumedPayload>;
 
 export type LessonCreatedEvent = BaseEvent<LessonPayload>;
 export type LessonUpdatedEvent = BaseEvent<LessonUpdatedPayload>;

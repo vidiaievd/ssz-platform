@@ -134,6 +134,18 @@ class FakeStore implements ISchoolMaterialsStore {
   async deleteWorkspaceRows() {
     this.workspaceRowsDeleted += 1;
   }
+  exerciseIds: string[] = [];
+  paused: { schoolId: string; exerciseIds: string[] }[] = [];
+  resumed: string[] = [];
+  async findExerciseIds(): Promise<string[]> {
+    return [...this.exerciseIds];
+  }
+  async announceStudyPaused(schoolId: string, exerciseIds: readonly string[]) {
+    this.paused.push({ schoolId, exerciseIds: [...exerciseIds] });
+  }
+  async announceStudyResumed(schoolId: string) {
+    this.resumed.push(schoolId);
+  }
 }
 
 class FakeLearners implements IActiveLearnersReader {
@@ -222,6 +234,21 @@ describe('school.closed / school.restored', () => {
     expect(store.courses.get('c1')).toMatchObject({ status: MAINTAINED, source: BY_SCHOOL });
     expect(store.courses.get('c2')).toMatchObject({ status: UNMAINTAINED, source: AUTHOR });
     expect(store.courses.get('c3')).toMatchObject({ status: UNMAINTAINED, source: AUTHOR });
+  });
+
+  it("closing pauses learners' review of the school's exercises; restoring resumes it", async () => {
+    const store = new FakeStore();
+    store.addCourse('c1');
+    store.exerciseIds = ['e1', 'e2'];
+
+    await new ApplySchoolClosedHandler(store).execute(
+      new ApplySchoolClosedCommand(SCHOOL, 'Nordisk'),
+    );
+    expect(store.paused).toEqual([{ schoolId: SCHOOL, exerciseIds: ['e1', 'e2'] }]);
+    expect(store.resumed).toEqual([]);
+
+    await new ApplySchoolRestoredHandler(store).execute(new ApplySchoolRestoredCommand(SCHOOL));
+    expect(store.resumed).toEqual([SCHOOL]);
   });
 
   it('closing twice changes nothing the second time', async () => {

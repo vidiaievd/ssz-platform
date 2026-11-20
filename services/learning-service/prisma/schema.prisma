@@ -226,6 +226,10 @@ model SrsReviewCard {
   lapses         Int            @default(0)
   learningSteps  Int            @default(0) @map("learning_steps")
   lastReviewedAt DateTime?      @map("last_reviewed_at")
+  // Set while a closed school holds the card suspended (plan 90, live check step 7): its
+  // restore puts back `stateBeforePause`. Cleared whenever the card leaves SUSPENDED.
+  pausedBySchoolId String?       @map("paused_by_school_id")
+  stateBeforePause SrsCardState? @map("state_before_pause")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
 

@@ -31,7 +31,8 @@ function stringList(value: unknown): string[] | null {
  * **The history stays**: the FSRS state, reps and lapses are kept, the cards just stop coming due
  * (a start would answer 404 or 409 `SCHOOL_NOT_ACTIVE`). Written straight to the table, with no
  * `srs.card.suspended` event per card — no learner chose this. The users' cached due queues are
- * dropped after the commit. Idempotent by its filter and by `processed_events`.
+ * dropped after the commit. Cards the school's closing paused (`study_paused`) lose that mark, so
+ * nothing brings them back. Idempotent by its filter and by `processed_events`.
  */
 @Injectable()
 export class SchoolStudyRetiredConsumer implements OnModuleInit, OnModuleDestroy {
@@ -126,6 +127,11 @@ export class SchoolStudyRetiredConsumer implements OnModuleInit, OnModuleDestroy
                             AND split_part(content_id, '#', 1) = ANY(${exerciseIds}::text[]))
                         OR (content_type = 'vocabulary_word' AND content_id = ANY(${wordIds}::text[])))
              RETURNING user_id`;
+        // Cards a closed school paused stay suspended for good: no restore follows a purge.
+        await tx.$executeRaw`
+          UPDATE srs_review_cards
+             SET paused_by_school_id = NULL, state_before_pause = NULL
+           WHERE paused_by_school_id = ${schoolId}`;
         await tx.processedEvent.create({ data: { eventId, eventType: ROUTING_KEY } });
         return rows;
       });

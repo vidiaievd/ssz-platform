@@ -272,7 +272,9 @@ containers` hides `obsolete` unless `includeObsolete=true` (student progress and
 their own. `internal/containers/:id/access-tier` → `{ accessTier, maintenanceStatus }`; learning refuses enrolment in an
 `obsolete` course with 409 `COURSE_OBSOLETE`. Module `school-lifecycle` (queue `content-service.school-lifecycle`, prefetch
 1, `processed_events` key `school-lifecycle`): `closed` → the school's courses `unmaintained` / `school`; `restored` → back to
-`maintained` only what the school set; `purged` → courses that others still hold become `obsolete` / `school`, the rest is
+`maintained` only what the school set; `closed` / `restored` also announce through the outbox `content.school.study_paused
+{ schoolId, exerciseIds }` (every exercise the school owns, ≤ 1000 per message) / `content.school.study_resumed { schoolId }`
+(plan 90 live check, step 7); `purged` → courses that others still hold become `obsolete` / `school`, the rest is
 deleted. Held = a live `content_share` or another owner's row pointing inside (a learner's own word included); whatever a
 held course reaches is held too. Learners hold nothing of a purged school (Q11): its `obsolete` course is history to read,
 nobody practises it. Before deleting, the purge announces through the outbox `content.school.study_retired { schoolId,
@@ -307,7 +309,12 @@ School lifecycle (plan 90, phase 5, step 8): `SchoolPurgedConsumer` (queue `lear
 events**; progress, SRS and atom evidence stay. A course kept at purge (`obsolete`) is read only (Q11): the engine refuses a
 start with 409 `SCHOOL_NOT_ACTIVE`. `SchoolStudyRetiredConsumer` (queue `learning-service.school-study-retired`, prefetch 1,
 `processed_events`) takes `content.school.study_retired`: exercise, gap and word cards on those ids become `SUSPENDED` in one
-statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped. A `content.container.deleted`
+statement, no per-card event, FSRS state kept; the learners' cached due queues are dropped; the school's pause mark is cleared.
+`SchoolStudyPausedConsumer` (queue `learning-service.school-study-paused`, both keys, prefetch 1, `processed_events`; live check
+step 7): `study_paused` → exercise and gap cards on those ids not already `SUSPENDED` become `SUSPENDED` with
+`paused_by_school_id` + `state_before_pause`; `study_resumed` → only the marked cards go back to their state (`dueAt` and FSRS
+untouched, a learner's own suspension never woken). The mark is cleared whenever a card leaves `SUSPENDED` (mapper). Words are
+not paused (the engine does not refuse them). A `content.container.deleted`
 from a purge carries `reason: 'school_purged'` and `schoolId`: `ContainerDeletedConsumer` leaves that school's enrolments
 and assignments to `school.purged` (COMPLETED, silent) and unenrols only the others. Internal
 `internal/content/active-learners` is what content asks before its cleanup deletes a course the author retired;

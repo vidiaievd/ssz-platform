@@ -1,5 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { CONTENT_EVENT_TYPES, type SchoolStudyRetiredPayload } from '@ssz/contracts';
+import {
+  CONTENT_EVENT_TYPES,
+  type SchoolStudyPausedPayload,
+  type SchoolStudyResumedPayload,
+  type SchoolStudyRetiredPayload,
+} from '@ssz/contracts';
 import type { $Enums } from '../../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import {
@@ -36,7 +41,7 @@ import type {
 
 /** Rows per delete transaction. */
 export const PURGE_BATCH = 100;
-/** Ids per `content.school.study_retired` message. */
+/** Ids per `content.school.study_retired` / `study_paused` message. */
 export const RETIRED_IDS_PER_EVENT = 1000;
 /** Ids per `IN (…)` read, far below Postgres' 32 767 bind parameters. */
 const READ_CHUNK = 5000;
@@ -530,6 +535,26 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
       };
       await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_RETIRED, payload);
     }
+  }
+
+  async findExerciseIds(schoolId: string): Promise<string[]> {
+    const rows = await this.prisma.exercise.findMany({
+      where: { ownerSchoolId: schoolId },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  async announceStudyPaused(schoolId: string, exerciseIds: readonly string[]): Promise<void> {
+    for (const batch of chunks(exerciseIds, RETIRED_IDS_PER_EVENT)) {
+      const payload: SchoolStudyPausedPayload = { schoolId, exerciseIds: batch };
+      await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_PAUSED, payload);
+    }
+  }
+
+  async announceStudyResumed(schoolId: string): Promise<void> {
+    const payload: SchoolStudyResumedPayload = { schoolId };
+    await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_RESUMED, payload);
   }
 
   async deleteWorkspaceRows(schoolId: string): Promise<void> {

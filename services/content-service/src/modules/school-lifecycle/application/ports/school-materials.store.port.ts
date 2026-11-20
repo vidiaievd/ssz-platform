@@ -88,6 +88,18 @@ export interface ISchoolMaterialsStore {
     vocabularyListIds: readonly string[],
   ): Promise<void>;
 
+  /** Every exercise the school owns (`owner_school_id`), soft-deleted ones too. */
+  findExerciseIds(schoolId: string): Promise<string[]>;
+
+  /**
+   * The school was closed: learners' cards on these exercises are suspended until it is restored
+   * (`content.school.study_paused`, plan 90 live check step 7), in chunks, through the outbox.
+   */
+  announceStudyPaused(schoolId: string, exerciseIds: readonly string[]): Promise<void>;
+
+  /** The school was restored: what `announceStudyPaused` suspended comes back (`study_resumed`). */
+  announceStudyResumed(schoolId: string): Promise<void>;
+
   /** Rows keyed by the school alone (its coverage recipe). */
   deleteWorkspaceRows(schoolId: string): Promise<void>;
 }

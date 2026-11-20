@@ -12,10 +12,15 @@ const msg = (content: unknown, redelivered = false): ConsumeMessage =>
 
 function setup({ seen = false, suspended = [] as Array<{ user_id: string }> } = {}) {
   const queries: Array<{ sql: string; values: unknown[] }> = [];
+  const cleared: Array<{ sql: string; values: unknown[] }> = [];
   const tx = {
     $queryRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
       queries.push({ sql: strings.join('?'), values });
       return suspended;
+    }),
+    $executeRaw: jest.fn(async (strings: TemplateStringsArray, ...values: unknown[]) => {
+      cleared.push({ sql: strings.join('?'), values });
+      return 0;
     }),
     processedEvent: { create: jest.fn(async (args: unknown) => args) },
   };
@@ -34,7 +39,7 @@ function setup({ seen = false, suspended = [] as Array<{ user_id: string }> } = 
     { get: () => undefined } as never,
     dueQueue as never,
   );
-  return { prisma, tx, queries, dueQueue, channel, consumer };
+  return { prisma, tx, queries, cleared, dueQueue, channel, consumer };
 }
 
 const event = (payload: Record<string, unknown>) => ({
@@ -70,6 +75,16 @@ describe('SchoolStudyRetiredConsumer (plan 90, Q11)', () => {
       data: { eventId: 'e1', eventType: 'content.school.study_retired' },
     });
     expect(dueQueue.invalidate.mock.calls.map(([u]) => u)).toEqual(['u1', 'u2']);
+    expect(channel.ack).toHaveBeenCalled();
+  });
+
+  it("clears the closed school's pause mark, so no restore wakes a purged school's cards", async () => {
+    const { cleared, channel, consumer } = setup();
+    await consumer.handleMessage(channel, msg(event({ exerciseIds: ['ex-1'] })));
+    expect(cleared).toHaveLength(1);
+    expect(cleared[0].sql).toMatch(/SET paused_by_school_id = NULL, state_before_pause = NULL/);
+    expect(cleared[0].sql).toMatch(/WHERE paused_by_school_id = \?/);
+    expect(cleared[0].values).toEqual([SCHOOL_ID]);
     expect(channel.ack).toHaveBeenCalled();
   });
 

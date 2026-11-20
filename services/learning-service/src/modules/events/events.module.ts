@@ -13,6 +13,7 @@ import { UserDeletedConsumer } from './consumers/user-deleted.consumer.js';
 import { AtomsFlaggedConsumer } from './consumers/atoms-flagged.consumer.js';
 import { SchoolPurgedConsumer } from './consumers/school-purged.consumer.js';
 import { SchoolStudyRetiredConsumer } from './consumers/school-study-retired.consumer.js';
+import { SchoolStudyPausedConsumer } from './consumers/school-study-paused.consumer.js';
 import { SrsModule } from '../srs/srs.module.js';
 import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
 
@@ -36,6 +37,7 @@ import { UserErasureModule } from '../user-erasure/user-erasure.module.js';
     AtomsFlaggedConsumer,
     SchoolPurgedConsumer,
     SchoolStudyRetiredConsumer,
+    SchoolStudyPausedConsumer,
   ],
 })
 export class EventsModule {}
