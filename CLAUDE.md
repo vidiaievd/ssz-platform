@@ -286,6 +286,8 @@ unfinished purges (after `CONTENT_PURGE_RETRY_AFTER_MS`, 30 min) and deletes `ob
 within `CONTENT_OBSOLETE_ACTIVE_DAYS` 90; learning `internal/content/active-learners`) holds only a course its author
 retired; a purged school's (known from `school_purges`) is not asked about. Edits of a non-active school's materials → 409 `SCHOOL_NOT_ACTIVE`
 (`VisibilityCheckerService`); reads stay open.
+Tags (plan 90 §8, step 10): `GET tags` without `scope` answers a non-admin global tags plus, with `schoolId` and membership, that
+school's (else 403); a school tag is created by owner / content admin and put on a material by `POST <entity>/:id/tags { tagId }`.
 Former learners (Q11, (а′)): a `view` refused on `school_private` material of a `closed` / `purged` school is asked once more —
 `ISchoolLearnerLookup` → learning `internal/content/schools/:schoolId/learners/:userId` (`x-service-token`); a user with an
 enrolment or assignment of the school in any status reads it (reason `former_school_learner`, a learner grant, not staff) on every
@@ -415,6 +417,9 @@ School lifecycle (plan 90, Q13): school screens check access against the `school
 `school.closed` (no role in `closed`, as in organization → 404, the owner too), back on `school.restored`; `school.purged`
 deletes both, groups and their members, `school_activity` and `review_term_acceptances`. The learner's history
 (`enrollment_projection`, evidence, mastery, `weak_rules_daily`) stays. `suspended` changes nothing.
+School dashboard wording (plan 90 §8, step 11): `GET analytics/schools/:id/kpis` items carry `hintValues` (`active_students_7d`
+{ enrolled }, `lessons_completed_7d` { courses }, `at_risk` { days }) and `activity` items `eventType`; `hint` / `what` stay English for old
+clients — the web words them itself.
 Weekly AI usage by agent (phase 8, step 1): `admin/ai/usage?groupBy=week` gives each week `byCapability[]` (same figures as
 a row; a capability without calls that week is omitted; one query over `ai_usage_daily`, folded in `admin-usage.ts`).
 AI review gate (plan 90, phase 7, step 10): `ai_draft_quality_daily` has `template_code` (old rows `null` = "template not
