@@ -617,8 +617,9 @@ plan and unknown here, so not counted), `endingSoon.grants` (with `enabled`, sch
 `endingSoon.subscriptions` (up to 100 each, `truncated`).
 School closed (plan 90, phase 5, step 5): `PayerCreatedConsumer` also takes `school.closed` (workspace payers only). An open
 subscription is cancelled by the same command as `DELETE`, journal `subscription.canceled` with `actor_id = 'system'` and
-`reason = 'school closed'` (the event omits `actorLevel`); grants stay. `school.restored` / `school.purged` do nothing —
-restoring a school does not bring its tariff back; an admin assigns it.
+`reason = 'school closed'` (the event omits `actorLevel`); every live grant (running or scheduled) is revoked the same way
+(`grant.revoked`, `system`, `school closed`, one row each; plan 90 live check, step 6). `school.restored` / `school.purged` do
+nothing — restoring a school brings back neither its tariff nor its grants; an admin assigns them.
 Moving subscribers to a plan's current version (plan 90, phase 8, step 6): `POST admin/subscriptions/plans/:code/migrate
 { toVersion, fromVersions?, dryRun, reason }` (`super`; `toVersion` must be the current one, else 422
 `migration_target_not_current`; archived plan → 422 `plan_archived`; bad sources → 422 `invalid_source_versions`).

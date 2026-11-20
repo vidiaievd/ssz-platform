@@ -32,7 +32,8 @@ interface Envelope {
  * SOLO workspaces too (organization-service provisions one per registering tutor), so a
  * tutor needs no `user` account; a registering student gets one for their own learning.
  *
- * `school.closed` (plan 90, phase 5, step 5) ends the school's open subscription, journalled by `system`.
+ * `school.closed` (plan 90, phase 5, step 5; live check step 6) ends the school's open subscription and revokes its
+ * live grants, each journalled by `system`.
  *
  * `auth.user.deleted` (VoxOrd plan 07, step 3c) closes the learner's account on the same queue,
  * so a registration and a deletion of one user are never handled out of order.
@@ -111,8 +112,9 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
       }
       const command = this.toCommand(eventType, envelope.payload);
       if (command) {
-        const outcome = await this.commands.execute<AccountCommand, string>(command);
-        this.logger.log(`${eventType} [${eventId}] → ${command.type} ${command.externalId}: ${outcome}`);
+        const outcome = await this.commands.execute<AccountCommand, unknown>(command);
+        const told = typeof outcome === 'string' ? outcome : JSON.stringify(outcome);
+        this.logger.log(`${eventType} [${eventId}] → ${command.type} ${command.externalId}: ${told}`);
       }
       await this.processed.markProcessed(eventId, eventType);
       channel.ack(msg);
@@ -131,7 +133,7 @@ export class PayerCreatedConsumer implements OnModuleInit, OnModuleDestroy {
       return schoolId ? new OpenAccountCommand('workspace', schoolId) : null;
     }
     if (eventType === ORGANIZATION_EVENT_TYPES.SCHOOL_CLOSED) {
-      // `restored` / `purged` change nothing here: the plan does not come back, a purge has nothing to cancel.
+      // `restored` / `purged` change nothing here: plan and grants do not come back, a purge has nothing to cancel.
       const { schoolId } = (payload ?? {}) as { schoolId?: string };
       return schoolId ? new CancelSchoolSubscriptionCommand(schoolId) : null;
     }
