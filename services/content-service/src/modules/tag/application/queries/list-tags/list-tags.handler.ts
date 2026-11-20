@@ -33,10 +33,25 @@ export class ListTagsHandler implements IQueryHandler<ListTagsQuery, PaginatedRe
       );
     }
 
+    // No scope from a non-admin: global tags, plus the school's when they belong to it. Before
+    // this, the list answered every school's tags to anyone (found 20.11, plan 90 §8 step 10).
+    let visibleToSchool: string | null | undefined;
+    if (!query.scope && !query.isPlatformAdmin) {
+      if (query.schoolId) {
+        const role = await this.orgClient.getMemberRole(query.userId, query.schoolId);
+        if (!role) {
+          throw new ForbiddenException('You must be a member of the school to list its tags');
+        }
+      }
+      visibleToSchool = query.schoolId ?? null;
+    }
+
     return this.tagRepo.findAll({
       scope: query.scope,
       category: query.category,
-      ownerSchoolId: query.schoolId ?? undefined,
+      // With `visibleToSchool` the school id widens the list instead of narrowing it.
+      ownerSchoolId: visibleToSchool !== undefined ? undefined : (query.schoolId ?? undefined),
+      visibleToSchool,
       search: query.search,
       page: query.page,
       limit: query.limit,

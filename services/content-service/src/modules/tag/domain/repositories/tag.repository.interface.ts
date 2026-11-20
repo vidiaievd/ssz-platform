@@ -9,6 +9,11 @@ export interface TagFilter {
   scope?: TagScope;
   category?: TagCategory;
   ownerSchoolId?: string | null;
+  /**
+   * What a non-admin may see: global tags, plus the given school's when a school id is set
+   * (null = global only). Undefined = no such restriction (platform admin, or an explicit scope).
+   */
+  visibleToSchool?: string | null;
   search?: string;
   page: number;
   limit: number;
