@@ -53,6 +53,14 @@ describe('SchoolActivityGate', () => {
     await expect(setup({ owner: new Error('404') }).gate.assertExerciseOpen('ex1')).resolves.toBeUndefined();
   });
 
+  it('names the status of a school that is not active, and nothing otherwise (live check, block 12)', async () => {
+    await expect(setup({ status: 'suspended' }).gate.inactiveStatusOf('ex1')).resolves.toBe('suspended');
+    await expect(setup({ status: 'closed' }).gate.inactiveStatusOf('ex1')).resolves.toBe('closed');
+    await expect(setup().gate.inactiveStatusOf('ex1')).resolves.toBeNull();
+    await expect(setup({ owner: null, status: 'closed' }).gate.inactiveStatusOf('ex1')).resolves.toBeNull();
+    await expect(setup({ status: new Error('down') }).gate.inactiveStatusOf('ex1')).resolves.toBeNull();
+  });
+
   it('fails open when a neighbour does not answer', async () => {
     await expect(setup({ owner: new Error('down') }).gate.assertExerciseOpen('ex1')).resolves.toBeUndefined();
     await expect(setup({ status: new Error('down') }).gate.assertExerciseOpen('ex1')).resolves.toBeUndefined();

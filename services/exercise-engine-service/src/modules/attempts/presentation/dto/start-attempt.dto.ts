@@ -272,4 +272,12 @@ export class StartAttemptResponseDto {
       'the allowlist a check reply goes through. Null for a fresh attempt and other templates.',
   })
   boardCheck!: Record<string, unknown> | null;
+
+  @ApiPropertyOptional({
+    enum: ['suspended', 'closed', 'purged'],
+    description:
+      'Only on an attempt opened before the school that owns the course stopped: the draft is ' +
+      'handed back to be read, the hand-in is refused (409 SCHOOL_NOT_ACTIVE). Absent otherwise.',
+  })
+  schoolStatus?: 'suspended' | 'closed' | 'purged';
 }

@@ -347,7 +347,8 @@ take; takes carry `sessionId` = the attempt id.
 Step 14.2: diagnostic takes go with `explain: false` (no model call); toneme takes carry the probe as `exerciseId`. Live
 end-to-end run on Azure dev: `infrastructure/scripts/plan-86-session-live.mts`.
 School not active (plan 90, phase 5, step 7): `SchoolActivityGate` (cache 30 s, fail open when organization is down) → 409
-`SCHOOL_NOT_ACTIVE { schoolStatus }` on start of a new attempt (an attempt opened before is still resumed, draft included), `submit`, `check`, `claim`, `review`, `batch-approve`. The school is the owner
+`SCHOOL_NOT_ACTIVE { schoolStatus }` on start of a new attempt (an attempt opened before is still resumed, draft included, and the resume answer carries
+`schoolStatus` — the web shows that draft read only), `submit`, `check`, `claim`, `review`, `batch-approve`. The school is the owner
 of the exercise's course (`placement.ownerSchoolId`), not the learner's school: a learner of a suspended school keeps
 practising public courses; for staff and for a hand-in "to review" it is `attempt.schoolId`. Probes (no course) untouched.
 Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no gate; reads stay open.

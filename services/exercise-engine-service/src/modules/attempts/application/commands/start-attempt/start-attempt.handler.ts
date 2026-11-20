@@ -243,6 +243,12 @@ export interface StartAttemptResult {
    * table.
    */
   boardCheck: unknown | null;
+  /**
+   * Set only on an attempt handed back while the school that owns the course is not `active`
+   * (plan 90, live check block 12): its draft can be read, nothing can be handed in. Absent
+   * otherwise — a fresh attempt in such a school is refused before it gets here.
+   */
+  schoolStatus?: 'suspended' | 'closed' | 'purged';
 }
 
 /**
@@ -868,8 +874,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         command.language,
         existing.checkMode,
       );
+      const schoolStatus = (await this.schoolGate?.inactiveStatusOf(command.exerciseId)) ?? null;
 
       return Result.ok<StartAttemptResult, StartAttemptError>({
+        ...(schoolStatus === null ? {} : { schoolStatus }),
         attemptId: existing.id,
         templateCode: existing.templateCode,
         targetLanguage: existing.targetLanguage,

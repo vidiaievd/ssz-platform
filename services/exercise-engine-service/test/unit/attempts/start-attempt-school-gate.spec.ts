@@ -19,9 +19,28 @@ const OPEN_ATTEMPT = {
   checkedRows: [],
   pickedOptions: [],
   probeDraw: null,
+  targetLanguage: 'no',
+  difficultyLevel: 'B1',
+  checkMode: 'PRACTICE',
+  previousAttemptId: null,
+  totalItems: null,
 };
 
-function makeHandler(open: typeof OPEN_ATTEMPT | null) {
+const ENVELOPE = {
+  exercise: {
+    templateCode: 'writing_task',
+    targetLanguage: 'no',
+    difficultyLevel: 'B1',
+    content: { prompt: 'Skriv om byen din.' },
+    expectedAnswers: {},
+    answerCheckSettings: null,
+  },
+  template: { answerSchema: {}, defaultCheckSettings: {} },
+  axes: { skills: ['written'], focus: ['grammar'], modality: 'production' },
+  targets: [],
+};
+
+function makeHandler(open: typeof OPEN_ATTEMPT | null, inactive: string | null = 'suspended') {
   const attempts = {
     findInProgress: jest.fn(() => Promise.resolve(open)),
     findOpenBoard: jest.fn(() => Promise.resolve(null)),
@@ -29,12 +48,13 @@ function makeHandler(open: typeof OPEN_ATTEMPT | null) {
     save: jest.fn(() => Promise.resolve()),
   };
   const contentClient = {
-    getExerciseForAttempt: jest.fn(() => Promise.reject(new Error('content must not be asked'))),
+    getExerciseForAttempt: jest.fn(() => Promise.resolve(Result.ok(ENVELOPE))),
     getPracticedAtoms: jest.fn(() => Promise.resolve(Result.ok([]))),
     getExercisePlacement: jest.fn(() => Promise.resolve(Result.fail({ statusCode: 404, message: 'Not placed' }))),
   };
   const organizationClient = { resolveLearnerReviewContext: jest.fn() };
   const gate = {
+    inactiveStatusOf: jest.fn(() => Promise.resolve(inactive)),
     assertExerciseOpen: jest.fn(() =>
       Promise.reject(new ConflictException({ code: 'SCHOOL_NOT_ACTIVE', schoolStatus: 'suspended' })),
     ),
@@ -68,5 +88,24 @@ describe('StartAttemptHandler — a school that is not active', () => {
 
     expect(result.isFail && result.error).toEqual({ code: 'ALREADY_IN_PROGRESS', attemptId: 'attempt-open' });
     expect(gate.assertExerciseOpen).not.toHaveBeenCalled();
+  });
+
+  it('hands the open attempt back by name with the school status, so its draft is shown read only', async () => {
+    const { handler, gate } = makeHandler(OPEN_ATTEMPT);
+    const join = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE', 'attempt-open');
+
+    const result = await handler.execute(join);
+
+    expect(result.isOk && result.value).toMatchObject({ attemptId: 'attempt-open', schoolStatus: 'suspended' });
+    expect(gate.assertExerciseOpen).not.toHaveBeenCalled();
+  });
+
+  it('says nothing about the school when it is active', async () => {
+    const { handler } = makeHandler(OPEN_ATTEMPT, null);
+    const join = new StartAttemptCommand('user-1', 'ex-1', 'no', null, null, 'PRACTICE', 'attempt-open');
+
+    const result = await handler.execute(join);
+
+    expect(result.isOk && 'schoolStatus' in result.value).toBe(false);
   });
 });
