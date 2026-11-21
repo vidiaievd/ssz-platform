@@ -557,7 +557,7 @@ public sealed class AdminSessionTests
     // ── Bootstrap ─────────────────────────────────────────────────────────────
 
     private BootstrapSuperAdminCommandHandler BootstrapHandler() =>
-        new(_userRepo, _roleRepo, _levels, _trail, _unitOfWork);
+        new(_userRepo, _roleRepo, _levels, _trail, _unitOfWork, Substitute.For<IDomainEventPublisher>());
 
     [Fact]
     public async Task Bootstrap_MakesTheAccountASuperAdministrator()

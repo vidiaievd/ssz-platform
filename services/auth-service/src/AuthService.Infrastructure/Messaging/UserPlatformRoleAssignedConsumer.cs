@@ -1,4 +1,5 @@
 using AuthService.Application.Interfaces;
+using AuthService.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -132,6 +133,8 @@ public sealed class UserPlatformRoleAssignedConsumer(
             // AssignRole is idempotent — skips if user already has this role
             user.AssignRole(role);
             await unitOfWork.SaveChangesAsync(ct);
+            // A role that was new goes on as auth.user.role_assigned (user-profile's lookup copy).
+            await scope.ServiceProvider.GetRequiredService<IDomainEventPublisher>().PublishAndClearAsync(user, ct);
 
             channel.BasicAck(ea.DeliveryTag, multiple: false);
             logger.LogInformation(

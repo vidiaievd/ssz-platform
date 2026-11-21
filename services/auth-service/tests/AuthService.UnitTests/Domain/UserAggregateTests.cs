@@ -109,6 +109,39 @@ public sealed class UserAggregateTests
     }
 
     [Fact]
+    public void AssignRole_NewRole_RaisesRoleAssigned_OnceOnly()
+    {
+        var user = User.Create("test@example.com", "hash", ["tutor"]);
+        user.ClearDomainEvents();
+        var student = Role.Create(RoleNames.Student);
+
+        user.AssignRole(student);
+        user.AssignRole(student);
+
+        user.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<UserRoleAssignedEvent>()
+            .Which.Role.Should().Be(RoleNames.Student);
+    }
+
+    [Fact]
+    public void RemoveRole_RaisesRoleRemoved_OnlyWhenTheUserHadIt()
+    {
+        var user = User.Create("test@example.com", "hash", ["student"]);
+        var admin = Role.Create(RoleNames.PlatformAdmin);
+        user.RemoveRole(admin);
+        user.AssignRole(admin);
+        user.ClearDomainEvents();
+
+        user.RemoveRole(admin);
+        user.RemoveRole(admin);
+
+        user.Roles.Should().BeEmpty();
+        user.DomainEvents.Should().ContainSingle()
+            .Which.Should().BeOfType<UserRoleRemovedEvent>()
+            .Which.Role.Should().Be(RoleNames.PlatformAdmin);
+    }
+
+    [Fact]
     public void UnlockIfExpired_WhenLockoutExpired_ShouldUnlock()
     {
         var user = User.Create("test@example.com", "hash", ["student"]);

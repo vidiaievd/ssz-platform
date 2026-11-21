@@ -13,6 +13,28 @@ public sealed record UserRegisteredEvent(
     public int Version => 2;
 }
 
+/// <summary>A role added after registration (plan 90, session 16 remark 2). Role names are lowercase.</summary>
+public sealed record UserRoleAssignedEvent(
+    Guid UserId,
+    string Role
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
+
+/// <summary>A role taken away (today only platform_admin, by revoking an administrator).</summary>
+public sealed record UserRoleRemovedEvent(
+    Guid UserId,
+    string Role
+) : IDomainEvent
+{
+    public Guid EventId { get; } = Guid.NewGuid();
+    public DateTimeOffset OccurredAt { get; } = DateTimeOffset.UtcNow;
+    public int Version => 1;
+}
+
 public sealed record UserLoggedInEvent(
     Guid UserId,
     string Email,
