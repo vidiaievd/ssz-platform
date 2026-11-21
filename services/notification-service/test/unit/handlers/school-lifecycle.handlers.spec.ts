@@ -4,6 +4,7 @@ import {
   SchoolClosedHandler,
   SchoolRestoredHandler,
   SchoolPurgeReminderHandler,
+  remainingDays,
 } from '../../../src/modules/notifications/handlers/school-lifecycle.handlers.js';
 import type { MessageMeta } from '../../../src/infrastructure/messaging/message-handler.interface.js';
 
@@ -64,14 +65,37 @@ describe('school lifecycle letters', () => {
     expect(notifications.sendSchoolLifecycleEmail).toHaveBeenCalledWith(expect.objectContaining({ letter: 'restored' }));
   });
 
-  it('purge reminder: carries days left and the date', async () => {
-    await new SchoolPurgeReminderHandler(mailer).handle(
-      { schoolId: 's-1', ownerId: 'o-1', name: 'Nordick', kind: 'SCHOOL', daysLeft: 7, purgeAt: '2027-05-12T10:00:00.000Z' },
-      meta,
-    );
+  it('purge reminder: carries the days really left and the date, not the threshold', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2027-05-07T09:00:00.000Z'));
+    try {
+      // The 7-day reminder went out late: 5 days and an hour are left → "in 6 days".
+      await new SchoolPurgeReminderHandler(mailer).handle(
+        { schoolId: 's-1', ownerId: 'o-1', name: 'Nordick', kind: 'SCHOOL', daysLeft: 7, purgeAt: '2027-05-12T10:00:00.000Z' },
+        meta,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
     expect(notifications.sendSchoolLifecycleEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ letter: 'purge_reminder', daysLeft: 7, purgeAt: '2027-05-12T10:00:00.000Z' }),
+      expect.objectContaining({ letter: 'purge_reminder', daysLeft: 6, purgeAt: '2027-05-12T10:00:00.000Z' }),
     );
+  });
+
+  describe('remainingDays', () => {
+    const now = new Date('2027-04-12T10:00:00.000Z');
+    it('counts whole days up to the purge', () => {
+      expect(remainingDays('2027-05-12T10:00:00.000Z', 30, now)).toBe(30);
+      expect(remainingDays('2027-05-12T09:00:00.000Z', 30, now)).toBe(30);
+      expect(remainingDays('2027-05-12T11:00:00.000Z', 30, now)).toBe(31);
+    });
+    it('never says less than one day, even past the date', () => {
+      expect(remainingDays('2027-04-12T12:00:00.000Z', 7, now)).toBe(1);
+      expect(remainingDays('2027-04-11T10:00:00.000Z', 7, now)).toBe(1);
+    });
+    it('falls back to the threshold without a usable date', () => {
+      expect(remainingDays(null, 7, now)).toBe(7);
+      expect(remainingDays('not a date', 30, now)).toBe(30);
+    });
   });
 
   it('no address on record: no letter and no failure', async () => {

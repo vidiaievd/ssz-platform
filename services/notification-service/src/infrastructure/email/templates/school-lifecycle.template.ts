@@ -66,6 +66,9 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
   const closes = formatDate(data.closesAt, locale);
   const purge = formatDate(data.purgeAt, locale);
   const days = data.daysLeft ?? 0;
+  // uk / ru write the abbreviation «дн.», which takes every number; nb and en need the singular.
+  const daysNb = days === 1 ? '1 dag' : `${days} dager`;
+  const daysEn = days === 1 ? '1 day' : `${days} days`;
 
   switch (data.letter) {
     case 'suspended':
@@ -188,16 +191,16 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
           ],
         },
         nb: {
-          subject: `${name}: materialet slettes om ${days} dager`,
+          subject: `${name}: materialet slettes om ${daysNb}`,
           paragraphs: [
-            `Dataene til ${name} slettes ${purge} (om ${days} dager). Dette kan ikke angres.`,
+            `Dataene til ${name} slettes ${purge} (om ${daysNb}). Dette kan ikke angres.`,
             `Elevenes egen læringshistorikk blir hos dem. ${SUPPORT.nb}`,
           ],
         },
         en: {
-          subject: `${name}: materials will be deleted in ${days} days`,
+          subject: `${name}: materials will be deleted in ${daysEn}`,
           paragraphs: [
-            `The data of ${name} will be deleted on ${purge} (in ${days} days). This cannot be undone.`,
+            `The data of ${name} will be deleted on ${purge} (in ${daysEn}). This cannot be undone.`,
             `Learners keep their own study history. ${SUPPORT.en}`,
           ],
         },

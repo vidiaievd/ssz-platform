@@ -32,6 +32,14 @@ describe('schoolLifecycleTemplate', () => {
     expect(out.text).toContain('2027');
   });
 
+  it('says one day in the singular in nb and en', () => {
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'en', daysLeft: 1 }).subject).toContain('in 1 day');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'en', daysLeft: 1 }).subject).not.toContain('1 days');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'nb', daysLeft: 1 }).subject).toContain('om 1 dag');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'nb', daysLeft: 6 }).subject).toContain('om 6 dager');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'uk', daysLeft: 6 }).subject).toContain('через 6 дн.');
+  });
+
   it('says when the suspended school closes by itself', () => {
     const out = schoolLifecycleTemplate({ ...base, letter: 'suspended', locale: 'nb' });
     expect(out.text).toContain('2026');
