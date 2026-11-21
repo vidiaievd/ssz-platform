@@ -144,6 +144,8 @@ export class SendInvitationHandler implements ICommandHandler<SendInvitationComm
         expiresAt.toISOString(),
         command.recipientUserId,
         school.kind,
+        school.ownerId,
+        school.defaultExplanationLanguage ?? null,
       ),
     );
 

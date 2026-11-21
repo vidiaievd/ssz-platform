@@ -1,3 +1,5 @@
+import { escapeHtml, formatEmailDate, pickEmailLocale, type EmailLocale } from './email-locale.js';
+
 export type SchoolLifecycleLetter = 'suspended' | 'closed' | 'restored' | 'purge_reminder';
 
 export interface SchoolLifecycleTemplateData {
@@ -13,7 +15,7 @@ export interface SchoolLifecycleTemplateData {
   daysLeft?: number;
 }
 
-type Locale = 'uk' | 'ru' | 'nb' | 'en';
+type Locale = EmailLocale;
 
 interface Copy {
   subject: string;
@@ -36,27 +38,8 @@ const FOOTER: Record<Locale, string> = {
 
 const UNKNOWN_DATE: Record<Locale, string> = { uk: 'найближчим часом', ru: 'в ближайшее время', nb: 'snart', en: 'soon' };
 
-function pickLocale(raw: string | null): Locale {
-  const code = (raw ?? '').toLowerCase().slice(0, 2);
-  if (code === 'uk' || code === 'ru' || code === 'nb') return code;
-  if (code === 'no' || code === 'nn') return 'nb';
-  return 'en';
-}
-
 function formatDate(iso: string | null | undefined, locale: Locale): string {
-  if (!iso) return UNKNOWN_DATE[locale];
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return UNKNOWN_DATE[locale];
-  return date.toLocaleDateString(locale === 'nb' ? 'nb-NO' : locale, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return formatEmailDate(iso, locale) ?? UNKNOWN_DATE[locale];
 }
 
 // The sentences name the school and never say "school" about it: the same letter goes to a tutor's
@@ -209,7 +192,7 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
 }
 
 export function schoolLifecycleTemplate(data: SchoolLifecycleTemplateData): { subject: string; html: string; text: string } {
-  const locale = pickLocale(data.locale);
+  const locale = pickEmailLocale(data.locale);
   const copy = copyFor(data, locale);
 
   const html = `

@@ -38,6 +38,8 @@ export interface SendSchoolInvitationInput {
   expiresAt: string;
   /** Present when the invitee already has an account (kind=onboard_existing). Used for proper recipient tracking. */
   recipientUserId?: string;
+  /** Language of the letter (`InvitationLocaleResolver`); `null` = English. */
+  locale?: string | null;
 }
 
 export interface SendTutoringInvitationInput {
@@ -46,6 +48,8 @@ export interface SendTutoringInvitationInput {
   tutorName: string;
   invitationUrl: string;
   expiresAt: string;
+  /** Language of the letter (`InvitationLocaleResolver`); `null` = English. */
+  locale?: string | null;
 }
 
 export interface SendSchoolLifecycleEmailInput extends SchoolLifecycleTemplateData {
@@ -130,10 +134,10 @@ export class NotificationsService {
   async sendSchoolInvitation(input: SendSchoolInvitationInput): Promise<void> {
     const template = schoolInvitationTemplate({
       schoolName: input.schoolName,
-      inviterName: input.inviterName,
       invitationUrl: input.invitationUrl,
       role: input.role,
       expiresAt: input.expiresAt,
+      locale: input.locale,
     });
 
     const notification = await this.repo.create({
@@ -149,6 +153,7 @@ export class NotificationsService {
         invitationUrl: input.invitationUrl,
         role: input.role,
         expiresAt: input.expiresAt,
+        locale: input.locale ?? null,
       },
     });
 
@@ -160,6 +165,7 @@ export class NotificationsService {
       tutorName: input.tutorName,
       invitationUrl: input.invitationUrl,
       expiresAt: input.expiresAt,
+      locale: input.locale,
     });
 
     const notification = await this.repo.create({
@@ -173,6 +179,7 @@ export class NotificationsService {
         tutorName: input.tutorName,
         invitationUrl: input.invitationUrl,
         expiresAt: input.expiresAt,
+        locale: input.locale ?? null,
       },
     });
 

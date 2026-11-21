@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { IMessageHandler, MessageMeta } from '../../../infrastructure/messaging/message-handler.interface.js';
 import { NotificationsService } from '../notifications.service.js';
+import { InvitationLocaleResolver } from './invitation-locale.resolver.js';
 import { ORGANIZATION_EVENT_TYPES } from '@ssz/contracts';
 import type { TutoringInvitationSentPayload } from '@ssz/contracts';
 
@@ -9,10 +10,15 @@ export class TutoringInvitationSentHandler implements IMessageHandler<TutoringIn
   readonly routingKey = ORGANIZATION_EVENT_TYPES.TUTORING_INVITATION_SENT;
   private readonly logger = new Logger(TutoringInvitationSentHandler.name);
 
-  constructor(private readonly notifications: NotificationsService) {}
+  constructor(
+    private readonly notifications: NotificationsService,
+    private readonly locales: InvitationLocaleResolver,
+  ) {}
 
   async handle(payload: TutoringInvitationSentPayload, meta: MessageMeta): Promise<void> {
     this.logger.log(`Handling tutoring.invitation.sent for email=${payload.inviteeEmail} tutorGroup=${payload.tutorGroupId} [${meta.eventId}]`);
+
+    const locale = await this.locales.resolve({ inviteeEmail: payload.inviteeEmail, ownerId: payload.tutorId });
 
     await this.notifications.sendTutoringInvitation({
       invitationId: payload.invitationId,
@@ -20,6 +26,7 @@ export class TutoringInvitationSentHandler implements IMessageHandler<TutoringIn
       tutorName: payload.tutorName,
       invitationUrl: payload.invitationUrl,
       expiresAt: payload.expiresAt,
+      locale,
     });
   }
 }

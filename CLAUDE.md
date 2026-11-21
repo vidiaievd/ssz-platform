@@ -409,6 +409,10 @@ no error; another failure → one retry. `school.reactivated` sends nothing. Tem
 (else en). Env `PROFILE_SERVICE_URL`. Log rows `notifications` type `GENERAL`, `templateKey = school-lifecycle-<letter>`.
 A reminder names the days really left, counted from `purgeAt` when the letter goes out (rounded up, ≥ 1); the event's `daysLeft`
 (30 / 7) only says which reminder fired.
+Invitation letters (plan 90, session 16 remark 3): `school.invitation.sent` / `tutoring.invitation.sent` in uk / ru / nb / en.
+Language (`InvitationLocaleResolver`): an address with an account — its `uiLocale` (`recipientUserId`, else user-profile
+`internal/users/lookup?email=`); a new address — the school's `defaultExplanationLanguage` (event `schoolLanguage`), else the
+owner's / tutor's `uiLocale` (event `ownerId` / `tutorId`), else en. Never throws: a profile failure costs only the language.
 
 ### 9. Analytics Service (NestJS)
 Analytics for schools/tutors and students. Aggregation, reports, export.

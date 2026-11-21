@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { IMessageHandler, MessageMeta } from '../../../infrastructure/messaging/message-handler.interface.js';
 import { NotificationsService } from '../notifications.service.js';
 import { NotificationsRepository } from '../notifications.repository.js';
+import { InvitationLocaleResolver } from './invitation-locale.resolver.js';
 import { NotificationType, NotificationChannel } from '../../../../generated/prisma/enums.js';
 import { ORGANIZATION_EVENT_TYPES } from '@ssz/contracts';
 import type { SchoolInvitationSentPayload } from '@ssz/contracts';
@@ -14,10 +15,18 @@ export class SchoolInvitationSentHandler implements IMessageHandler<SchoolInvita
   constructor(
     private readonly notifications: NotificationsService,
     private readonly repo: NotificationsRepository,
+    private readonly locales: InvitationLocaleResolver,
   ) {}
 
   async handle(payload: SchoolInvitationSentPayload, meta: MessageMeta): Promise<void> {
     this.logger.log(`Handling school.invitation.sent for email=${payload.inviteeEmail} school=${payload.schoolId} [${meta.eventId}]`);
+
+    const locale = await this.locales.resolve({
+      inviteeEmail: payload.inviteeEmail,
+      recipientUserId: payload.recipientUserId,
+      schoolLanguage: payload.schoolLanguage,
+      ownerId: payload.ownerId,
+    });
 
     // A private tutor's workspace is carried on the same event, but the invitee
     // must never read the word "school": same invitation, the tutoring letter.
@@ -28,6 +37,7 @@ export class SchoolInvitationSentHandler implements IMessageHandler<SchoolInvita
         tutorName: payload.inviterName,
         invitationUrl: payload.invitationUrl,
         expiresAt: payload.expiresAt,
+        locale,
       });
       return;
     }
@@ -42,6 +52,7 @@ export class SchoolInvitationSentHandler implements IMessageHandler<SchoolInvita
         role: payload.role,
         expiresAt: payload.expiresAt,
         recipientUserId: payload.recipientUserId,
+        locale,
       }),
     ];
 
