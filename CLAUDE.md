@@ -393,6 +393,8 @@ School lifecycle letters to the owner (plan 90, phase 5, step 9): `school.suspen
 Address and language come from user-profile `GET internal/profiles/:userId/contact` (`x-service-token`): 404 → no letter,
 no error; another failure → one retry. `school.reactivated` sends nothing. Templates in uk / ru / nb / en by `uiLocale`
 (else en). Env `PROFILE_SERVICE_URL`. Log rows `notifications` type `GENERAL`, `templateKey = school-lifecycle-<letter>`.
+A reminder names the days really left, counted from `purgeAt` when the letter goes out (rounded up, ≥ 1); the event's `daysLeft`
+(30 / 7) only says which reminder fired.
 
 ### 9. Analytics Service (NestJS)
 Analytics for schools/tutors and students. Aggregation, reports, export.
