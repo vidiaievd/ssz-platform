@@ -165,6 +165,9 @@ User profiles separated from auth. Student profiles (level, target language, pro
 tutor profiles (qualifications, languages, schedule).
 Follows Clean Architecture.
 Database: `profiles_db`
+Email lookup copy `user_email_index` (`users/lookup`): born from `auth.user.registered` (whole role set), then kept in step by
+`auth.user.role_assigned` / `auth.user.role_removed { userId, role }` (`UserRolesConsumer`, queue `user_profile_service.auth.user_roles`;
+existing rows only; auth raises them from `User.AssignRole` / `RemoveRole` only on a real change, every role path publishes them).
 Internal `GET internal/profiles/:userId/contact` (`x-service-token`) → `{ userId, email, displayName, uiLocale }` from the
 `user_email_index` projection and the profile; 404 without an address. Used by notification for school-owner letters (plan 90,
 phase 5, step 9).
