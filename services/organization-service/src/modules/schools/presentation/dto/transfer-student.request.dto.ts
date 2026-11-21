@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsUUID } from 'class-validator';
+import { IsOptional, IsUUID, IsIn } from 'class-validator';
 
 export class TransferStudentRequestDto {
   @ApiProperty()
@@ -12,6 +12,6 @@ export class TransferStudentRequestDto {
 
   @ApiPropertyOptional({ enum: ['student', 'trial', 'observer'], default: 'student' })
   @IsOptional()
-  @IsEnum(['student', 'trial', 'observer'])
+  @IsIn(['student', 'trial', 'observer'])
   role?: 'student' | 'trial' | 'observer';
 }

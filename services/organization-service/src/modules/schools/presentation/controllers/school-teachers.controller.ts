@@ -21,7 +21,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
-  IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   Min,
@@ -71,12 +71,12 @@ class UpdateTeacherAttrsRequestDto {
 
   @ApiPropertyOptional({ enum: ['full', 'part', 'contract'] })
   @IsOptional()
-  @IsEnum(['full', 'part', 'contract'])
+  @IsIn(['full', 'part', 'contract'])
   employmentType?: 'full' | 'part' | 'contract' | null;
 
   @ApiPropertyOptional({ enum: ['active', 'invited', 'inactive'] })
   @IsOptional()
-  @IsEnum(['active', 'invited', 'inactive'])
+  @IsIn(['active', 'invited', 'inactive'])
   status?: 'active' | 'invited' | 'inactive';
 }
 

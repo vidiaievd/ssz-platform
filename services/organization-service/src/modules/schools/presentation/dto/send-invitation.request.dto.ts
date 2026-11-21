@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { ArrayUnique, IsArray, IsEmail, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
+import { ArrayUnique, IsArray, IsEmail, IsEnum, IsInt, IsOptional, IsString, IsUUID, Length, Matches, Max, MaxLength, Min, ValidateNested, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class TeachingLanguageDto {
@@ -36,7 +36,7 @@ export class SendInvitationRequestDto {
     description: '"register" — email not in system; "onboard_existing" — user exists but lacks student role.',
   })
   @IsOptional()
-  @IsEnum(['register', 'onboard_existing'])
+  @IsIn(['register', 'onboard_existing'])
   kind?: 'register' | 'onboard_existing';
 
   @ApiPropertyOptional({ example: 'Anna', description: 'Optional hint — school-provided first name. Seeds the teacher profile on accept.' })
@@ -78,7 +78,7 @@ export class SendInvitationRequestDto {
     description: 'HR employment label (role=TEACHER only). Default: "part".',
   })
   @IsOptional()
-  @IsEnum(['full', 'part', 'contract'])
+  @IsIn(['full', 'part', 'contract'])
   employmentType?: 'full' | 'part' | 'contract';
 
   @ApiPropertyOptional({

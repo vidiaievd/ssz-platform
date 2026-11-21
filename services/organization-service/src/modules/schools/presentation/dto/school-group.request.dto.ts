@@ -3,7 +3,7 @@ import {
   IsString,
   MaxLength,
   IsOptional,
-  IsEnum,
+  IsIn,
   IsUUID,
   IsInt,
   Min,
@@ -25,7 +25,7 @@ export class CreateSchoolGroupRequestDto {
 
   @ApiPropertyOptional({ enum: ['online', 'in_person'], default: 'online' })
   @IsOptional()
-  @IsEnum(['online', 'in_person'])
+  @IsIn(['online', 'in_person'])
   mode?: 'online' | 'in_person';
 
   @ApiPropertyOptional({ description: 'UUID of the linked course (content container)' })
@@ -47,7 +47,7 @@ export class CreateSchoolGroupRequestDto {
 
   @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'], description: 'Age band (soft signal, not a hard filter)' })
   @IsOptional()
-  @IsEnum(['kids', 'teens', 'adults'])
+  @IsIn(['kids', 'teens', 'adults'])
   ageBand?: 'kids' | 'teens' | 'adults' | null;
 
   @ApiPropertyOptional({ example: 4 })
@@ -88,7 +88,7 @@ export class UpdateSchoolGroupRequestDto {
 
   @ApiPropertyOptional({ enum: ['online', 'in_person'] })
   @IsOptional()
-  @IsEnum(['online', 'in_person'])
+  @IsIn(['online', 'in_person'])
   mode?: 'online' | 'in_person';
 
   @ApiPropertyOptional()
@@ -110,7 +110,7 @@ export class UpdateSchoolGroupRequestDto {
 
   @ApiPropertyOptional({ enum: ['kids', 'teens', 'adults'], description: 'Age band (soft signal, not a hard filter)' })
   @IsOptional()
-  @IsEnum(['kids', 'teens', 'adults'])
+  @IsIn(['kids', 'teens', 'adults'])
   ageBand?: 'kids' | 'teens' | 'adults' | null;
 
   @ApiPropertyOptional()
@@ -144,7 +144,7 @@ export class AddGroupMemberRequestDto {
 
 export class UpdateGroupMemberRoleRequestDto {
   @ApiProperty({ enum: ['student', 'trial', 'observer'] })
-  @IsEnum(['student', 'trial', 'observer'])
+  @IsIn(['student', 'trial', 'observer'])
   role!: 'student' | 'trial' | 'observer';
 }
 
@@ -154,7 +154,7 @@ export class AssignGroupTeacherRequestDto {
   userId!: string;
 
   @ApiProperty({ enum: ['primary', 'co_primary', 'substitute'] })
-  @IsEnum(['primary', 'co_primary', 'substitute'])
+  @IsIn(['primary', 'co_primary', 'substitute'])
   role!: 'primary' | 'co_primary' | 'substitute';
 
   @ApiPropertyOptional({ description: 'Start date for substitute window (ISO date)' })
