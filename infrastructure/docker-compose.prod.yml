@@ -2,7 +2,11 @@ services:
 
   # ── Infrastructure overrides (production) ───────────────────────────────────
 
+  # The base file has no restart policy (fine on a dev machine). On a server the
+  # database, cache, broker and storage must come back after a host reboot or a crash
+  # like the services do, or every service starts against nothing.
   postgres:
+    restart: unless-stopped
     # init.sql creates every service role with a development password; this script
     # replaces them with the ones below on the first start against an empty volume.
     environment:
@@ -20,6 +24,15 @@ services:
       SUBSCRIPTION_SERVICE_DB_PASSWORD: ${SUBSCRIPTION_SERVICE_DB_PASSWORD:?}
     volumes:
       - ./postgres/set-role-passwords.sh:/docker-entrypoint-initdb.d/zz-set-role-passwords.sh:ro
+
+  redis:
+    restart: unless-stopped
+
+  rabbitmq:
+    restart: unless-stopped
+
+  minio:
+    restart: unless-stopped
 
   # ── Application services (production) ──────────────────────────────────────
   # All services use pre-built images — build happens in CI/CD, not here.
