@@ -165,7 +165,8 @@ User profiles separated from auth. Student profiles (level, target language, pro
 tutor profiles (qualifications, languages, schedule).
 Follows Clean Architecture.
 Database: `profiles_db`
-Email lookup copy `user_email_index` (`users/lookup`): born from `auth.user.registered` (whole role set), then kept in step by
+Email lookup copy `user_email_index` (`internal/users/lookup?email=`, `x-service-token`, case-insensitive; no public route — plan 90,
+session 18; drift against auth: `infrastructure/scripts/sync-user-email-index.sh [--apply]`): born from `auth.user.registered` (whole role set), then kept in step by
 `auth.user.role_assigned` / `auth.user.role_removed { userId, role }` (`UserRolesConsumer`, queue `user_profile_service.auth.user_roles`;
 existing rows only; auth raises them from `User.AssignRole` / `RemoveRole` only on a real change, every role path publishes them).
 Internal `GET internal/profiles/:userId/contact` (`x-service-token`) → `{ userId, email, displayName, uiLocale }` from the
@@ -174,6 +175,11 @@ phase 5, step 9).
 
 ### 3. Organization Service (NestJS)
 Schools as entities: creation, teacher invitations, groups/classes management.
+Address lookup (plan 90, session 16 remark 4): `GET schools/:id/users/lookup?email=` → `{ found: false }` or `{ found: true, userId,
+displayName, isStudent, isTeacher }` (no role list); owner (SOLO included) / ADMIN / MANAGER / TEACHER of an active school (others 403,
+not active 409); `USER_LOOKUP_RATE_LIMIT` (60) per `USER_LOOKUP_RATE_WINDOW_MS` (10 min) per asker in Redis DB 7
+(`org:user-lookup:rl:<userId>`) → 429 `LOOKUP_RATE_LIMITED { retryAfterSeconds }`; Redis down → let through. Reads user-profile
+`internal/users/lookup`; a failure there is an error, never `found: false`.
 Internal roles (owner, admin, teacher). School subscriptions and plans.
 AI pre-check setting (`ai-precheck`, plan 84): `enabled`, `perExerciseLimit`, `perLearnerMonthlyCredits`
 (`null` = no limit); `GET/PUT /api/v1/schools/:id/ai-precheck`; internal read `GET internal/schools/:id/ai-precheck`.
@@ -296,6 +302,11 @@ Former learners (Q11, (а′)): a `view` refused on `school_private` material of
 enrolment or assignment of the school in any status reads it (reason `former_school_learner`, a learner grant, not staff) on every
 level (course, lesson, exercise — the rule is by `ownerSchoolId`). Never `enroll` / `edit`; `suspended` is not asked (the roster
 still answers); unreadable status or answer → refused.
+
+Share by e-mail (plan 90, session 16 remark 4, variant A): `POST content-shares/by-email { entityType, entityId, email, permission }` —
+edit right + visibility `shared` checked first, then the caller's lookup limit (Redis `content:user-lookup:rl:<userId>`, same env names
+and defaults as organization) → 429 `LOOKUP_RATE_LIMITED`, then user-profile `internal/users/lookup` (`PROFILE_SERVICE_URL`); no account
+→ 404 `USER_NOT_FOUND`.
 
 ### 5. Learning Service (NestJS)
 Material assignment, progress tracking, SRS, adaptive review queue.

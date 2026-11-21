@@ -8,13 +8,21 @@ export interface UserLookupResult {
   displayName?: string;
 }
 
+/**
+ * The account behind an e-mail address, from the `user_email_index` projection. Served only to
+ * other services (`internal/users/lookup`): organization answers staff of a school, content the
+ * editor of a material (plan 90, session 16 remark 4). Addresses compare without case — auth keeps
+ * the address as typed, and nobody types it back the same way.
+ */
 @QueryHandler(LookupUserByEmailQuery)
 export class LookupUserByEmailHandler implements IQueryHandler<LookupUserByEmailQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(query: LookupUserByEmailQuery): Promise<UserLookupResult | null> {
-    const entry = await (this.prisma as any).userEmailIndex.findUnique({
-      where: { email: query.email },
+    const email = query.email.trim();
+    if (!email) return null;
+    const entry = await (this.prisma as any).userEmailIndex.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
     });
     if (!entry) return null;
 

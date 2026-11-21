@@ -131,10 +131,16 @@ services:
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
       SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN}
+      # Per-asker limit of school address lookups (plan 90, session 16 remark 4).
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ssz-network

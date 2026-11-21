@@ -96,6 +96,8 @@ import {
 import { GetReviewAiPolicyQuery } from '../../application/queries/get-review-ai-policy/get-review-ai-policy.query.js';
 import { UpdateReviewAiPolicyCommand } from '../../application/commands/update-review-ai-policy/update-review-ai-policy.command.js';
 import { GetSchoolSeatsQuery } from '../../application/queries/get-school-seats/get-school-seats.query.js';
+import { LookupSchoolUserQuery } from '../../application/queries/lookup-school-user/lookup-school-user.query.js';
+import { SchoolUserLookupRequestDto, SchoolUserLookupResponseDto } from '../dto/school-user-lookup.dto.js';
 import { SeatUsageResponseDto, SeatsExhaustedErrorDto, SeatsResultResponseDto } from '../dto/seats.response.dto.js';
 
 @ApiTags('Schools')
@@ -590,6 +592,26 @@ export class SchoolsController {
     @Param('id', ParseUUIDPipe) schoolId: string,
   ): Promise<SeatUsageResponseDto> {
     return this.queryBus.execute(new GetSchoolSeatsQuery(schoolId, user.sub));
+  }
+
+  @Get(':id/users/lookup')
+  @ApiOperation({
+    summary: 'Whether an e-mail address has an account — for adding someone to the school (plan 90, session 16 remark 4)',
+    description:
+      'Owner (SOLO included), admin, manager or teacher of an active school. Each call counts against the caller: ' +
+      'USER_LOOKUP_RATE_LIMIT (60) per USER_LOOKUP_RATE_WINDOW_MS (10 min). No role list in the answer.',
+  })
+  @ApiResponse({ status: 200, type: SchoolUserLookupResponseDto })
+  @ApiResponse({ status: 403, description: 'Not one of the people who add others to this school' })
+  @ApiResponse({ status: 404, description: 'School not found' })
+  @ApiResponse({ status: 409, description: 'SCHOOL_NOT_ACTIVE' })
+  @ApiResponse({ status: 429, description: 'LOOKUP_RATE_LIMITED with `retryAfterSeconds`' })
+  async lookupUser(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) schoolId: string,
+    @Query() dto: SchoolUserLookupRequestDto,
+  ): Promise<SchoolUserLookupResponseDto> {
+    return this.queryBus.execute(new LookupSchoolUserQuery(schoolId, user.sub, dto.email));
   }
 
   @Get(':id/assistant-access')

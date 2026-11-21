@@ -104,12 +104,18 @@ services:
       SCHEDULING_SERVICE_URL: http://scheduling-service:3009
       SUBSCRIPTION_SERVICE_URL: http://subscription-service:3011
       INTERNAL_SERVICE_TOKEN: ${INTERNAL_SERVICE_TOKEN:-internal-dev-token}
+      # Per-asker limit of school address lookups (plan 90, session 16 remark 4).
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-localdevpassword}
     ports:
       - "3002:3002"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"]

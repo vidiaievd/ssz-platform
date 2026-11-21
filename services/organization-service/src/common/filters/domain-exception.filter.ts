@@ -32,6 +32,7 @@ import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions
 import { SchoolTransitionNotAllowedException } from '../../modules/school-lifecycle/domain/school-transition-not-allowed.exception.js';
 import { SchoolNotActiveException } from '../../modules/schools/domain/exceptions/school-not-active.exception.js';
 import { TutoringGroupNotFoundException } from '../../modules/tutoring/domain/exceptions/tutoring-group-not-found.exception.js';
+import { UserLookupRateLimitedException } from '../../modules/schools/domain/exceptions/user-lookup-rate-limited.exception.js';
 import { SoloWorkspaceNotDeletableException } from '../../modules/schools/domain/exceptions/solo-workspace-not-deletable.exception.js';
 
 @Catch(
@@ -62,6 +63,7 @@ import { SoloWorkspaceNotDeletableException } from '../../modules/schools/domain
   TutoringInvitationExpiredException,
   TutoringInvitationResendThrottledException,
   TutoringGroupNotFoundException,
+  UserLookupRateLimitedException,
 )
 export class DomainExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(DomainExceptionFilter.name);
@@ -85,6 +87,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
           : {}),
         // A read-only school: the screen names the status (plan 90, phase 5, step 3).
         ...(exception instanceof SchoolNotActiveException ? { status: exception.status } : {}),
+        ...(exception instanceof UserLookupRateLimitedException ? { retryAfterSeconds: exception.retryAfterSeconds } : {}),
       },
     });
   }
@@ -165,6 +168,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
       exception instanceof TutoringInvitationResendThrottledException
     ) {
       return { status: HttpStatus.TOO_MANY_REQUESTS, code: 'RESEND_THROTTLED' };
+    }
+    if (exception instanceof UserLookupRateLimitedException) {
+      return { status: HttpStatus.TOO_MANY_REQUESTS, code: 'LOOKUP_RATE_LIMITED' };
     }
     if (exception instanceof InvitationAlreadyPendingException) {
       return { status: HttpStatus.CONFLICT, code: 'INVITATION_ALREADY_PENDING' };

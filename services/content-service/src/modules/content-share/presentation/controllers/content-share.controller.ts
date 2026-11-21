@@ -17,8 +17,10 @@ import {
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
+  ApiNotFoundResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../../../common/guards/jwt-auth.guard.js';
 import { VisibilityGuard } from '../../../../shared/access-control/presentation/guards/visibility.guard.js';
@@ -30,11 +32,13 @@ import { SharePermission } from '../../domain/value-objects/share-permission.vo.
 import { urlSlugToEntityType } from '../../../../shared/access-control/presentation/utils/url-slug-to-entity-type.js';
 
 import { CreateContentShareCommand } from '../../application/commands/create-content-share/create-content-share.command.js';
+import { ShareByEmailCommand } from '../../application/commands/share-by-email/share-by-email.command.js';
 import { RevokeContentShareCommand } from '../../application/commands/revoke-content-share/revoke-content-share.command.js';
 import { ListMySharedWithMeQuery } from '../../application/queries/list-my-shared-with-me/list-my-shared-with-me.query.js';
 import { ListSharesForEntityQuery } from '../../application/queries/list-shares-for-entity/list-shares-for-entity.query.js';
 
 import { CreateContentShareRequestDto } from '../dto/requests/create-content-share.request.dto.js';
+import { ShareByEmailRequestDto } from '../dto/requests/share-by-email.request.dto.js';
 import { ListSharedWithMeRequestDto } from '../dto/requests/list-shared-with-me.request.dto.js';
 import { ContentShareResponseDto } from '../dto/responses/content-share.response.dto.js';
 import type { ContentShareEntity } from '../../domain/entities/content-share.entity.js';
@@ -64,6 +68,35 @@ export class ContentShareController {
         dto.entityType,
         dto.entityId,
         dto.sharedWithUserId,
+        dto.permission ?? SharePermission.READ,
+        dto.expiresAt,
+        dto.note,
+      ),
+    );
+    return ContentShareResponseDto.fromEntity(share);
+  }
+
+  @Post('content-shares/by-email')
+  @ApiOperation({
+    summary: 'Share an entity with the owner of an e-mail address',
+    description:
+      'Edit right on the entity and visibility `shared` are checked before the address is looked up; ' +
+      'each lookup counts against the caller (USER_LOOKUP_RATE_LIMIT per USER_LOOKUP_RATE_WINDOW_MS).',
+  })
+  @ApiCreatedResponse({ type: ContentShareResponseDto })
+  @ApiNotFoundResponse({ description: '`USER_NOT_FOUND` — no account has that address (or the entity is gone)' })
+  @ApiTooManyRequestsResponse({ description: '`LOOKUP_RATE_LIMITED` with `retryAfterSeconds`' })
+  async shareByEmail(
+    @Body() dto: ShareByEmailRequestDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ContentShareResponseDto> {
+    const share = await this.commandBus.execute<ShareByEmailCommand, ContentShareEntity>(
+      new ShareByEmailCommand(
+        user.userId,
+        user.isPlatformAdmin,
+        dto.entityType,
+        dto.entityId,
+        dto.email,
         dto.permission ?? SharePermission.READ,
         dto.expiresAt,
         dto.note,
