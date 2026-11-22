@@ -71,6 +71,42 @@ describe('RuleBasedFeedbackGenerator', () => {
       expect(result.value.correctAnswer).toBe('A, B');
     });
 
+    it('names the options of a multiple_choice answer by their text, not their id (plan 90, s20)', async () => {
+      const result = await generator.generate(
+        baseInput({
+          exerciseDefinition: {
+            exercise: {
+              content: {
+                question: '___ Urai kom til Norge, snakket hun ikke norsk.',
+                options: [
+                  { id: 'a', text: 'Når' },
+                  { id: 'b', text: 'Da' },
+                  { id: 'c', text: 'Mens' },
+                ],
+              },
+              expectedAnswers: { correct_option_ids: ['b', 'c'] },
+            },
+          },
+        }),
+      );
+      expect(result.value.correctAnswer).toBe('Da, Mens');
+      expect(result.value.summary).toBe('Incorrect. Expected: Da, Mens');
+    });
+
+    it('keeps the id only for an option without text', async () => {
+      const result = await generator.generate(
+        baseInput({
+          exerciseDefinition: {
+            exercise: {
+              content: { options: [{ id: 'a', text: 'Når' }, { id: 'b', text: '  ' }, 'junk'] },
+              expectedAnswers: { correct_option_ids: ['a', 'b'] },
+            },
+          },
+        }),
+      );
+      expect(result.value.correctAnswer).toBe('Når, b');
+    });
+
     it('includes correct answer for fill_in_blank', async () => {
       const result = await generator.generate(
         baseInput({
