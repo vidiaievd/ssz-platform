@@ -1,9 +1,10 @@
 /**
  * How the exercise engine judged an attempt (plan 76, 2.6). Only the engine says this: it
  * is the one that knows whether the attempt passed, and a command without an outcome is a
- * client reporting an exercise, which changes nothing — see the handler.
+ * client reporting an exercise, which changes nothing — see the handler. `started` is no
+ * verdict: an attempt was opened (plan 90, Q18), and an untouched exercise becomes «in progress».
  */
-export type ExerciseOutcome = 'passed' | 'failed' | 'submitted' | 'returned';
+export type ExerciseOutcome = 'passed' | 'failed' | 'submitted' | 'returned' | 'started';
 
 export class UpsertProgressCommand {
   constructor(

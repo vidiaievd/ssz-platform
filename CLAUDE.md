@@ -317,6 +317,9 @@ applies it to `GRAMMAR_ATOM` cards: `ai_precheck` / `ai_review` pull `dueAt` to 
 `teacher` outside the exercise targets → one `AGAIN` (lapse); table `atom_flags` dedups by (learner, exercise, atom,
 source, UTC day). Internal: `GET internal/learners/:userId/grammar-atoms?courseId=` (`x-service-token`).
 Learner adds a reached atom: `POST srs/atoms/:atomId/add { courseId }` (shadow card until plan 63 phase 7).
+Started exercises (plan 90, Q18): `ExerciseStartedConsumer` (queue `learning-service.exercise-started`, prefetch 1, `processed_events`)
+takes `exercise.attempt.started` → progress `NOT_STARTED` → `IN_PROGRESS` only (no attempt counted, nothing further along moved);
+`ephemeral: true` (probe) or no `ephemeral` field (older engine) → nothing written.
 Sound atoms (plan 86, step 8.3): `SOUND_ATOM` shadow cards, introduced on day 2 of 14; a pronunciation session's ratings
 (`gapResults`, GOOD/HARD/AGAIN → 90/70/0) rate them by the gap's `score`. `atoms_flagged` with source `ai_session` pulls a
 card but never introduces one. Internal: `GET internal/learners/:userId/sound-atoms?language=` (`x-service-token`).

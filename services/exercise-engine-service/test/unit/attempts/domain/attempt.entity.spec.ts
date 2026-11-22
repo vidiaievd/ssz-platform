@@ -89,6 +89,23 @@ describe('Attempt entity', () => {
       expect(ev.payload.userId).toBe('user-1');
       expect(ev.payload.exerciseId).toBe('ex-1');
       expect(ev.payload.assignmentId).toBeNull();
+      expect(ev.payload.ephemeral).toBe(false);
+    });
+
+    it('says on the event when the attempt is on a disposable probe (plan 90, Q18)', () => {
+      const attempt = Attempt.create({
+        userId: 'u',
+        exerciseId: 'e',
+        templateCode: 'fill_in_blank',
+        targetLanguage: 'de',
+        difficultyLevel: 'A1',
+        checkMode: 'PRACTICE',
+        practicedAtoms: [],
+        axes: { skills: [], focus: [] },
+        ephemeral: true,
+      });
+      const ev = attempt.getDomainEvents()[0] as AttemptStartedEvent;
+      expect(ev.payload.ephemeral).toBe(true);
     });
 
     it('includes assignmentId when provided', () => {

@@ -9,6 +9,8 @@ export interface AttemptStartedPayload {
   targetLanguage: string;
   assignmentId: string | null;
   enrollmentId: string | null;
+  /** On a disposable probe — learning keeps no progress for it (plan 90, Q18). */
+  ephemeral: boolean;
 }
 
 export class AttemptStartedEvent implements IDomainEvent {
