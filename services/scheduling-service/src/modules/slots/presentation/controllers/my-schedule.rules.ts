@@ -1,5 +1,6 @@
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
+import type { SessionRole } from '../../application/services/session-access.service.js';
 
 /** How far a single request may look. A schedule asks for a week or a month, not a year. */
 export const MAX_RANGE_DAYS = 92;
@@ -37,4 +38,22 @@ export function parseRange(from: string, to: string): { from: Date; to: Date } {
   }
 
   return { from: start, to: end };
+}
+
+/**
+ * Which of a school's sessions in a window the caller may see.
+ *
+ * The school's day is the staff's: an owner, admin or manager sees every session, a teacher
+ * only the ones they are named on — the same narrowing the rest of the timetable makes. A
+ * learner has their own lessons screen and is refused here, not handed an empty list that
+ * would read as "nothing on today".
+ */
+export function visibleSchoolSessions<T extends { teacherId: string | null }>(
+  role: SessionRole,
+  userId: string,
+  sessions: T[],
+): T[] {
+  if (role === 'none') throw new ForbiddenException("Only the school's staff read its day");
+  if (role === 'teacher') return sessions.filter((s) => s.teacherId === userId);
+  return sessions;
 }

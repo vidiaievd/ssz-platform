@@ -23,7 +23,7 @@ import { OrgServiceHttpClient } from '../../../../infrastructure/org/org-service
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
-import { parseRange, resolveScheduleTarget } from './my-schedule.rules.js';
+import { parseRange, resolveScheduleTarget, visibleSchoolSessions } from './my-schedule.rules.js';
 import {
   CreateSessionDto,
   GradingPolicyDto,
@@ -76,6 +76,31 @@ export class SessionsController {
       includeCancelled: true,
     });
     return sessions.map(toSessionDto);
+  }
+
+  @Get('schools/:schoolId/sessions')
+  @ApiOperation({
+    summary: "A school's dated sessions in a window, across every group",
+    description:
+      "The school dashboard's «today's classes». Staff see every session, a teacher only their own; " +
+      'cancelled ones are included, as in a teacher\'s schedule. Names are not resolved here — the ' +
+      'dashboard already holds the groups.',
+  })
+  @ApiQuery({ name: 'from', example: '2026-11-22', description: 'First day, inclusive' })
+  @ApiQuery({ name: 'to', example: '2026-11-22', description: 'Last day, inclusive' })
+  @ApiResponse({ status: 200, type: [SessionResponseDto] })
+  @ApiResponse({ status: 400, description: 'Missing, unordered or too wide a range' })
+  @ApiResponse({ status: 403, description: 'Not on the staff of this school' })
+  async schoolSessions(
+    @Param('schoolId') schoolId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SessionResponseDto[]> {
+    const role = await this.access.requireReader(schoolId, user);
+    const range = parseRange(from, to);
+    const sessions = await this.lessons.findBySchoolAndDateRange(schoolId, range.from, range.to);
+    return visibleSchoolSessions(role, user.userId, sessions).map(toSessionDto);
   }
 
   @Get('schools/:schoolId/groups/:groupId/sessions')
