@@ -22,6 +22,12 @@ export interface ExerciseAttemptStartedPayload {
   targetLanguage: string;
   assignmentId: string | null;
   enrollmentId: string | null;
+  /**
+   * The attempt is on a disposable probe (plan 63 phase 9): learning keeps no progress row for
+   * it. Absent on events from engines older than plan 90 Q18 — learning reads absent as
+   * "unknown" and leaves progress alone.
+   */
+  ephemeral?: boolean;
 }
 
 /**

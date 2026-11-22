@@ -15,7 +15,16 @@ const BINDING_KEYS = [
   'school.created',
   'school.member.added',
   'school.member.removed',
+  // Plan 90, phase 5 (Q13): the roster follows the school's lifecycle. On this queue, so a
+  // lifecycle event is never applied beside a member event of the same school.
+  'school.closed',
+  'school.restored',
+  'school.purged',
 ] as const;
+
+interface SchoolLifecyclePayload {
+  schoolId: string;
+}
 
 interface SchoolCreatedPayload {
   eventId: string;
@@ -69,13 +78,23 @@ export class MembershipConsumer implements OnModuleInit, OnModuleDestroy {
         for (const key of BINDING_KEYS) {
           await channel.bindQueue(QUEUE, EXCHANGE, key);
         }
+        // One at a time: a school's closing must not overtake its last member event.
+        await channel.prefetch(1);
         await channel.consume(QUEUE, (msg) => this.handleMessage(channel, msg));
         this.logger.log(`MembershipConsumer listening on queue "${QUEUE}"`);
       },
     });
+    // Without a listener an 'error' from the channel (a setup failing while the broker
+    // restarts) is an unhandled event and takes the whole process down.
+    this.channelWrapper.on('error', (err: unknown) =>
+      this.logger.error(`RabbitMQ channel error: ${err instanceof Error ? err.message : String(err)}`),
+    );
   }
 
-  private async handleMessage(channel: ConfirmChannel, msg: ConsumeMessage | null): Promise<void> {
+  async handleMessage(
+    channel: Pick<ConfirmChannel, 'ack' | 'nack'>,
+    msg: ConsumeMessage | null,
+  ): Promise<void> {
     if (!msg) return;
 
     let envelope: BaseEvent<unknown>;
@@ -112,6 +131,11 @@ export class MembershipConsumer implements OnModuleInit, OnModuleDestroy {
       channel.ack(msg);
       this.logger.debug(`MembershipConsumer: processed "${eventType}" [${eventId}]`);
     } catch (err) {
+      if (err instanceof MalformedEventError) {
+        this.logger.error(`MembershipConsumer: ${err.message} [${eventId}] — discarding`);
+        channel.nack(msg, false, false);
+        return;
+      }
       const redelivered = msg.fields.redelivered;
       this.logger.error(
         `MembershipConsumer: failed "${eventType}" [${eventId}]: ${err instanceof Error ? err.message : String(err)} — ${redelivered ? 'discarding' : 'requeueing'}`,
@@ -164,9 +188,66 @@ export class MembershipConsumer implements OnModuleInit, OnModuleDestroy {
         break;
       }
 
+      case 'school.closed':
+        await this.closeSchool(requireSchoolId(payload, eventType));
+        break;
+
+      case 'school.restored':
+        await this.restoreSchool(requireSchoolId(payload, eventType));
+        break;
+
+      case 'school.purged':
+        await this.purgeSchool(requireSchoolId(payload, eventType));
+        break;
+
       default:
         this.logger.warn(`MembershipConsumer: unhandled event type "${eventType}"`);
     }
+  }
+
+  /**
+   * `closed`: nobody has a role in the school (as in organization), so its roster is set aside and
+   * every school screen answers 404. `suspended` changes nothing — the school is still read.
+   */
+  private async closeSchool(schoolId: string): Promise<void> {
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.schoolMembership.findMany({ where: { schoolId } });
+      if (rows.length > 0) await tx.closedSchoolMembership.createMany({ data: rows, skipDuplicates: true });
+      await tx.schoolMembership.deleteMany({ where: { schoolId } });
+      return rows.length;
+    });
+    this.logger.log(`School ${schoolId} closed: ${moved} roster row(s) set aside`);
+  }
+
+  /** `restored`: the roster set aside on closing comes back; a row written since is kept. */
+  private async restoreSchool(schoolId: string): Promise<void> {
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.closedSchoolMembership.findMany({ where: { schoolId } });
+      if (rows.length > 0) await tx.schoolMembership.createMany({ data: rows, skipDuplicates: true });
+      await tx.closedSchoolMembership.deleteMany({ where: { schoolId } });
+      return rows.length;
+    });
+    this.logger.log(`School ${schoolId} restored: ${moved} roster row(s) back`);
+  }
+
+  /**
+   * `purged`: the school's own projections go — roster (both tables), groups and their members,
+   * the activity feed, the review-term journal. What is the learner's stays, as in learning:
+   * enrolments, evidence, mastery, weak-rule facts; no school screen reaches them any more.
+   */
+  private async purgeSchool(schoolId: string): Promise<void> {
+    const counts = await this.prisma.$transaction([
+      this.prisma.schoolMembership.deleteMany({ where: { schoolId } }),
+      this.prisma.closedSchoolMembership.deleteMany({ where: { schoolId } }),
+      this.prisma.groupMembership.deleteMany({ where: { schoolId } }),
+      this.prisma.groupDirectory.deleteMany({ where: { schoolId } }),
+      this.prisma.schoolActivity.deleteMany({ where: { schoolId } }),
+      this.prisma.reviewTermAcceptance.deleteMany({ where: { schoolId } }),
+    ]);
+    this.logger.log(
+      `School ${schoolId} purged: ${counts.map((c) => c.count).join(' / ')} row(s) deleted ` +
+        '(roster / set-aside roster / group members / groups / activity / review terms)',
+    );
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -174,3 +255,14 @@ export class MembershipConsumer implements OnModuleInit, OnModuleDestroy {
     await this.connection?.close();
   }
 }
+
+/** A lifecycle event without a school would drop the filter and hit every school. */
+function requireSchoolId(payload: Record<string, unknown> | undefined, eventType: string): string {
+  const schoolId = payload?.schoolId;
+  if (typeof schoolId !== 'string' || schoolId.length === 0) {
+    throw new MalformedEventError(`${eventType} carries no schoolId`);
+  }
+  return schoolId;
+}
+
+class MalformedEventError extends Error {}

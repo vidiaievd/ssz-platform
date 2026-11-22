@@ -15,7 +15,7 @@ export interface UserContact {
 const TIMEOUT_MS = 5_000;
 
 /**
- * The owner's address, from user-profile-service (the only place that keeps one besides auth).
+ * A user's address and language, from user-profile-service (the only place that keeps one besides auth).
  *
  * `null` means "there is nobody to write to" (404: the user is gone). Any other failure throws,
  * so the consumer requeues the event once instead of silently dropping the letter.
@@ -45,6 +45,30 @@ export class OwnerContactClient {
           .pipe(timeout(TIMEOUT_MS)),
       );
       return response.data;
+    } catch (err) {
+      if ((err as { response?: { status?: number } }).response?.status === 404) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * The account behind an e-mail address (`internal/users/lookup`, case-insensitive), or `null`
+   * when the address has none. Any other failure throws.
+   */
+  async userIdByEmail(email: string): Promise<string | null> {
+    const settings = this.config.get<AppConfig['profile']>('profile');
+    if (!settings?.serviceUrl) return null;
+
+    try {
+      const response = await firstValueFrom(
+        this.http
+          .get<{ userId: string }>(`${settings.serviceUrl}/api/v1/internal/users/lookup`, {
+            params: { email },
+            headers: { 'x-service-token': settings.internalToken ?? '' },
+          })
+          .pipe(timeout(TIMEOUT_MS)),
+      );
+      return response.data?.userId ?? null;
     } catch (err) {
       if ((err as { response?: { status?: number } }).response?.status === 404) return null;
       throw err;

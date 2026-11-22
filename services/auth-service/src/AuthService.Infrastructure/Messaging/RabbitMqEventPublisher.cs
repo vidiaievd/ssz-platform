@@ -139,6 +139,8 @@ public sealed class RabbitMqEventPublisher : IDomainEventPublisher, IDisposable
     {
         UserRegisteredEvent => "auth.user.registered",
         UserLoggedInEvent => "auth.user.login",
+        UserRoleAssignedEvent => "auth.user.role_assigned",
+        UserRoleRemovedEvent => "auth.user.role_removed",
         User2FAEnabledEvent => "auth.user.2fa_enabled",
         User2FADisabledEvent => "auth.user.2fa_disabled",
         UserLoggedOutEvent => "auth.user.logout",
@@ -187,6 +189,8 @@ public sealed record EventEnvelope
     {
         UserRegisteredEvent ev => new { ev.UserId, ev.Email, ev.Roles },
         UserLoggedInEvent ev => new { ev.UserId, ev.MfaUsed },
+        UserRoleAssignedEvent ev => new { ev.UserId, ev.Role },
+        UserRoleRemovedEvent ev => new { ev.UserId, ev.Role },
         User2FAEnabledEvent ev => new { ev.UserId },
         User2FADisabledEvent ev => new { ev.UserId },
         UserLoggedOutEvent ev => new { ev.UserId },

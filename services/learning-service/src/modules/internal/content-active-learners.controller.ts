@@ -28,7 +28,8 @@ const FROM_PRISMA_TYPE = Object.fromEntries(
 
 /**
  * How many learners still actively use each piece of content (plan 90, phase 5, step 4b) — what
- * content-service asks before it deletes a purged school's materials. The rule lives in
+ * content-service asks before its cleanup deletes a course the author retired (`obsolete`). A
+ * purged school's materials no longer ask: their learners hold nothing (Q11). The rule lives in
  * `active-learners.ts`.
  *
  * Callers send `x-service-token` (not `x-internal-token`) and the `/api/v1` prefix.

@@ -243,6 +243,12 @@ export interface StartAttemptResult {
    * table.
    */
   boardCheck: unknown | null;
+  /**
+   * Set only on an attempt handed back while the school that owns the course is not `active`
+   * (plan 90, live check block 12): its draft can be read, nothing can be handed in. Absent
+   * otherwise — a fresh attempt in such a school is refused before it gets here.
+   */
+  schoolStatus?: 'suspended' | 'closed' | 'purged';
 }
 
 /**
@@ -770,13 +776,19 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
   private async start(
     command: StartAttemptCommand,
   ): Promise<Result<StartAttemptResult, StartAttemptError>> {
-    await this.schoolGate?.assertExerciseOpen(command.exerciseId);
-
     // A whole board is scored by its first check and so is never `IN_PROGRESS` between checks;
     // an open one is looked for first, or a reload would start over with a fresh budget.
     const board = await this.attempts.findOpenBoard(command.userId, command.exerciseId);
     const existing =
       board ?? (await this.attempts.findInProgress(command.userId, command.exerciseId));
+
+    // A school that is not active takes no new work (plan 90, phase 5, step 7), but an attempt
+    // opened before it stopped is the learner's own, and reopening it is reading it: the draft
+    // must come back (block 12 of the live check found it hidden behind the refusal). The hand-in
+    // and the check of that attempt stay gated; only a fresh attempt is refused here.
+    if (existing === null) {
+      await this.schoolGate?.assertExerciseOpen(command.exerciseId);
+    }
 
     // A sitting dealt on the phone (VoxOrd offline plan, B6). Only a PRACTICE `minimal_pairs`
     // takes one. An open sitting with the same draw is this replay's own start, which reached
@@ -862,8 +874,10 @@ export class StartAttemptHandler implements ICommandHandler<StartAttemptCommand>
         command.language,
         existing.checkMode,
       );
+      const schoolStatus = (await this.schoolGate?.inactiveStatusOf(command.exerciseId)) ?? null;
 
       return Result.ok<StartAttemptResult, StartAttemptError>({
+        ...(schoolStatus === null ? {} : { schoolStatus }),
         attemptId: existing.id,
         templateCode: existing.templateCode,
         targetLanguage: existing.targetLanguage,

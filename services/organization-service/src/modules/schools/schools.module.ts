@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import type { Env } from '../../config/configuration.js';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { SCHOOL_REPOSITORY } from './domain/repositories/school.repository.interface.js';
@@ -88,6 +90,11 @@ import { UpdateReviewAiPolicyHandler } from './application/commands/update-revie
 import { GetReviewEffortMinutesHandler } from './application/queries/get-review-effort-minutes/get-review-effort-minutes.handler.js';
 import { UpdateReviewEffortMinutesHandler } from './application/commands/update-review-effort-minutes/update-review-effort-minutes.handler.js';
 import { GetSchoolSeatsHandler } from './application/queries/get-school-seats/get-school-seats.handler.js';
+import { LookupSchoolUserHandler } from './application/queries/lookup-school-user/lookup-school-user.handler.js';
+import { USER_EMAIL_LOOKUP } from './application/ports/user-email-lookup.port.js';
+import { LOOKUP_RATE_LIMITER } from './application/ports/lookup-rate-limiter.port.js';
+import { ProfileUserLookupHttpClient } from '../../infrastructure/profile/profile-user-lookup.http-client.js';
+import { RedisLookupRateLimiter } from '../../infrastructure/cache/redis-lookup-rate-limiter.js';
 import { GetAssistantAccessHandler } from './application/queries/get-assistant-access/get-assistant-access.handler.js';
 import { UpdateAssistantAccessHandler } from './application/commands/update-assistant-access/update-assistant-access.handler.js';
 import { GetAiPrecheckSettingsHandler } from './application/queries/get-ai-precheck-settings/get-ai-precheck-settings.handler.js';
@@ -206,6 +213,7 @@ const QueryHandlers = [
   GetReviewEffortMinutesHandler,
   GetAssistantAccessHandler,
   GetSchoolSeatsHandler,
+  LookupSchoolUserHandler,
   GetAiPrecheckSettingsHandler,
   ListMembershipsHandler,
   GetMyMembershipHandler,
@@ -279,6 +287,12 @@ const QueryHandlers = [
     {
       provide: PROFILE_SERVICE_PORT,
       useClass: ProfileServiceHttpClient,
+    },
+    { provide: USER_EMAIL_LOOKUP, useClass: ProfileUserLookupHttpClient },
+    {
+      provide: LOOKUP_RATE_LIMITER,
+      useFactory: (config: ConfigService<Env>) => new RedisLookupRateLimiter(config),
+      inject: [ConfigService],
     },
     SubscriptionServiceHttpClient,
     {

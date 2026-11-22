@@ -175,6 +175,35 @@ describe('UserProgress', () => {
     });
   });
 
+  describe('recordStart (plan 90, Q18)', () => {
+    it('moves an untouched exercise to IN_PROGRESS without counting an attempt', () => {
+      const p = freshProgress();
+
+      p.recordStart();
+
+      expect(p.status).toBe('IN_PROGRESS');
+      expect(p.attemptsCount).toBe(0);
+      expect(p.lastAttemptAt).toBeNull();
+      expect(p.getDomainEvents().map((e) => e.eventType)).toEqual(['learning.progress.updated']);
+    });
+
+    it.each([
+      ['passed', { timeSpentSeconds: 60, score: 90, completed: true, now: NOW }, 'COMPLETED'],
+      ['handed in', { timeSpentSeconds: 60, score: null, completed: false, awaitingReview: true, now: NOW }, 'SUBMITTED'],
+      ['failed', { timeSpentSeconds: 60, score: 20, completed: false, now: NOW }, 'IN_PROGRESS'],
+    ] as const)('leaves an exercise already %s alone', (_label, attempt, status) => {
+      const p = freshProgress();
+      p.recordAttempt({ ...attempt });
+      p.clearDomainEvents();
+
+      p.recordStart();
+
+      expect(p.status).toBe(status);
+      expect(p.attemptsCount).toBe(1);
+      expect(p.getDomainEvents()).toHaveLength(0);
+    });
+  });
+
   describe('recordReturn', () => {
     it('sends a submission back to IN_PROGRESS without counting an attempt', () => {
       const p = freshProgress();

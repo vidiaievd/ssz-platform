@@ -20,6 +20,14 @@ export interface ObsoleteCourse {
   owner: MaterialOwner;
 }
 
+export interface DeleteMaterialsOptions {
+  /**
+   * The owner is a purged school: each `content.container.deleted` carries `reason: 'school_purged'`
+   * and the school, so learning leaves the school's enrolments to `school.purged` (Q11).
+   */
+  schoolPurged?: boolean;
+}
+
 export interface DeletedMaterials {
   containers: number;
   lessons: number;
@@ -66,7 +74,31 @@ export interface ISchoolMaterialsStore {
   deleteMaterials(
     owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
+    options?: DeleteMaterialsOptions,
   ): Promise<DeletedMaterials>;
+
+  /**
+   * Tells learning that these exercises and the words of these vocabulary lists leave learners'
+   * review queues (`content.school.study_retired`, plan 90, Q11), in chunks. Through the outbox,
+   * so it is called before the delete: a failure throws and nothing is deleted.
+   */
+  announceStudyRetired(
+    schoolId: string,
+    exerciseIds: readonly string[],
+    vocabularyListIds: readonly string[],
+  ): Promise<void>;
+
+  /** Every exercise the school owns (`owner_school_id`), soft-deleted ones too. */
+  findExerciseIds(schoolId: string): Promise<string[]>;
+
+  /**
+   * The school was closed: learners' cards on these exercises are suspended until it is restored
+   * (`content.school.study_paused`, plan 90 live check step 7), in chunks, through the outbox.
+   */
+  announceStudyPaused(schoolId: string, exerciseIds: readonly string[]): Promise<void>;
+
+  /** The school was restored: what `announceStudyPaused` suspended comes back (`study_resumed`). */
+  announceStudyResumed(schoolId: string): Promise<void>;
 
   /** Rows keyed by the school alone (its coverage recipe). */
   deleteWorkspaceRows(schoolId: string): Promise<void>;

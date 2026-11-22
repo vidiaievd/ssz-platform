@@ -1,3 +1,5 @@
+import { escapeHtml, formatEmailDate, pickEmailLocale, type EmailLocale } from './email-locale.js';
+
 export type SchoolLifecycleLetter = 'suspended' | 'closed' | 'restored' | 'purge_reminder';
 
 export interface SchoolLifecycleTemplateData {
@@ -13,7 +15,7 @@ export interface SchoolLifecycleTemplateData {
   daysLeft?: number;
 }
 
-type Locale = 'uk' | 'ru' | 'nb' | 'en';
+type Locale = EmailLocale;
 
 interface Copy {
   subject: string;
@@ -36,27 +38,8 @@ const FOOTER: Record<Locale, string> = {
 
 const UNKNOWN_DATE: Record<Locale, string> = { uk: 'найближчим часом', ru: 'в ближайшее время', nb: 'snart', en: 'soon' };
 
-function pickLocale(raw: string | null): Locale {
-  const code = (raw ?? '').toLowerCase().slice(0, 2);
-  if (code === 'uk' || code === 'ru' || code === 'nb') return code;
-  if (code === 'no' || code === 'nn') return 'nb';
-  return 'en';
-}
-
 function formatDate(iso: string | null | undefined, locale: Locale): string {
-  if (!iso) return UNKNOWN_DATE[locale];
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return UNKNOWN_DATE[locale];
-  return date.toLocaleDateString(locale === 'nb' ? 'nb-NO' : locale, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return formatEmailDate(iso, locale) ?? UNKNOWN_DATE[locale];
 }
 
 // The sentences name the school and never say "school" about it: the same letter goes to a tutor's
@@ -66,6 +49,9 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
   const closes = formatDate(data.closesAt, locale);
   const purge = formatDate(data.purgeAt, locale);
   const days = data.daysLeft ?? 0;
+  // uk / ru write the abbreviation «дн.», which takes every number; nb and en need the singular.
+  const daysNb = days === 1 ? '1 dag' : `${days} dager`;
+  const daysEn = days === 1 ? '1 day' : `${days} days`;
 
   switch (data.letter) {
     case 'suspended':
@@ -104,12 +90,14 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
         },
       }[locale];
     case 'closed':
+      // uk / ru dates end with an abbreviation and its own dot («2027 р.», «2027 г.»), so the date
+      // opens the sentence there instead of closing it.
       return {
         uk: {
           subject: `${name}: переведено в архів`,
           paragraphs: [
             `${name} закрито й переведено в архів. Викладачі втратили ролі, акаунти всіх людей залишилися.`,
-            `Матеріали буде видалено ${purge}. Історія навчання учнів (спроби, прогрес, повторення) залишиться в них. Експорту курсів поки немає.`,
+            `${purge} матеріали буде видалено. Історія навчання учнів (спроби, прогрес, повторення) залишиться в них. Експорту курсів поки немає.`,
             SUPPORT.uk,
           ],
         },
@@ -117,7 +105,7 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
           subject: `${name}: переведено в архив`,
           paragraphs: [
             `${name} закрыто и переведено в архив. Преподаватели потеряли роли, аккаунты всех людей сохранились.`,
-            `Материалы будут удалены ${purge}. История обучения учеников (попытки, прогресс, повторения) останется у них. Экспорта курсов пока нет.`,
+            `${purge} материалы будут удалены. История обучения учеников (попытки, прогресс, повторения) останется у них. Экспорта курсов пока нет.`,
             SUPPORT.ru,
           ],
         },
@@ -186,16 +174,16 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
           ],
         },
         nb: {
-          subject: `${name}: materialet slettes om ${days} dager`,
+          subject: `${name}: materialet slettes om ${daysNb}`,
           paragraphs: [
-            `Dataene til ${name} slettes ${purge} (om ${days} dager). Dette kan ikke angres.`,
+            `Dataene til ${name} slettes ${purge} (om ${daysNb}). Dette kan ikke angres.`,
             `Elevenes egen læringshistorikk blir hos dem. ${SUPPORT.nb}`,
           ],
         },
         en: {
-          subject: `${name}: materials will be deleted in ${days} days`,
+          subject: `${name}: materials will be deleted in ${daysEn}`,
           paragraphs: [
-            `The data of ${name} will be deleted on ${purge} (in ${days} days). This cannot be undone.`,
+            `The data of ${name} will be deleted on ${purge} (in ${daysEn}). This cannot be undone.`,
             `Learners keep their own study history. ${SUPPORT.en}`,
           ],
         },
@@ -204,7 +192,7 @@ function copyFor(data: SchoolLifecycleTemplateData, locale: Locale): Copy {
 }
 
 export function schoolLifecycleTemplate(data: SchoolLifecycleTemplateData): { subject: string; html: string; text: string } {
-  const locale = pickLocale(data.locale);
+  const locale = pickEmailLocale(data.locale);
   const copy = copyFor(data, locale);
 
   const html = `

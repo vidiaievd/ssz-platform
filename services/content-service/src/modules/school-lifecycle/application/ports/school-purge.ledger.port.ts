@@ -18,4 +18,6 @@ export interface ISchoolPurgeLedger {
   failed(schoolId: string, error: string): Promise<void>;
   /** Unfinished purges whose last attempt began before `attemptedBefore` (a crash or a failure). */
   findStalled(attemptedBefore: Date, limit: number): Promise<PendingSchoolPurge[]>;
+  /** Which of the schools content has heard `school.purged` for, finished or not. */
+  findPurged(schoolIds: readonly string[]): Promise<Set<string>>;
 }

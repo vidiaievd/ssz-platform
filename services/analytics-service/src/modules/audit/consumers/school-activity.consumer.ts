@@ -68,6 +68,11 @@ export class SchoolActivityConsumer implements OnModuleInit, OnModuleDestroy {
           this.logger.log(`SchoolActivityConsumer: listening on "${queue}"`);
         },
       });
+      // Without a listener an 'error' from the channel (a setup failing while the broker
+      // restarts) is an unhandled event and takes the whole process down.
+      ch.on('error', (err: unknown) =>
+        this.logger.error(`RabbitMQ channel error: ${err instanceof Error ? err.message : String(err)}`),
+      );
       this.channels.push(ch);
     }
   }

@@ -48,7 +48,7 @@ function repos(acc: BillingAccount, over: { conflict?: boolean; grant?: Grant } 
   };
   const grants = {
     find: jest.fn().mockResolvedValue(over.grant ?? null),
-    insert: jest.fn().mockResolvedValue(undefined),
+    insert: jest.fn().mockResolvedValue(Result.ok()),
     saveRevocation: jest.fn().mockResolvedValue(Result.ok()),
   };
   const plans = { findByCode: jest.fn().mockResolvedValue(school) };

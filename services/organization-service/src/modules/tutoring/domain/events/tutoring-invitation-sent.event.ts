@@ -14,6 +14,8 @@ export class TutoringInvitationSentEvent implements IDomainEvent {
     readonly invitationUrl: string,
     readonly tutorName: string,
     readonly expiresAt: string,
+    /** The tutor: their `uiLocale` is the letter's language for an address without an account. */
+    readonly tutorId?: string,
   ) {
     this.eventId = eventId;
     this.occurredAt = new Date();

@@ -1,4 +1,5 @@
 using AuthService.Application.Interfaces;
+using AuthService.Application.Services;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Exceptions;
 using MediatR;
@@ -14,7 +15,8 @@ public sealed record AssignRoleCommand(
 public sealed class AssignRoleCommandHandler(
     IUserRepository userRepository,
     IRoleRepository roleRepository,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IDomainEventPublisher eventPublisher)
     : IRequestHandler<AssignRoleCommand, Unit>
 {
     private static readonly IReadOnlySet<string> SelfAssignableRoles = RoleNames.SelfAssignable;
@@ -43,6 +45,7 @@ public sealed class AssignRoleCommandHandler(
         user.AssignRole(role);
 
         await unitOfWork.SaveChangesAsync(ct);
+        await eventPublisher.PublishAndClearAsync(user, ct);
 
         return Unit.Value;
     }

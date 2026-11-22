@@ -46,11 +46,18 @@ export const envSchema = z.object({
   // A suggestion of phrase marks waits on a model (plan 86, step 5c.2); under the gateway's 120 s.
   AI_SERVICE_SUGGESTION_TIMEOUT_MS: z.coerce.number().int().positive().default(110_000),
 
-  // A purged school's materials stay while learning-service counts active learners on them
-  // (plan 90, phase 5, step 4b). Learning wants `x-service-token` and the /api/v1 prefix.
+  // A course its author retired (`obsolete`) stays while learning-service counts active learners on
+  // it (plan 90, phase 5, step 4c); a purged school's are not asked about (Q11). Learning wants
+  // `x-service-token` and the /api/v1 prefix.
   LEARNING_SERVICE_URL: z.string().default('http://learning-service:3007'),
+  // Sharing by e-mail resolves the address through user-profile's internal lookup (`x-service-token`),
+  // at most USER_LOOKUP_RATE_LIMIT lookups per person per window (plan 90, session 16 remark 4).
+  PROFILE_SERVICE_URL: z.string().default('http://user-profile-service:3001'),
+  PROFILE_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(3_000),
+  USER_LOOKUP_RATE_LIMIT: z.coerce.number().int().positive().default(60),
+  USER_LOOKUP_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
   LEARNING_SERVICE_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
-  // A learner who did nothing in a course for longer no longer keeps it alive (Q5).
+  // A learner who did nothing in a retired course for longer no longer keeps it alive (Q5).
   CONTENT_OBSOLETE_ACTIVE_DAYS: z.coerce.number().int().positive().default(90),
   // The cleanup job: unfinished school purges, then obsolete courses (plan 90, phase 5, step 4c).
   CONTENT_CLEANUP_INTERVAL_MS: z.coerce.number().int().positive().default(3_600_000),
@@ -130,6 +137,14 @@ export interface AppConfig {
     baseUrl: string;
     timeoutMs: number;
   };
+  profile: {
+    baseUrl: string;
+    timeoutMs: number;
+  };
+  userLookupRateLimit: {
+    limit: number;
+    windowMs: number;
+  };
   schoolPurge: {
     activeDays: number;
     cleanupIntervalMs: number;
@@ -193,6 +208,14 @@ export default (): AppConfig => {
     learning: {
       baseUrl: env.LEARNING_SERVICE_URL,
       timeoutMs: env.LEARNING_SERVICE_TIMEOUT_MS,
+    },
+    profile: {
+      baseUrl: env.PROFILE_SERVICE_URL,
+      timeoutMs: env.PROFILE_SERVICE_TIMEOUT_MS,
+    },
+    userLookupRateLimit: {
+      limit: env.USER_LOOKUP_RATE_LIMIT,
+      windowMs: env.USER_LOOKUP_RATE_WINDOW_MS,
     },
     schoolPurge: {
       activeDays: env.CONTENT_OBSOLETE_ACTIVE_DAYS,

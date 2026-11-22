@@ -35,7 +35,8 @@ public sealed class SetAdminLevelCommandHandler(
     IRoleRepository roles,
     IAdminLevelRepository levels,
     IAdminAuditTrail trail,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IDomainEventPublisher eventPublisher)
     : IRequestHandler<SetAdminLevelCommand, AdminResponse>
 {
     public async Task<AdminResponse> Handle(SetAdminLevelCommand command, CancellationToken ct)
@@ -91,6 +92,7 @@ public sealed class SetAdminLevelCommandHandler(
         trail.Stage(action);
         await unitOfWork.SaveChangesAsync(ct);
         await trail.PublishAsync(action, ct);
+        await eventPublisher.PublishAndClearAsync(user, ct);
 
         return AdminMapping.ToResponse(assignment, user);
     }
@@ -108,7 +110,8 @@ public sealed class RevokeAdminCommandHandler(
     IRoleRepository roles,
     IAdminLevelRepository levels,
     IAdminAuditTrail trail,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IDomainEventPublisher eventPublisher)
     : IRequestHandler<RevokeAdminCommand, Unit>
 {
     public async Task<Unit> Handle(RevokeAdminCommand command, CancellationToken ct)
@@ -130,7 +133,7 @@ public sealed class RevokeAdminCommandHandler(
         var before = AdminMapping.Snapshot(user.Email, assignment.Level);
 
         var role = await roles.FindByNameAsync(RoleNames.PlatformAdmin, ct);
-        if (role is not null) user.RemoveRole(role.Id);
+        if (role is not null) user.RemoveRole(role);
         user.RevokeRefreshTokens(ClientTypes.Admin);
         levels.Remove(assignment);
 
@@ -147,6 +150,7 @@ public sealed class RevokeAdminCommandHandler(
         trail.Stage(action);
         await unitOfWork.SaveChangesAsync(ct);
         await trail.PublishAsync(action, ct);
+        await eventPublisher.PublishAndClearAsync(user, ct);
 
         return Unit.Value;
     }

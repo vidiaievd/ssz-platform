@@ -69,6 +69,16 @@ export interface SchoolInvitationSentPayload {
   expiresAt: string; // ISO 8601
   /** Present only when the invitee already has an account (kind=onboard_existing). Used to create an IN_APP notification. */
   recipientUserId?: string;
+  /**
+   * The workspace's owner — the letter to an address without an account falls back to the owner's
+   * `uiLocale` when the school has no language of its own. Absent on older events.
+   */
+  ownerId?: string;
+  /**
+   * The school's language (`defaultExplanationLanguage`, ISO 639-1), the language of the letter to
+   * an address without an account (plan 90, session 16 remark 3). `null` / absent = not set.
+   */
+  schoolLanguage?: string | null;
 }
 
 export interface UserPlatformRoleAssignedPayload {
@@ -190,6 +200,8 @@ export interface TutoringInvitationSentPayload {
   /** Full invitation acceptance URL */
   invitationUrl: string;
   expiresAt: string; // ISO 8601
+  /** The tutor — their `uiLocale` is the letter's language for an address without an account. Absent on older events. */
+  tutorId?: string;
 }
 
 // ─── Typed event interfaces ───────────────────────────────────────────────────

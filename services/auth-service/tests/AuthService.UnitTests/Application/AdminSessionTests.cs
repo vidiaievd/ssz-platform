@@ -261,6 +261,22 @@ public sealed class AdminSessionTests
     }
 
     [Fact]
+    public async Task Mfa_Locked_AnswersWhenTheLockEnds()
+    {
+        // The 423 carries `lockedUntil`, so the panel can say when to try again.
+        var user = GivenMfaChallenge();
+        _rateLimitStore.IsLockedOutAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>()).Returns(true);
+        _rateLimitStore.InspectAsync($"mfa:attempts:{user.Id}", Arg.Any<CancellationToken>())
+            .Returns(new RateLimitSnapshot(5, TimeSpan.FromMinutes(12)));
+
+        var act = () => MfaHandler().Handle(
+            new CompleteMfaLoginCommand("mfa-challenge", "123456", ClientType: ClientTypes.Admin), default);
+
+        var locked = (await act.Should().ThrowAsync<AccountLockedException>()).Which;
+        locked.LockedUntil.Should().BeCloseTo(DateTimeOffset.UtcNow.AddMinutes(12), TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
     public async Task Mfa_WebClient_WrongCode_IsCountedToo()
     {
         // One count per account across clients: guesses cannot be spread between web and panel.
@@ -541,7 +557,7 @@ public sealed class AdminSessionTests
     // ── Bootstrap ─────────────────────────────────────────────────────────────
 
     private BootstrapSuperAdminCommandHandler BootstrapHandler() =>
-        new(_userRepo, _roleRepo, _levels, _trail, _unitOfWork);
+        new(_userRepo, _roleRepo, _levels, _trail, _unitOfWork, Substitute.For<IDomainEventPublisher>());
 
     [Fact]
     public async Task Bootstrap_MakesTheAccountASuperAdministrator()

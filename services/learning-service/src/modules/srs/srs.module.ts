@@ -103,6 +103,8 @@ const QueryHandlers = [
     SRS_REPOSITORY,
     SRS_SCHEDULER,
     CLOCK,
+    // A purged school's cards leave the queue from EventsModule (plan 90, Q11).
+    RedisDueQueueService,
   ],
 })
 export class SrsModule {}

@@ -13,6 +13,8 @@ import { CONTENT_SHARE_LOOKUP } from '../ports/content-share-lookup.port.js';
 import type { IContentShareLookup } from '../ports/content-share-lookup.port.js';
 import { ENTITLEMENT_LOOKUP } from '../ports/entitlement-lookup.port.js';
 import type { IEntitlementLookup } from '../ports/entitlement-lookup.port.js';
+import { SCHOOL_LEARNER_LOOKUP } from '../ports/school-learner-lookup.port.js';
+import type { ISchoolLearnerLookup } from '../ports/school-learner-lookup.port.js';
 
 const SCHOOL_STATUS_CACHE_MS = 30_000;
 
@@ -21,7 +23,8 @@ const DENY = (reason: string): AccessDecision => ({ allowed: false, reason });
 
 /**
  * The grants that come from making, teaching or co-authoring the material rather than from
- * studying it: everything `canAccess` allows except `public` and `school_student_view`.
+ * studying it: everything `canAccess` allows except `public`, `school_student_view` and
+ * `former_school_learner`.
  * Shares are collaborator grants (the web calls them «Collaborators»), so they count here.
  *
  * Kept next to the algorithm on purpose — a new ALLOW reason added above is a question
@@ -52,6 +55,7 @@ export class VisibilityCheckerService {
     @Inject(ORGANIZATION_CLIENT) private readonly orgClient: IOrganizationClient,
     @Inject(CONTENT_SHARE_LOOKUP) private readonly shareLookup: IContentShareLookup,
     @Inject(ENTITLEMENT_LOOKUP) private readonly entitlementLookup: IEntitlementLookup,
+    @Inject(SCHOOL_LEARNER_LOOKUP) private readonly schoolLearners: ISchoolLearnerLookup,
   ) {}
 
   async canAccess(
@@ -74,7 +78,40 @@ export class VisibilityCheckerService {
       if (hasEditShare) return ALLOW('co_author_edit');
     }
 
+    if (action === 'view' && !decision.allowed && (await this.isFormerSchoolLearner(user, entity))) {
+      return ALLOW('former_school_learner');
+    }
+
     return decision;
+  }
+
+  /**
+   * A closed or purged school's `school_private` material stays readable to those who studied in
+   * the school (plan 90, Q11): organization answers no role there and drops the roster on purge,
+   * so learning-service, which keeps the school's enrolments and assignments, answers instead.
+   * The same reach a learner had while the school was active — view only, never `enroll` or
+   * `edit`; a suspended school still answers its learners' role and needs no help. Asked only
+   * after a refusal, so no reader of active material pays for it. Fails closed: an unreadable
+   * status counts as active and an unreadable answer as "not a learner".
+   */
+  private async isFormerSchoolLearner(
+    user: AuthenticatedUser,
+    entity: AccessibleEntity,
+  ): Promise<boolean> {
+    if (entity.deletedAt !== null || entity.ownerSchoolId === null) return false;
+    if (entity.visibility !== Visibility.SCHOOL_PRIVATE) return false;
+
+    const status = await this.schoolStatusOf(entity.ownerSchoolId);
+    if (status !== 'closed' && status !== 'purged') return false;
+
+    try {
+      return await this.schoolLearners.wasSchoolLearner(user.userId, entity.ownerSchoolId);
+    } catch (err) {
+      this.logger.warn(
+        `Former learners of school ${entity.ownerSchoolId} unreadable (${String(err)}); refusing the view`,
+      );
+      return false;
+    }
   }
 
   private async decide(

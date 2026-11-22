@@ -22,7 +22,7 @@ import { TeachingProfilePrismaRepository } from '../teaching/infrastructure/pers
 import { GetTeachingProfileByUserIdHandler } from '../teaching/application/queries/get-teaching-profile-by-user-id/get-teaching-profile-by-user-id.handler.js';
 import { ProfilesController } from './presentation/controllers/profiles.controller.js';
 import { PublicProfilesController } from './presentation/controllers/public-profiles.controller.js';
-import { UsersLookupController } from './presentation/controllers/users-lookup.controller.js';
+import { InternalUsersController } from './presentation/controllers/internal-users.controller.js';
 import { InternalProfilesController } from './presentation/controllers/internal-profiles.controller.js';
 import { InternalAuthGuard } from '../../common/guards/internal-auth.guard.js';
 
@@ -48,7 +48,7 @@ const QueryHandlers = [
   controllers: [
     ProfilesController,
     PublicProfilesController,
-    UsersLookupController,
+    InternalUsersController,
     InternalProfilesController,
   ],
   providers: [

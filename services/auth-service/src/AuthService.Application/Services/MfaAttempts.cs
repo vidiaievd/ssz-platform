@@ -22,7 +22,7 @@ public sealed class MfaAttempts(IRateLimitStore store, AuthOptions options, Guid
     public async Task EnsureNotLockedAsync(CancellationToken ct)
     {
         if (await store.IsLockedOutAsync(_key, ct))
-            throw new AccountLockedException(null);
+            throw new AccountLockedException(await store.LockedUntilAsync(_key, ct));
     }
 
     public Task RecordFailureAsync(CancellationToken ct) =>

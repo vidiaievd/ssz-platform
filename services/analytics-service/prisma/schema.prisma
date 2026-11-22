@@ -62,6 +62,23 @@ model SchoolMembership {
   @@map("school_membership")
 }
 
+// ─── Projection: ClosedSchoolMembership ───────────────────────────────────────
+// The roster of a closed school, set aside (plan 90, phase 5, Q13): in `closed` nobody has a role,
+// as in organization, so every school screen answers 404 by finding no `school_membership` row.
+// `school.restored` moves the rows back, `school.purged` deletes them.
+
+model ClosedSchoolMembership {
+  id       String   @id
+  schoolId String   @map("school_id")
+  userId   String   @map("user_id")
+  role     String
+  joinedAt DateTime @map("joined_at")
+
+  @@unique([schoolId, userId])
+  @@index([schoolId])
+  @@map("closed_school_membership")
+}
+
 // ─── Projection: UserDirectory ────────────────────────────────────────────────
 // Built from profile.created / profile.updated events.
 // Used to denormalize actorName and at-risk student names.

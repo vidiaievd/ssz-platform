@@ -7,6 +7,8 @@ export interface AccountView {
   type: BillingAccountType;
   externalId: string;
   createdAt: Date;
+  /** Optimistic lock: grows with every change of the subscription or grants; send it back as `expectedRevision`. */
+  revision: number;
 }
 
 export interface SubscriptionView {

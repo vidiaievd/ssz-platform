@@ -102,8 +102,14 @@ export class RuleBasedFeedbackGenerator implements IFeedbackGenerator {
 
     switch (templateCode) {
       case 'multiple_choice': {
+        // The old single-question form (plan 53 §8 Q2) keys the answer by option id —
+        // «a», «b» — which tells the learner nothing; they are shown the option's text.
+        // The id stays only for an option that has no text. The new questions document
+        // keeps no `correct_option_ids`: its verdict explains per question instead.
         const ids: string[] = expected.correct_option_ids ?? [];
-        return ids.length > 0 ? ids.join(', ') : null;
+        const texts = optionTexts((def as any)?.exercise?.content);
+        const answers = ids.map((id) => texts.get(id) ?? id);
+        return answers.length > 0 ? answers.join(', ') : null;
       }
       case 'fill_in_blank': {
         const blanks: Array<{ accepted_answers: string[] }> = expected.blanks ?? [];
@@ -122,4 +128,19 @@ export class RuleBasedFeedbackGenerator implements IFeedbackGenerator {
         return null;
     }
   }
+}
+
+/** Option id → its text in a `multiple_choice` document of the old form (`options: [{ id, text }]`). */
+function optionTexts(content: unknown): Map<string, string> {
+  const texts = new Map<string, string>();
+  const options = (content as { options?: unknown } | null | undefined)?.options;
+  if (!Array.isArray(options)) return texts;
+  for (const option of options) {
+    if (!option || typeof option !== 'object') continue;
+    const { id, text } = option as { id?: unknown; text?: unknown };
+    if (typeof id === 'string' && typeof text === 'string' && text.trim() !== '') {
+      texts.set(id, text);
+    }
+  }
+  return texts;
 }

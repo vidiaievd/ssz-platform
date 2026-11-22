@@ -9,7 +9,6 @@ import {
   TUTORING_INVITATION_REPOSITORY,
   type ITutoringInvitationRepository,
 } from '../../../domain/repositories/tutoring-invitation.repository.interface.js';
-import { TutoringGroupNotFoundException } from '../../../domain/exceptions/tutoring-group-not-found.exception.js';
 import type { TutoringInvitation } from '../../../domain/entities/tutoring-invitation.entity.js';
 
 @QueryHandler(ListPendingInvitationsQuery)
@@ -25,7 +24,9 @@ export class ListPendingInvitationsHandler
 
   async execute(query: ListPendingInvitationsQuery): Promise<TutoringInvitation[]> {
     const group = await this.groupRepository.findByTutorId(query.tutorId);
-    if (!group || group.isDeleted) throw new TutoringGroupNotFoundException(query.tutorId);
+    // A tutor who started after workspaces (plan 59) has no legacy group and so no
+    // legacy invitations — an empty list, not an error that sinks the whole list.
+    if (!group || group.isDeleted) return [];
 
     return this.invitationRepository.findAllByGroupId(group.id);
   }

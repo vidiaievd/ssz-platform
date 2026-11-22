@@ -1,4 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
+import {
+  CONTENT_EVENT_TYPES,
+  type SchoolStudyPausedPayload,
+  type SchoolStudyResumedPayload,
+  type SchoolStudyRetiredPayload,
+} from '@ssz/contracts';
 import type { $Enums } from '../../../../../generated/prisma/client.js';
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import {
@@ -26,6 +32,7 @@ import {
   type StudiedKind,
 } from '../../domain/school-materials.js';
 import type {
+  DeleteMaterialsOptions,
   DeletedMaterials,
   ISchoolMaterialsStore,
   ObsoleteCourse,
@@ -34,6 +41,8 @@ import type {
 
 /** Rows per delete transaction. */
 export const PURGE_BATCH = 100;
+/** Ids per `content.school.study_retired` / `study_paused` message. */
+export const RETIRED_IDS_PER_EVENT = 1000;
 /** Ids per `IN (…)` read, far below Postgres' 32 767 bind parameters. */
 const READ_CHUNK = 5000;
 
@@ -393,8 +402,13 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
   async deleteMaterials(
     owner: MaterialOwner,
     materials: readonly SchoolMaterial[],
+    options: DeleteMaterialsOptions = {},
   ): Promise<DeletedMaterials> {
     const owned = ownedWhere(owner);
+    const purgedSchool =
+      options.schoolPurged && owner.kind === 'school'
+        ? { reason: 'school_purged' as const, schoolId: owner.schoolId }
+        : {};
     const byKind = (kind: MaterialKind) =>
       materials.filter((m) => m.kind === kind).map((m) => m.id);
     const deleted: DeletedMaterials = {
@@ -420,6 +434,7 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
         const event = new ContainerDeletedEvent({
           containerId: row.id,
           ownerUserId: row.ownerUserId,
+          ...purgedSchool,
         });
         await this.events.publish(event.eventType, event);
       }
@@ -494,6 +509,52 @@ export class SchoolMaterialsPrismaStore implements ISchoolMaterialsStore {
       });
     }
     return deleted;
+  }
+
+  async announceStudyRetired(
+    schoolId: string,
+    exerciseIds: readonly string[],
+    vocabularyListIds: readonly string[],
+  ): Promise<void> {
+    const words =
+      vocabularyListIds.length === 0
+        ? []
+        : await this.prisma.vocabularyItem.findMany({
+            where: { vocabularyListId: { in: [...vocabularyListIds] } },
+            select: { id: true },
+          });
+    const ids = [
+      ...exerciseIds.map((id) => ({ kind: 'exercise' as const, id })),
+      ...words.map((w) => ({ kind: 'word' as const, id: w.id })),
+    ];
+    for (const batch of chunks(ids, RETIRED_IDS_PER_EVENT)) {
+      const payload: SchoolStudyRetiredPayload = {
+        schoolId,
+        exerciseIds: batch.filter((i) => i.kind === 'exercise').map((i) => i.id),
+        vocabularyItemIds: batch.filter((i) => i.kind === 'word').map((i) => i.id),
+      };
+      await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_RETIRED, payload);
+    }
+  }
+
+  async findExerciseIds(schoolId: string): Promise<string[]> {
+    const rows = await this.prisma.exercise.findMany({
+      where: { ownerSchoolId: schoolId },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
+  async announceStudyPaused(schoolId: string, exerciseIds: readonly string[]): Promise<void> {
+    for (const batch of chunks(exerciseIds, RETIRED_IDS_PER_EVENT)) {
+      const payload: SchoolStudyPausedPayload = { schoolId, exerciseIds: batch };
+      await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_PAUSED, payload);
+    }
+  }
+
+  async announceStudyResumed(schoolId: string): Promise<void> {
+    const payload: SchoolStudyResumedPayload = { schoolId };
+    await this.events.publish(CONTENT_EVENT_TYPES.SCHOOL_STUDY_RESUMED, payload);
   }
 
   async deleteWorkspaceRows(schoolId: string): Promise<void> {

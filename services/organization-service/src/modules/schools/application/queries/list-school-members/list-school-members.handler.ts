@@ -50,7 +50,7 @@ export class ListSchoolMembersHandler implements IQueryHandler<ListSchoolMembers
 
   async execute(query: ListSchoolMembersQuery): Promise<MemberRosterItemDto[]> {
     const school = await this.schoolRepository.findById(query.schoolId);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(query.schoolId);
+    if (!school || !school.isReadableBy(query.actorId)) throw new SchoolNotFoundException(query.schoolId);
 
     const isOwner = query.actorId === school.ownerId;
     const actorRole = school.getMemberRole(query.actorId);

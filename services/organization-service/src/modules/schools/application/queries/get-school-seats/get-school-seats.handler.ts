@@ -36,7 +36,7 @@ export class GetSchoolSeatsHandler implements IQueryHandler<GetSchoolSeatsQuery,
 
   async execute({ schoolId, actorId }: GetSchoolSeatsQuery): Promise<SeatUsage> {
     const school = await this.schools.findById(schoolId);
-    if (!school || school.isDeleted) throw new SchoolNotFoundException(schoolId);
+    if (!school || !school.isReadableBy(actorId)) throw new SchoolNotFoundException(schoolId);
 
     const role = school.getMemberRole(actorId);
     if (actorId !== school.ownerId && !(role && SEAT_READERS.includes(role))) {

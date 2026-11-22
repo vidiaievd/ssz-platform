@@ -184,17 +184,25 @@ public sealed class User : AggregateRoot
         AddDomainEvent(new UserLoggedOutEvent(Id, Email));
     }
 
+    /// <summary>
+    /// Adds the role if it is missing. A change raises <see cref="UserRoleAssignedEvent"/> so the
+    /// services that keep a copy of the roles (user-profile's email lookup) follow; the caller
+    /// publishes it after saving. Registration's own roles travel in <see cref="UserRegisteredEvent"/>.
+    /// </summary>
     public void AssignRole(Role role)
     {
         if (_roles.Any(r => r.RoleId == role.Id)) return;
         _roles.Add(UserRole.Create(Id, role.Id));
         SetUpdated();
+        AddDomainEvent(new UserRoleAssignedEvent(Id, role.Name));
     }
 
-    public void RemoveRole(Guid roleId)
+    /// <summary>Removes the role if the user has it; a change raises <see cref="UserRoleRemovedEvent"/>.</summary>
+    public void RemoveRole(Role role)
     {
-        if (_roles.RemoveAll(r => r.RoleId == roleId) > 0)
-            SetUpdated();
+        if (_roles.RemoveAll(r => r.RoleId == role.Id) == 0) return;
+        SetUpdated();
+        AddDomainEvent(new UserRoleRemovedEvent(Id, role.Name));
     }
 
     /// <summary>Ends the sessions opened from one kind of client; the others stay.</summary>

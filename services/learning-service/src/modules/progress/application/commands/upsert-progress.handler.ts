@@ -52,6 +52,10 @@ export class UpsertProgressHandler
       progress.reviseVerdict({ passed: cmd.outcome === 'passed', score: cmd.score, attemptedAt: now });
       // The verdict changed nothing about whether the exercise is done.
       if (progress.getDomainEvents().length === 0) return Result.ok(toProgressDto(progress));
+    } else if (cmd.outcome === 'started') {
+      progress.recordStart();
+      // Already being worked on, waiting or done — nothing to write.
+      if (progress.getDomainEvents().length === 0) return Result.ok(toProgressDto(progress));
     } else if (cmd.outcome === 'returned') {
       progress.recordReturn();
       // Nothing was waiting for this verdict — no row to create, none to touch.

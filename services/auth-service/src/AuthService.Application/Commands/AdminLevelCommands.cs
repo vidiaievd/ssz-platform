@@ -24,7 +24,8 @@ public sealed class BootstrapSuperAdminCommandHandler(
     IRoleRepository roleRepository,
     IAdminLevelRepository adminLevels,
     IAdminAuditTrail trail,
-    IUnitOfWork unitOfWork)
+    IUnitOfWork unitOfWork,
+    IDomainEventPublisher eventPublisher)
     : IRequestHandler<BootstrapSuperAdminCommand, BootstrapSuperAdminResult>
 {
     public async Task<BootstrapSuperAdminResult> Handle(
@@ -69,6 +70,7 @@ public sealed class BootstrapSuperAdminCommandHandler(
         trail.Stage(action);
         await unitOfWork.SaveChangesAsync(ct);
         await trail.PublishAsync(action, ct);
+        await eventPublisher.PublishAndClearAsync(user, ct);
 
         return new BootstrapSuperAdminResult(user.Id, user.Email, changed);
     }

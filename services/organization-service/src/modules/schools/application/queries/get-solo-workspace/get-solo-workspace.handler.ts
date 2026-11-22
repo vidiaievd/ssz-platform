@@ -31,8 +31,10 @@ export class GetSoloWorkspaceHandler implements IQueryHandler<GetSoloWorkspaceQu
   ) {}
 
   async execute(query: GetSoloWorkspaceQuery): Promise<SoloWorkspaceResult | null> {
+    // Suspended and closed workspaces are still the tutor's (plan 90, live check, block 9);
+    // a purged one is not in the list at all.
     const owned = await this.schoolRepository.findByOwnerId(query.ownerId);
-    const workspace = owned.find((s) => s.isSolo && !s.isDeleted);
+    const workspace = owned.find((s) => s.isSolo);
     if (!workspace) return null;
 
     const groups = await this.groupRepository.findBySchoolId(workspace.id);

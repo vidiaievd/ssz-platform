@@ -25,7 +25,8 @@ import { GroupPublishedEvent } from '../../../domain/events/group-published.even
 
 export interface ProvisionSoloWorkspaceResult {
   schoolId: string;
-  groupId: string;
+  /** Null only for a workspace that is not active and has lost its group. */
+  groupId: string | null;
   /** False when the tutor already had a workspace — the call changed nothing. */
   created: boolean;
 }
@@ -41,6 +42,11 @@ const DEFAULT_NAME = 'My students';
  * Idempotent twice over: it returns the existing workspace when there is one, and
  * the slug is derived from the tutor's id, so two concurrent calls cannot create
  * two workspaces — the unique index rejects the second.
+ *
+ * A suspended or closed workspace is still the tutor's one (plan 90, live check, block 9):
+ * it is returned as it is, read only, and nothing is written into it — the tutor sees the
+ * banner and gets it back through support. Only once it is purged does a new one open; the
+ * tombstone keeps `solo-<tutorId>`, so the new one takes the next free `solo-<tutorId>-<n>`.
  */
 @CommandHandler(ProvisionSoloWorkspaceCommand)
 export class ProvisionSoloWorkspaceHandler
@@ -58,10 +64,14 @@ export class ProvisionSoloWorkspaceHandler
   async execute(command: ProvisionSoloWorkspaceCommand): Promise<ProvisionSoloWorkspaceResult> {
     const name = command.name?.trim() || DEFAULT_NAME;
 
+    // Purged tombstones are not in this list; every other status is.
     const owned = await this.schoolRepository.findByOwnerId(command.tutorId);
-    const existing = owned.find((s) => s.isSolo && !s.isDeleted);
+    const existing = owned.find((s) => s.isSolo);
     if (existing) {
-      const groupId = await this.ensureDefaultGroup(existing.id, command.tutorId, name);
+      const groupId =
+        existing.status === 'active'
+          ? await this.ensureDefaultGroup(existing.id, command.tutorId, name)
+          : await this.findDefaultGroup(existing.id);
       return { schoolId: existing.id, groupId, created: false };
     }
 
@@ -71,7 +81,7 @@ export class ProvisionSoloWorkspaceHandler
         name,
         // Derived from the owner, not from the name: it makes the row unique per
         // tutor and is never shown — a solo workspace has no public page.
-        slug: `solo-${command.tutorId}`,
+        slug: await this.freeSlug(command.tutorId),
         ownerId: command.tutorId,
         description: command.description,
         avatarUrl: command.avatarUrl,
@@ -91,6 +101,25 @@ export class ProvisionSoloWorkspaceHandler
     );
 
     return { schoolId: school.id, groupId, created: true };
+  }
+
+  /**
+   * `solo-<tutorId>`, or after a purge (the tombstone keeps its slug) the first free
+   * `solo-<tutorId>-<n>`. A race between two calls still ends in the unique index.
+   */
+  private async freeSlug(tutorId: string): Promise<string> {
+    const base = `solo-${tutorId}`;
+    if (!(await this.schoolRepository.findBySlug(base))) return base;
+    for (let n = 2; ; n++) {
+      const slug = `${base}-${n}`;
+      if (!(await this.schoolRepository.findBySlug(slug))) return slug;
+    }
+  }
+
+  /** The default group of a workspace that may not be written to; null if it has none. */
+  private async findDefaultGroup(schoolId: string): Promise<string | null> {
+    const groups = (await this.groupRepository.findBySchoolId(schoolId)).filter((g) => !g.isDeleted);
+    return (groups.find((g) => g.isDefault) ?? groups[0])?.id ?? null;
   }
 
   /**

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUUID, Matches, Max, Min, ValidateNested, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { MembershipSource } from '../../domain/entities/school-membership.entity.js';
 import type { ApprovalMode, PlacementMode } from '../../domain/entities/school-onboarding-settings.entity.js';
@@ -9,7 +9,7 @@ import type { AgeBand } from '../../domain/entities/school-group.entity.js';
 
 export class UpsertOnboardingSettingsRequestDto {
   @ApiProperty({ enum: ['platform', 'school', 'none'], example: 'platform' })
-  @IsEnum(['platform', 'school', 'none'])
+  @IsIn(['platform', 'school', 'none'])
   placementMode: PlacementMode;
 
   @ApiPropertyOptional({ example: null })
@@ -18,6 +18,7 @@ export class UpsertOnboardingSettingsRequestDto {
   schoolTestId?: string;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   reusePlatform: boolean;
 
   @ApiPropertyOptional({ example: null })
@@ -27,24 +28,28 @@ export class UpsertOnboardingSettingsRequestDto {
   maxResultAgeDays?: number;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   interviewRequired: boolean;
 
   @ApiProperty({ example: false })
+  @IsBoolean()
   autoPlaceByScore: boolean;
 
   @ApiProperty({ example: true })
+  @IsBoolean()
   collectAvailability: boolean;
 
   @ApiProperty({ enum: ['kids', 'teens', 'adults'], isArray: true, example: ['kids', 'teens'] })
   @IsArray()
-  @IsEnum(['kids', 'teens', 'adults'], { each: true })
+  @IsIn(['kids', 'teens', 'adults'], { each: true })
   ageBands: AgeBand[];
 
   @ApiProperty({ example: false })
+  @IsBoolean()
   collectAgeBand: boolean;
 
   @ApiProperty({ enum: ['auto', 'manual'], example: 'manual' })
-  @IsEnum(['auto', 'manual'])
+  @IsIn(['auto', 'manual'])
   approvalMode: ApprovalMode;
 }
 
@@ -52,7 +57,7 @@ export class UpsertOnboardingSettingsRequestDto {
 
 export class CreateMembershipRequestDto {
   @ApiProperty({ enum: ['public-apply', 'invite', 'direct'], example: 'public-apply' })
-  @IsEnum(['public-apply', 'invite', 'direct'])
+  @IsIn(['public-apply', 'invite', 'direct'])
   source: MembershipSource;
 
   @ApiPropertyOptional({ example: 'uk' })
@@ -96,7 +101,7 @@ export class SetAvailabilityRequestDto {
 
 export class SetAgeBandRequestDto {
   @ApiProperty({ enum: ['kids', 'teens', 'adults'] })
-  @IsEnum(['kids', 'teens', 'adults'])
+  @IsIn(['kids', 'teens', 'adults'])
   ageBand: AgeBand;
 }
 

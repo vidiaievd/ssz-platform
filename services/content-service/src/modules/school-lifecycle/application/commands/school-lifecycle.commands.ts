@@ -1,4 +1,7 @@
-/** `school.closed`: the school's courses become `unmaintained`, its name is kept for the byline. */
+/**
+ * `school.closed`: the school's courses become `unmaintained`, its name is kept for the byline, and
+ * learners' review cards on its exercises are paused.
+ */
 export class ApplySchoolClosedCommand {
   constructor(
     readonly schoolId: string,
@@ -6,7 +9,7 @@ export class ApplySchoolClosedCommand {
   ) {}
 }
 
-/** `school.restored`: what the school's closing set goes back to `maintained`. */
+/** `school.restored`: what the school's closing set goes back to `maintained`; review resumes. */
 export class ApplySchoolRestoredCommand {
   constructor(readonly schoolId: string) {}
 }

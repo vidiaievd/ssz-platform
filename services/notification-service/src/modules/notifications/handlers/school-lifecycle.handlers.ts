@@ -86,6 +86,20 @@ export class SchoolRestoredHandler implements IMessageHandler<SchoolLifecyclePay
   }
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Days until the purge as the owner reads the letter now (plan 90, Q17 (d)). `daysLeft` of the
+ * event is the threshold that fired (30 or 7) and only says which reminder this is: a late timer
+ * or a queued event sends it with fewer days left. Rounded up and never below 1 — a purge due
+ * within the day is "in 1 day", not "in 0". A missing or broken date falls back to the threshold.
+ */
+export function remainingDays(purgeAt: string | null | undefined, threshold: number, now: Date): number {
+  const at = purgeAt ? new Date(purgeAt).getTime() : Number.NaN;
+  if (Number.isNaN(at)) return threshold;
+  return Math.max(1, Math.ceil((at - now.getTime()) / DAY_MS));
+}
+
 @Injectable()
 export class SchoolPurgeReminderHandler implements IMessageHandler<SchoolPurgeReminderPayload> {
   readonly routingKey = ORGANIZATION_EVENT_TYPES.SCHOOL_PURGE_REMINDER;
@@ -100,7 +114,7 @@ export class SchoolPurgeReminderHandler implements IMessageHandler<SchoolPurgeRe
         ownerId: payload.ownerId,
         schoolName: payload.name,
         purgeAt: payload.purgeAt,
-        daysLeft: payload.daysLeft,
+        daysLeft: remainingDays(payload.purgeAt, payload.daysLeft, new Date()),
       },
       meta,
     );

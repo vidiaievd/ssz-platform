@@ -18,6 +18,14 @@ const envSchema = z.object({
   SCHOOL_ARCHIVE_DAYS: z.coerce.number().positive().default(183),
   // How often the lifecycle timer looks for schools to close, purge or remind about.
   SCHOOL_LIFECYCLE_INTERVAL_MS: z.coerce.number().int().min(1000).default(600_000),
+  // Address lookups by a school's people, per asker per window (plan 90, session 16 remark 4).
+  // No REDIS_HOST → not limited (logged once at start).
+  REDIS_HOST: z.string().optional(),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_DB: z.coerce.number().int().min(0).default(7),
+  USER_LOOKUP_RATE_LIMIT: z.coerce.number().int().positive().default(60),
+  USER_LOOKUP_RATE_WINDOW_MS: z.coerce.number().int().positive().default(600_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -45,4 +53,10 @@ export default (): Env => ({
   SCHOOL_SUSPEND_DAYS: Number(process.env['SCHOOL_SUSPEND_DAYS'] ?? 30),
   SCHOOL_ARCHIVE_DAYS: Number(process.env['SCHOOL_ARCHIVE_DAYS'] ?? 183),
   SCHOOL_LIFECYCLE_INTERVAL_MS: Number(process.env['SCHOOL_LIFECYCLE_INTERVAL_MS'] ?? 600_000),
+  REDIS_HOST: process.env['REDIS_HOST'] || undefined,
+  REDIS_PORT: Number(process.env['REDIS_PORT'] ?? 6379),
+  REDIS_PASSWORD: process.env['REDIS_PASSWORD'] || undefined,
+  REDIS_DB: Number(process.env['REDIS_DB'] ?? 7),
+  USER_LOOKUP_RATE_LIMIT: Number(process.env['USER_LOOKUP_RATE_LIMIT'] ?? 60),
+  USER_LOOKUP_RATE_WINDOW_MS: Number(process.env['USER_LOOKUP_RATE_WINDOW_MS'] ?? 600_000),
 });

@@ -48,4 +48,13 @@ export class SchoolPurgePrismaLedger implements ISchoolPurgeLedger {
       select: { schoolId: true, schoolName: true, attempts: true },
     });
   }
+
+  async findPurged(schoolIds: readonly string[]): Promise<Set<string>> {
+    if (schoolIds.length === 0) return new Set();
+    const rows = await this.prisma.schoolPurge.findMany({
+      where: { schoolId: { in: [...schoolIds] } },
+      select: { schoolId: true },
+    });
+    return new Set(rows.map((r) => r.schoolId));
+  }
 }

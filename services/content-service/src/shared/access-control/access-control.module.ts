@@ -6,6 +6,8 @@ import { VisibilityCheckerService } from './domain/services/visibility-checker.s
 import { ORGANIZATION_CLIENT } from './domain/ports/organization-client.port.js';
 import { EntityResolverRegistry } from './infrastructure/registry/entity-resolver-registry.js';
 import { HttpOrganizationClient } from './infrastructure/clients/http-organization-client.js';
+import { SCHOOL_LEARNER_LOOKUP } from './domain/ports/school-learner-lookup.port.js';
+import { HttpSchoolLearnerLookup } from './infrastructure/clients/http-school-learner-lookup.js';
 import { VisibilityGuard } from './presentation/guards/visibility.guard.js';
 import type { AppConfig } from '../../config/configuration.js';
 
@@ -51,6 +53,7 @@ import type { AppConfig } from '../../config/configuration.js';
   ],
   providers: [
     { provide: ORGANIZATION_CLIENT, useClass: HttpOrganizationClient },
+    { provide: SCHOOL_LEARNER_LOOKUP, useClass: HttpSchoolLearnerLookup },
     EntityResolverRegistry,
     VisibilityCheckerService,
     VisibilityGuard,

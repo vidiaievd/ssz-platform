@@ -103,6 +103,7 @@ export class ResendTutoringInvitationHandler
         invitationUrl,
         tutorName,
         newExpiresAt.toISOString(),
+        group.tutorId,
       ),
     );
 

@@ -163,6 +163,25 @@ export class UserProgress extends AggregateRoot {
   }
 
   /**
+   * The learner opened an attempt on this exercise (plan 90, Q18). Not an attempt in the sense
+   * the counters count — nothing was answered yet — so neither the counters, the score nor
+   * `lastAttemptAt` move; only an untouched exercise becomes «in progress». Anything further
+   * along stays where it is, which also makes a start that arrives after its own verdict harmless.
+   */
+  recordStart(): void {
+    if (this._status !== 'NOT_STARTED') return;
+    this._status = 'IN_PROGRESS';
+    this.addDomainEvent(new ProgressUpdatedEvent(this.id, {
+      userId: this._userId,
+      contentType: this._contentRef.type,
+      contentId: this._contentRef.id,
+      status: this._status,
+      attemptsCount: this._attemptsCount,
+      score: this._score,
+    }));
+  }
+
+  /**
    * A teacher sent the submission back (plan 76, 2.6). Not an attempt — the submission was
    * counted when it was handed in — so neither the counters nor the score move: the
    * teacher's partial credit is not a mark the learner earned. Only a submission waiting

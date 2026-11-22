@@ -2,6 +2,7 @@ using AuthService.Application.Commands;
 using AuthService.Application.Interfaces;
 using AuthService.Application.Services;
 using AuthService.Application.Validators;
+using AuthService.Domain.Common;
 using AuthService.Domain.Entities;
 using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
@@ -19,6 +20,7 @@ public sealed class AdminManagementTests
     private readonly IAdminLevelRepository _levels = Substitute.For<IAdminLevelRepository>();
     private readonly IAdminAuditTrail _trail = Substitute.For<IAdminAuditTrail>();
     private readonly IUnitOfWork _unitOfWork = Substitute.For<IUnitOfWork>();
+    private readonly IDomainEventPublisher _publisher = Substitute.For<IDomainEventPublisher>();
 
     private readonly Role _adminRole = Role.Create(RoleNames.PlatformAdmin);
     private readonly Guid _actor = Guid.NewGuid();
@@ -28,8 +30,8 @@ public sealed class AdminManagementTests
         _roles.FindByNameAsync(RoleNames.PlatformAdmin, Arg.Any<CancellationToken>()).Returns(_adminRole);
     }
 
-    private SetAdminLevelCommandHandler SetHandler() => new(_users, _roles, _levels, _trail, _unitOfWork);
-    private RevokeAdminCommandHandler RevokeHandler() => new(_users, _roles, _levels, _trail, _unitOfWork);
+    private SetAdminLevelCommandHandler SetHandler() => new(_users, _roles, _levels, _trail, _unitOfWork, _publisher);
+    private RevokeAdminCommandHandler RevokeHandler() => new(_users, _roles, _levels, _trail, _unitOfWork, _publisher);
 
     private User GivenUser(string email = "new@example.com")
     {
@@ -183,9 +185,16 @@ public sealed class AdminManagementTests
         user.AddRefreshToken("h-web", "f2", DateTimeOffset.UtcNow.AddHours(1), clientType: ClientTypes.Web);
         var assignment = GivenLevel(user, AdminLevels.Admin);
 
+        user.ClearDomainEvents();
+
         await RevokeHandler().Handle(Revoke(user.Id), default);
 
         user.Roles.Should().BeEmpty();
+        // user-profile's lookup copy loses the role too.
+        await _publisher.Received(1).PublishAsync(
+            Arg.Is<IDomainEvent>(e => e is UserRoleRemovedEvent && ((UserRoleRemovedEvent)e).Role == RoleNames.PlatformAdmin),
+            Arg.Any<CancellationToken>());
+        user.DomainEvents.Should().BeEmpty();
         _levels.Received(1).Remove(assignment);
         user.RefreshTokens.Single(t => t.ClientType == ClientTypes.Admin).IsRevoked.Should().BeTrue();
         user.RefreshTokens.Single(t => t.ClientType == ClientTypes.Web).IsRevoked.Should().BeFalse();

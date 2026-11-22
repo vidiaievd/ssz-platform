@@ -41,6 +41,18 @@ export class SchoolActivityGate {
     await this.assertSchoolOpen(await this.ownerSchoolOf(exerciseId));
   }
 
+  /**
+   * The status of the school that owns this exercise's course when it is not `active`, else
+   * `null` (no school, active, or unreadable — fails open like the asserts). For an attempt that
+   * is resumed rather than refused: the caller shows its draft read only (live check, block 12).
+   */
+  async inactiveStatusOf(exerciseId: string): Promise<Exclude<SchoolLifecycleStatus, 'active'> | null> {
+    const schoolId = await this.ownerSchoolOf(exerciseId);
+    if (!schoolId) return null;
+    const status = await this.statusOf(schoolId);
+    return status === 'active' ? null : status;
+  }
+
   /** Throws 409 unless the school is active; a null school (no workspace) always passes. */
   async assertSchoolOpen(schoolId: string | null): Promise<void> {
     if (!schoolId) return;

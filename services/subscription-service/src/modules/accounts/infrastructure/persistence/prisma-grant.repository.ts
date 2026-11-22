@@ -25,41 +25,70 @@ export class PrismaGrantRepository implements IGrantRepository {
   // Both writes bump the account's revision: it is the version of the account's
   // entitlements, and a grant changes them as much as a subscription does.
 
-  async insert(grant: Grant, audit: AdminAuditEntry): Promise<void> {
+  async insert(grant: Grant, audit: AdminAuditEntry, claimRevision?: number): Promise<Result<void, 'account_changed'>> {
     const g = grant.snapshot;
-    await this.prisma.$transaction(async (tx) => {
-      await tx.grant.create({
-        data: {
-          id: g.id,
-          accountId: g.accountId,
-          featureKey: g.featureKey,
-          enabled: g.enabled,
-          monthlyCredits: g.monthlyCredits,
-          limits: g.limits as Prisma.InputJsonValue,
-          startsAt: g.startsAt,
-          endsAt: g.endsAt,
-          reason: g.reason,
-          createdBy: g.createdBy,
-          createdAt: g.createdAt,
-        },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await bumpRevision(tx, g.accountId, claimRevision);
+        await tx.grant.create({
+          data: {
+            id: g.id,
+            accountId: g.accountId,
+            featureKey: g.featureKey,
+            enabled: g.enabled,
+            monthlyCredits: g.monthlyCredits,
+            limits: g.limits as Prisma.InputJsonValue,
+            startsAt: g.startsAt,
+            endsAt: g.endsAt,
+            reason: g.reason,
+            createdBy: g.createdBy,
+            createdAt: g.createdAt,
+          },
+        });
+        await recordAdminAction(tx, audit);
       });
-      await tx.billingAccount.update({ where: { id: g.accountId }, data: { revision: { increment: 1 } } });
-      await recordAdminAction(tx, audit);
-    });
+      return Result.ok();
+    } catch (err) {
+      if (err instanceof RevisionConflict) return Result.fail('account_changed');
+      throw err;
+    }
   }
 
-  async saveRevocation(grant: Grant, audit?: AdminAuditEntry): Promise<Result<void, 'version_conflict'>> {
+  async saveRevocation(
+    grant: Grant,
+    audit?: AdminAuditEntry,
+    claimRevision?: number,
+  ): Promise<Result<void, 'version_conflict' | 'account_changed'>> {
     const g = grant.snapshot;
-    const revoked = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.grant.updateMany({
-        where: { id: g.id, revokedAt: null },
-        data: { revokedAt: g.revokedAt, revokedBy: g.revokedBy },
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // The revision first: a stale caller is refused even when the grant is still live.
+        await bumpRevision(tx, g.accountId, claimRevision);
+        const updated = await tx.grant.updateMany({
+          where: { id: g.id, revokedAt: null },
+          data: { revokedAt: g.revokedAt, revokedBy: g.revokedBy },
+        });
+        if (updated.count === 0) throw new AlreadyRevoked();
+        if (audit) await recordAdminAction(tx, audit);
       });
-      if (updated.count === 0) return false;
-      await tx.billingAccount.update({ where: { id: g.accountId }, data: { revision: { increment: 1 } } });
-      if (audit) await recordAdminAction(tx, audit);
-      return true;
-    });
-    return revoked ? Result.ok() : Result.fail('version_conflict');
+      return Result.ok();
+    } catch (err) {
+      if (err instanceof RevisionConflict) return Result.fail('account_changed');
+      if (err instanceof AlreadyRevoked) return Result.fail('version_conflict');
+      throw err;
+    }
   }
+}
+
+class RevisionConflict extends Error {}
+class AlreadyRevoked extends Error {}
+
+/** Bumps the account's revision; with `claim` only from that value, else the transaction rolls back. */
+async function bumpRevision(tx: Prisma.TransactionClient, accountId: string, claim: number | undefined): Promise<void> {
+  if (claim === undefined) {
+    await tx.billingAccount.update({ where: { id: accountId }, data: { revision: { increment: 1 } } });
+    return;
+  }
+  const claimed = await tx.billingAccount.updateMany({ where: { id: accountId, revision: claim }, data: { revision: { increment: 1 } } });
+  if (claimed.count === 0) throw new RevisionConflict();
 }

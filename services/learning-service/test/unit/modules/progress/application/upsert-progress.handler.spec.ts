@@ -198,6 +198,27 @@ describe('UpsertProgressHandler', () => {
       expect(repo.save).toHaveBeenCalledTimes(1);
     });
 
+    it('a started attempt makes an untouched exercise IN_PROGRESS (plan 90, Q18)', async () => {
+      const { handler, repo, publisher } = withRow(null);
+
+      const result = await handler.execute(exerciseCmd('started', false));
+
+      expect(result.value.status).toBe('IN_PROGRESS');
+      expect(result.value.attemptsCount).toBe(0);
+      expect(repo.save).toHaveBeenCalledTimes(1);
+      expect(publisher.publish).toHaveBeenCalledTimes(1);
+    });
+
+    it('a started attempt on work already handed in writes nothing', async () => {
+      const { handler, repo, publisher } = withRow(existing('SUBMITTED'));
+
+      const result = await handler.execute(exerciseCmd('started', false));
+
+      expect(result.value.status).toBe('SUBMITTED');
+      expect(repo.save).not.toHaveBeenCalled();
+      expect(publisher.publish).not.toHaveBeenCalled();
+    });
+
     it('a return with nothing waiting creates no row', async () => {
       const { handler, repo } = withRow(null);
 

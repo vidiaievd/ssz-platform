@@ -13,6 +13,10 @@ export const AUTH_EVENT_TYPES = {
   EMAIL_VERIFICATION_REQUESTED: 'auth.email_verification_requested',
   EMAIL_VERIFIED: 'auth.email_verified',
   USER_DELETED: 'auth.user.deleted',
+  /** A role added after registration (organization's onboarding, self-assignment, admin level). */
+  USER_ROLE_ASSIGNED: 'auth.user.role_assigned',
+  /** A role taken away (today platform_admin, when an administrator is revoked). */
+  USER_ROLE_REMOVED: 'auth.user.role_removed',
 } as const;
 
 // ─── Payload interfaces ───────────────────────────────────────────────────────
@@ -21,6 +25,12 @@ export interface UserRegisteredPayload {
   userId: string;
   email: string;
   roles: string[];
+}
+
+/** `auth.user.role_assigned` / `auth.user.role_removed`: one role, lowercase, sent only when it changed. */
+export interface UserRoleChangedPayload {
+  userId: string;
+  role: string;
 }
 
 export interface UserLoggedInPayload {

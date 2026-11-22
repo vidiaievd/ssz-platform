@@ -118,6 +118,8 @@ export class ResendSchoolInvitationHandler implements ICommandHandler<ResendScho
         newExpiresAt.toISOString(),
         undefined,
         school.kind,
+        school.ownerId,
+        school.defaultExplanationLanguage ?? null,
       ),
     );
 

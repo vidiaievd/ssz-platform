@@ -95,6 +95,7 @@ export class SendTutoringInvitationHandler implements ICommandHandler<SendTutori
         invitationUrl,
         tutorName,
         expiresAt.toISOString(),
+        group.tutorId,
       ),
     );
 

@@ -7,6 +7,7 @@ import { SrsAtomCardsController } from './srs-atom-cards.controller.js';
 import { LearnerGrammarAtomsController } from './learner-grammar-atoms.controller.js';
 import { LearnerSoundAtomsController } from './learner-sound-atoms.controller.js';
 import { ContentActiveLearnersController } from './content-active-learners.controller.js';
+import { ContentSchoolLearnerController } from './content-school-learner.controller.js';
 
 @Module({
   imports: [CqrsModule],
@@ -17,6 +18,7 @@ import { ContentActiveLearnersController } from './content-active-learners.contr
     LearnerGrammarAtomsController,
     LearnerSoundAtomsController,
     ContentActiveLearnersController,
+    ContentSchoolLearnerController,
   ],
   providers: [InternalAuthGuard],
 })

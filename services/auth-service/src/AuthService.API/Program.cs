@@ -159,8 +159,9 @@ if (args is ["admin", "bootstrap", var bootstrapEmail])
 
 // ── Middleware pipeline ───────────────────────────────────────────────────────
 app.UseMiddleware<CorrelationIdMiddleware>();
-app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Request logging sits outside the exception handler, so it records the status the client
+// actually got (a domain 401 / 403 / 423), not a 500 for the exception passing through.
 app.UseSerilogRequestLogging(opts =>
 {
     opts.EnrichDiagnosticContext = (diag, ctx) =>
@@ -170,6 +171,8 @@ app.UseSerilogRequestLogging(opts =>
         // Never log Authorization header
     };
 });
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {

@@ -541,6 +541,7 @@ export class Attempt extends AggregateRoot {
         targetLanguage: attempt._targetLanguage,
         assignmentId: attempt._assignmentId,
         enrollmentId: attempt._enrollmentId,
+        ephemeral: attempt._ephemeral,
       }),
     );
 

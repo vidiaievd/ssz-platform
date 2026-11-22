@@ -39,6 +39,19 @@ export function readDeletedContainerId(payload: unknown): string | null {
   return typeof id === 'string' && id.length > 0 ? id : null;
 }
 
+/**
+ * A school's purge deleted the container (plan 90, Q11): that school's enrolments and assignments
+ * are `school.purged`'s to close — silently, as COMPLETED. Left alone here, so the outcome never
+ * depends on which of the two queues is read first; rows of other schools and of none go on as usual.
+ */
+export function readPurgedSchoolId(payload: unknown): string | null {
+  const outer = (payload ?? {}) as Partial<ContainerDeletedPayload> & { payload?: Partial<ContainerDeletedPayload> };
+  const data = outer.reason !== undefined ? outer : (outer.payload ?? {});
+  return data.reason === 'school_purged' && typeof data.schoolId === 'string' && data.schoolId.length > 0
+    ? data.schoolId
+    : null;
+}
+
 const QUEUE = 'learning-service.container-deleted';
 const ROUTING_KEY = 'content.container.deleted';
 const BATCH_SIZE = 50;
@@ -85,6 +98,11 @@ export class ContainerDeletedConsumer implements OnModuleInit, OnModuleDestroy {
         this.logger.log(`Consumer ready — queue "${QUEUE}" bound to "${ROUTING_KEY}"`);
       },
     });
+    // Without a listener an 'error' from the channel (a setup failing while the broker
+    // restarts) is an unhandled event and takes the whole process down.
+    this.channelWrapper.on('error', (err: unknown) =>
+      this.logger.error(`RabbitMQ channel error: ${err instanceof Error ? err.message : String(err)}`),
+    );
   }
 
   private async handleMessage(channel: ConfirmChannel, msg: ConsumeMessage): Promise<void> {
@@ -115,10 +133,14 @@ export class ContainerDeletedConsumer implements OnModuleInit, OnModuleDestroy {
         channel.nack(msg, false, false);
         return;
       }
-      this.logger.log(`Container deleted: ${containerId} — starting cascade cancel`);
+      const purgedSchoolId = readPurgedSchoolId(payload);
+      this.logger.log(
+        `Container deleted: ${containerId} — starting cascade cancel` +
+          (purgedSchoolId ? ` (school ${purgedSchoolId} purged: its rows are left to school.purged)` : ''),
+      );
 
-      await this.cascadeCancelAssignments(containerId);
-      await this.cascadeUnenrollEnrollments(containerId);
+      await this.cascadeCancelAssignments(containerId, purgedSchoolId);
+      await this.cascadeUnenrollEnrollments(containerId, purgedSchoolId);
       await this.cache.invalidate(containerId);
 
       await this.prisma.processedEvent.create({ data: { eventId, eventType } });
@@ -131,8 +153,10 @@ export class ContainerDeletedConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async cascadeCancelAssignments(containerId: string): Promise<void> {
-    const assignments = await this.assignmentRepo.findActiveByContent('CONTAINER', containerId);
+  private async cascadeCancelAssignments(containerId: string, purgedSchoolId: string | null): Promise<void> {
+    const assignments = (await this.assignmentRepo.findActiveByContent('CONTAINER', containerId)).filter(
+      (a) => purgedSchoolId === null || a.schoolId !== purgedSchoolId,
+    );
     this.logger.log(`Cancelling ${assignments.length} active assignment(s) for container ${containerId}`);
 
     for (let i = 0; i < assignments.length; i += BATCH_SIZE) {
@@ -158,8 +182,10 @@ export class ContainerDeletedConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private async cascadeUnenrollEnrollments(containerId: string): Promise<void> {
-    const enrollments = await this.enrollmentRepo.findActiveByContainerId(containerId);
+  private async cascadeUnenrollEnrollments(containerId: string, purgedSchoolId: string | null): Promise<void> {
+    const enrollments = (await this.enrollmentRepo.findActiveByContainerId(containerId)).filter(
+      (e) => purgedSchoolId === null || e.schoolId !== purgedSchoolId,
+    );
     this.logger.log(`Unenrolling ${enrollments.length} active enrollment(s) for container ${containerId}`);
 
     for (let i = 0; i < enrollments.length; i += BATCH_SIZE) {

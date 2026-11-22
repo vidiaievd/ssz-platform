@@ -31,6 +31,9 @@ import { FeatureNotEntitledException } from '../../modules/schools/domain/except
 import { SeatsExhaustedException } from '../../modules/schools/domain/exceptions/seats-exhausted.exception.js';
 import { SchoolTransitionNotAllowedException } from '../../modules/school-lifecycle/domain/school-transition-not-allowed.exception.js';
 import { SchoolNotActiveException } from '../../modules/schools/domain/exceptions/school-not-active.exception.js';
+import { TutoringGroupNotFoundException } from '../../modules/tutoring/domain/exceptions/tutoring-group-not-found.exception.js';
+import { UserLookupRateLimitedException } from '../../modules/schools/domain/exceptions/user-lookup-rate-limited.exception.js';
+import { SoloWorkspaceNotDeletableException } from '../../modules/schools/domain/exceptions/solo-workspace-not-deletable.exception.js';
 
 @Catch(
   SchoolNotFoundException,
@@ -44,6 +47,7 @@ import { SchoolNotActiveException } from '../../modules/schools/domain/exception
   SeatsExhaustedException,
   SchoolTransitionNotAllowedException,
   SchoolNotActiveException,
+  SoloWorkspaceNotDeletableException,
   SchoolAlreadyExistsException,
   ForbiddenOperationException,
   MemberAlreadyExistsException,
@@ -58,6 +62,8 @@ import { SchoolNotActiveException } from '../../modules/schools/domain/exception
   TutoringInvitationRevokedException,
   TutoringInvitationExpiredException,
   TutoringInvitationResendThrottledException,
+  TutoringGroupNotFoundException,
+  UserLookupRateLimitedException,
 )
 export class DomainExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(DomainExceptionFilter.name);
@@ -81,6 +87,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
           : {}),
         // A read-only school: the screen names the status (plan 90, phase 5, step 3).
         ...(exception instanceof SchoolNotActiveException ? { status: exception.status } : {}),
+        ...(exception instanceof UserLookupRateLimitedException ? { retryAfterSeconds: exception.retryAfterSeconds } : {}),
       },
     });
   }
@@ -88,6 +95,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
   private resolve(exception: Error): { status: number; code: string } {
     if (exception instanceof SchoolNotFoundException) {
       return { status: HttpStatus.NOT_FOUND, code: 'SCHOOL_NOT_FOUND' };
+    }
+    if (exception instanceof TutoringGroupNotFoundException) {
+      return { status: HttpStatus.NOT_FOUND, code: 'TUTORING_GROUP_NOT_FOUND' };
     }
     if (exception instanceof MemberNotFoundException) {
       return { status: HttpStatus.NOT_FOUND, code: 'MEMBER_NOT_FOUND' };
@@ -116,6 +126,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
     if (exception instanceof SchoolNotActiveException) {
       return { status: HttpStatus.CONFLICT, code: 'SCHOOL_NOT_ACTIVE' };
+    }
+    if (exception instanceof SoloWorkspaceNotDeletableException) {
+      return { status: HttpStatus.CONFLICT, code: 'SOLO_WORKSPACE_NOT_DELETABLE' };
     }
     if (exception instanceof SeatsExhaustedException) {
       return { status: HttpStatus.CONFLICT, code: 'SEATS_EXHAUSTED' };
@@ -155,6 +168,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
       exception instanceof TutoringInvitationResendThrottledException
     ) {
       return { status: HttpStatus.TOO_MANY_REQUESTS, code: 'RESEND_THROTTLED' };
+    }
+    if (exception instanceof UserLookupRateLimitedException) {
+      return { status: HttpStatus.TOO_MANY_REQUESTS, code: 'LOOKUP_RATE_LIMITED' };
     }
     if (exception instanceof InvitationAlreadyPendingException) {
       return { status: HttpStatus.CONFLICT, code: 'INVITATION_ALREADY_PENDING' };

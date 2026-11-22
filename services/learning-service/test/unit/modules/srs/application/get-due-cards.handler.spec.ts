@@ -143,6 +143,16 @@ describe('GetDueCardsHandler', () => {
     expect(repo.findById).toHaveBeenCalledTimes(2);
   });
 
+  it('leaves out a suspended card a stale cached list still names', async () => {
+    const [live, gone] = makeCards(2);
+    gone.suspend(NOW);
+    const { handler } = makeHandler({ cachedIds: [live.id, gone.id], dbCards: [live, gone] });
+
+    const result = await handler.execute(new GetDueCardsQuery(USER_ID, 20));
+
+    expect(result.cards.map((c) => c.id)).toEqual([live.id]);
+  });
+
   it('queries DB and populates cache on cache miss', async () => {
     const cards = makeCards(3);
     const { handler, repo, dueQueue } = makeHandler({

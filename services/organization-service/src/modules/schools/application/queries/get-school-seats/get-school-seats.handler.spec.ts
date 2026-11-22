@@ -3,15 +3,16 @@ import { GetSchoolSeatsHandler } from './get-school-seats.handler.js';
 import { GetSchoolSeatsQuery } from './get-school-seats.query.js';
 import { SchoolNotFoundException } from '../../../domain/exceptions/school-not-found.exception.js';
 import { ForbiddenOperationException } from '../../../domain/exceptions/forbidden-operation.exception.js';
+import { schoolReadableBy, type SchoolStatus } from '../../../domain/school-access.policy.js';
 
 const SCHOOL = 'school-1';
 const OWNER = 'owner-1';
 
-function build(opts: { roles?: Record<string, string>; deleted?: boolean; missing?: boolean; limit?: { known: true; max: number | null } | { known: false }; used?: number } = {}) {
+function build(opts: { roles?: Record<string, string>; status?: SchoolStatus; missing?: boolean; limit?: { known: true; max: number | null } | { known: false }; used?: number } = {}) {
   const school = {
     id: SCHOOL,
     ownerId: OWNER,
-    isDeleted: opts.deleted ?? false,
+    isReadableBy: (id: string) => schoolReadableBy(opts.status ?? 'active', { isOwner: id === OWNER }),
     getMemberRole: (id: string) => opts.roles?.[id],
   };
   const schools = { findById: jest.fn(async () => (opts.missing ? null : school)) };
@@ -46,8 +47,14 @@ describe('GetSchoolSeatsHandler', () => {
     }
   });
 
-  it('is a 404 for a missing or deleted school', async () => {
+  it('is a 404 for a missing or purged school', async () => {
     await expect(build({ missing: true }).execute(new GetSchoolSeatsQuery(SCHOOL, OWNER))).rejects.toBeInstanceOf(SchoolNotFoundException);
-    await expect(build({ deleted: true }).execute(new GetSchoolSeatsQuery(SCHOOL, OWNER))).rejects.toBeInstanceOf(SchoolNotFoundException);
+    await expect(build({ status: 'purged' }).execute(new GetSchoolSeatsQuery(SCHOOL, OWNER))).rejects.toBeInstanceOf(SchoolNotFoundException);
+  });
+
+  it('lets the owner read a closed school; its staff get a 404 (no roles in closed)', async () => {
+    const h = build({ status: 'closed', roles: { a: 'ADMIN' } });
+    await expect(h.execute(new GetSchoolSeatsQuery(SCHOOL, OWNER))).resolves.toMatchObject({ state: 'ok' });
+    await expect(h.execute(new GetSchoolSeatsQuery(SCHOOL, 'a'))).rejects.toBeInstanceOf(SchoolNotFoundException);
   });
 });

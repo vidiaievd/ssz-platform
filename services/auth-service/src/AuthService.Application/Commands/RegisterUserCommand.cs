@@ -1,6 +1,7 @@
 using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using AuthService.Domain.Entities;
+using AuthService.Domain.Events;
 using AuthService.Domain.Exceptions;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
@@ -70,7 +71,9 @@ public sealed class RegisterUserCommandHandler(
         // TODO: replace with outbox pattern for guaranteed delivery.
         try
         {
-            foreach (var domainEvent in user.DomainEvents)
+            // The roles of a new account travel in user.registered; the per-role events of the
+            // same assignments would only repeat them.
+            foreach (var domainEvent in user.DomainEvents.Where(e => e is not UserRoleAssignedEvent))
                 await eventPublisher.PublishAsync(domainEvent, ct);
         }
         catch

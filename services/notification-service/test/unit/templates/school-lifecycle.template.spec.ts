@@ -11,6 +11,15 @@ describe('schoolLifecycleTemplate', () => {
     }
   });
 
+  // uk / ru dates end with their own dot («2027 р.»); a sentence must not add a second one.
+  it.each(['uk', 'ru', 'nb', 'en'])('never doubles a dot after a date (%s)', (locale) => {
+    for (const letter of ['suspended', 'closed', 'restored', 'purge_reminder'] as const) {
+      const out = schoolLifecycleTemplate({ ...base, letter, locale, daysLeft: 7 });
+      expect(out.text).not.toMatch(/\.\./);
+      expect(out.html).not.toMatch(/\.\./);
+    }
+  });
+
   it('escapes the school name in html', () => {
     const out = schoolLifecycleTemplate({ ...base, letter: 'closed', locale: 'en' });
     expect(out.html).toContain('Nordic &lt;Skole&gt;');
@@ -21,6 +30,14 @@ describe('schoolLifecycleTemplate', () => {
     const out = schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'en', daysLeft: 30 });
     expect(out.subject).toContain('30 days');
     expect(out.text).toContain('2027');
+  });
+
+  it('says one day in the singular in nb and en', () => {
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'en', daysLeft: 1 }).subject).toContain('in 1 day');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'en', daysLeft: 1 }).subject).not.toContain('1 days');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'nb', daysLeft: 1 }).subject).toContain('om 1 dag');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'nb', daysLeft: 6 }).subject).toContain('om 6 dager');
+    expect(schoolLifecycleTemplate({ ...base, letter: 'purge_reminder', locale: 'uk', daysLeft: 6 }).subject).toContain('через 6 дн.');
   });
 
   it('says when the suspended school closes by itself', () => {

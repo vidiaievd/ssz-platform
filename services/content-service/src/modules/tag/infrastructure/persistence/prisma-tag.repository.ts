@@ -103,12 +103,24 @@ export class PrismaTagRepository implements ITagRepository {
     if (filter.scope) where.scope = domainTagScopeToPrisma(filter.scope);
     if (filter.category) where.category = domainTagCategoryToPrisma(filter.category);
     if (filter.ownerSchoolId !== undefined) where.ownerSchoolId = filter.ownerSchoolId;
-    if (filter.search) {
-      where.OR = [
-        { name: { contains: filter.search, mode: 'insensitive' } },
-        { slug: { contains: filter.search, mode: 'insensitive' } },
-      ];
+    const and: Prisma.TagWhereInput[] = [];
+    if (filter.visibleToSchool !== undefined) {
+      and.push({
+        OR: [
+          { scope: domainTagScopeToPrisma(TagScope.GLOBAL) },
+          ...(filter.visibleToSchool ? [{ ownerSchoolId: filter.visibleToSchool }] : []),
+        ],
+      });
     }
+    if (filter.search) {
+      and.push({
+        OR: [
+          { name: { contains: filter.search, mode: 'insensitive' } },
+          { slug: { contains: filter.search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (and.length > 0) where.AND = and;
     return where;
   }
 }

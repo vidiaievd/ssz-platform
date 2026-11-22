@@ -81,6 +81,9 @@ export class SrsCardMapper {
       lapses: card.lapses,
       learningSteps: card.learningSteps,
       lastReviewedAt: card.lastReviewedAt,
+      // A closed school's mark lives only while the card stays suspended: once the learner (or
+      // anything else) brings it back, the school's restore must not touch it again.
+      ...(card.state === 'SUSPENDED' ? {} : { pausedBySchoolId: null, stateBeforePause: null }),
     };
   }
 }

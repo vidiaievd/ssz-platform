@@ -2,6 +2,11 @@
 jest.mock('../../../../infrastructure/database/prisma.service.js', () => ({
   PrismaService: class {},
 }));
+jest.mock(
+  '@ssz/contracts',
+  () => ({ CONTENT_EVENT_TYPES: { SCHOOL_STUDY_RETIRED: 'content.school.study_retired' } }),
+  { virtual: true },
+);
 
 import { SchoolMaterialsPrismaStore } from './school-materials.prisma.store.js';
 
@@ -174,6 +179,32 @@ describe('SchoolMaterialsPrismaStore.deleteMaterials', () => {
     expect(containerDelete?.[2]).toEqual({ where: { id: { in: ['C1'] }, ownerSchoolId: SCHOOL } });
   });
 
+  it("a purged school's container is announced with the reason and the school (Q11)", async () => {
+    const { store: s, published } = store({ container: [{ id: 'C1', ownerUserId: 'author' }] });
+
+    await s.deleteMaterials(OWNER, [{ kind: 'container', id: 'C1', containerType: 'course' }], {
+      schoolPurged: true,
+    });
+
+    expect((published[0][1] as { payload: unknown }).payload).toEqual({
+      containerId: 'C1',
+      ownerUserId: 'author',
+      reason: 'school_purged',
+      schoolId: SCHOOL,
+    });
+  });
+
+  it('an author never gets a school reason, even if asked', async () => {
+    const { store: s, published } = store({ container: [{ id: 'C1', ownerUserId: 'author-1' }] });
+    await s.deleteMaterials(AUTHOR, [{ kind: 'container', id: 'C1', containerType: 'course' }], {
+      schoolPurged: true,
+    });
+    expect((published[0][1] as { payload: unknown }).payload).toEqual({
+      containerId: 'C1',
+      ownerUserId: 'author-1',
+    });
+  });
+
   it("touches nothing for a container that is not the school's (already gone, or another owner)", async () => {
     const { store: s, log, published } = store({ container: [] });
     await s.deleteMaterials(OWNER, [{ kind: 'container', id: 'C-other', containerType: 'course' }]);
@@ -239,6 +270,43 @@ describe('SchoolMaterialsPrismaStore — an author as owner (step 4c)', () => {
       expect(call?.[2]).toMatchObject({ where: { ownerSchoolId: null, ownerUserId: 'author-1' } });
     }
     expect(log.find(([m, op]) => m === 'tag' && op === 'deleteMany')).toBeUndefined();
+  });
+});
+
+describe('SchoolMaterialsPrismaStore.announceStudyRetired (Q11)', () => {
+  it("sends the exercises and the lists' words in chunks of a thousand ids", async () => {
+    const words = Array.from({ length: 600 }, (_, i) => ({ id: `w${i}` }));
+    const exercises = Array.from({ length: 900 }, (_, i) => `e${i}`);
+    const { store: s, log, published } = store({ vocabularyItem: words });
+
+    await s.announceStudyRetired(SCHOOL, exercises, ['V1']);
+
+    expect(log).toContainEqual([
+      'vocabularyItem',
+      'findMany',
+      { where: { vocabularyListId: { in: ['V1'] } }, select: { id: true } },
+    ]);
+    expect(published.map(([type]) => type)).toEqual([
+      'content.school.study_retired',
+      'content.school.study_retired',
+    ]);
+    const [first, second] = published.map(([, p]) => p) as Array<{
+      schoolId: string;
+      exerciseIds: string[];
+      vocabularyItemIds: string[];
+    }>;
+    expect(first.schoolId).toBe(SCHOOL);
+    expect(first.exerciseIds).toHaveLength(900);
+    expect(first.vocabularyItemIds).toHaveLength(100);
+    expect(second.exerciseIds).toEqual([]);
+    expect(second.vocabularyItemIds).toHaveLength(500);
+  });
+
+  it('sends nothing when there is nothing to retire, and reads no words without lists', async () => {
+    const { store: s, log, published } = store({});
+    await s.announceStudyRetired(SCHOOL, [], []);
+    expect(published).toEqual([]);
+    expect(log).toEqual([]);
   });
 });
 

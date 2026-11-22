@@ -50,8 +50,13 @@ export class ApplySchoolClosedHandler implements ICommandHandler<ApplySchoolClos
     const courses = await this.store.findCourses(schoolId);
     const changed = await applyMaintenanceRule(this.store, courses, onSchoolClosed, new Date());
     await this.store.snapshotSchoolName(schoolId, schoolName, false);
+    // Learners stop being asked to review what the engine refuses to start now (409
+    // SCHOOL_NOT_ACTIVE); `restored` brings exactly these cards back.
+    const exerciseIds = await this.store.findExerciseIds(schoolId);
+    await this.store.announceStudyPaused(schoolId, exerciseIds);
     this.logger.log(
-      `School ${schoolId} closed: ${changed} of ${courses.length} course(s) now unmaintained`,
+      `School ${schoolId} closed: ${changed} of ${courses.length} course(s) now unmaintained, ` +
+        `${exerciseIds.length} exercise(s) paused for review`,
     );
     return changed;
   }
@@ -69,7 +74,8 @@ export class ApplySchoolRestoredHandler implements ICommandHandler<
   async execute({ schoolId }: ApplySchoolRestoredCommand): Promise<number> {
     const courses = await this.store.findCourses(schoolId);
     const changed = await applyMaintenanceRule(this.store, courses, onSchoolRestored, new Date());
-    this.logger.log(`School ${schoolId} restored: ${changed} course(s) maintained again`);
+    await this.store.announceStudyResumed(schoolId);
+    this.logger.log(`School ${schoolId} restored: ${changed} course(s) maintained again, review resumed`);
     return changed;
   }
 }

@@ -7,6 +7,7 @@ import { PROFILE_REPOSITORY } from '../profiles/domain/repositories/profile.repo
 import { ProfilePrismaRepository } from '../profiles/infrastructure/persistence/profile.prisma.repository.js';
 import { UserRegisteredConsumer } from '../profiles/infrastructure/events/user-registered.consumer.js';
 import { UserDeletedConsumer } from '../profiles/infrastructure/events/user-deleted.consumer.js';
+import { UserRolesConsumer } from '../profiles/infrastructure/events/user-roles.consumer.js';
 import { EraseUserDataHandler } from '../profiles/application/commands/erase-user-data/erase-user-data.handler.js';
 import { USER_DATA_ERASER } from '../profiles/application/ports/user-data-eraser.interface.js';
 import { UserDataPrismaEraser } from '../profiles/infrastructure/persistence/user-data.prisma.eraser.js';
@@ -22,6 +23,7 @@ import { UserDataPrismaEraser } from '../profiles/infrastructure/persistence/use
     },
     UserRegisteredConsumer,
     UserDeletedConsumer,
+    UserRolesConsumer,
     CreateProfileHandler,
     EraseUserDataHandler,
     {

@@ -544,7 +544,7 @@ public sealed class AdminUserActionTests
         // Only the other, unblocked super counts.
         _levels.CountAtLevelAsync(AdminLevels.Super, Arg.Any<CancellationToken>()).Returns(1);
 
-        var act = () => new SetAdminLevelCommandHandler(_users, _roles, _levels, _trail, _unitOfWork)
+        var act = () => new SetAdminLevelCommandHandler(_users, _roles, _levels, _trail, _unitOfWork, Substitute.For<IDomainEventPublisher>())
             .Handle(new SetAdminLevelCommand(_actor, AdminLevels.Super, user.Id, AdminLevels.Admin, "x"), default);
 
         await act.Should().NotThrowAsync();

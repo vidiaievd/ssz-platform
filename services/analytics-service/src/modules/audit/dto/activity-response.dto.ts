@@ -10,6 +10,12 @@ export class ActivityItemDto {
   @ApiProperty({ example: 'published lesson' })
   what!: string;
 
+  @ApiProperty({
+    example: 'content.container.published',
+    description: 'The event behind the row, so a client can word `what` in its own language.',
+  })
+  eventType!: string;
+
   @ApiPropertyOptional({ example: 'A2 · Restaurant role-play' })
   target?: string | null;
 

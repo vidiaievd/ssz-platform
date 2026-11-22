@@ -33,6 +33,7 @@ import {
   SchoolPurgeReminderHandler,
 } from './handlers/school-lifecycle.handlers.js';
 import { OwnerContactClient } from './schedules/clients/owner-contact.client.js';
+import { InvitationLocaleResolver } from './handlers/invitation-locale.resolver.js';
 import { AnalyticsConsumerService } from '../../infrastructure/messaging/analytics-consumer.service.js';
 import { SchedulingConsumerService } from '../../infrastructure/messaging/scheduling-consumer.service.js';
 import { OrganizationConsumerService } from '../../infrastructure/messaging/organization-consumer.service.js';
@@ -75,6 +76,7 @@ import { LessonsClient } from './schedules/clients/lessons.client.js';
     AssignmentCreatedHandler,
     LessonChangedHandler,
     OwnerContactClient,
+    InvitationLocaleResolver,
     SchoolOwnerMailer,
     SchoolSuspendedHandler,
     SchoolClosedHandler,
