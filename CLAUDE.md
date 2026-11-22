@@ -369,6 +369,9 @@ School not active (plan 90, phase 5, step 7): `SchoolActivityGate` (cache 30 s, 
 of the exercise's course (`placement.ownerSchoolId`), not the learner's school: a learner of a suspended school keeps
 practising public courses; for staff and for a hand-in "to review" it is `attempt.schoolId`. Probes (no course) untouched.
 Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no gate; reads stay open.
+Definition cache (`exercise-def:<id>:<lang>:<mode>`, key included, TTL 300 s) is dropped on `content.exercise.deleted` and on
+`content.exercise.released` (`ExerciseReleasedConsumer`, queue `exercise-engine.content-exercise-released`, prefetch 1, no
+`processed_events` — a repeat drop is harmless; one retry, then the TTL). Without it a publish left grading on the old key.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
