@@ -93,8 +93,8 @@ model UserDirectory {
 
 // ─── Projection: ContainerDirectory ──────────────────────────────────────────
 // Built from content.container.* events.
-// Provides title/lang/leafItemCount for course-health and at-risk widgets.
-// leafItemCount starts at 0 and will be incremented once container-item events exist.
+// Provides title/lang for course-health and at-risk widgets; the items of a course are in
+// `course_outline_item` (plan 58), not counted here.
 
 model ContainerDirectory {
   containerId   String    @id @map("container_id")
@@ -103,7 +103,6 @@ model ContainerDirectory {
   ownerUserId   String    @map("owner_user_id")
   ownerSchoolId String?   @map("owner_school_id")
   containerType String    @map("container_type")
-  leafItemCount Int       @default(0) @map("leaf_item_count")
   deletedAt     DateTime? @map("deleted_at")
   updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
 

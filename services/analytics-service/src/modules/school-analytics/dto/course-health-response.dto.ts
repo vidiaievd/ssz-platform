@@ -13,7 +13,7 @@ export class CourseHealthDto {
   @ApiProperty({ example: 48, description: 'Active enrollees in this course' })
   enrollment!: number;
 
-  @ApiProperty({ example: 0.62, description: 'Ratio 0.0–1.0: completedItems / (enrollment × leafItemCount); 0 if leafItemCount not yet populated' })
+  @ApiProperty({ example: 0.62, description: 'Ratio 0.0–1.0: items completed by the enrolled students / (enrollment × published items of the course); 0 when the course’s items are unknown' })
   completion!: number;
 
   @ApiProperty({ enum: ['up', 'down', 'flat'] })

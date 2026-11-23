@@ -165,7 +165,7 @@ export class SeedService implements OnApplicationBootstrap {
 
       await this.prisma.containerDirectory.upsert({
         where: { containerId },
-        create: { ...row, leafItemCount: 0 },
+        create: row,
         update: row,
       });
       seeded += 1;

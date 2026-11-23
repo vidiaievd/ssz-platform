@@ -175,7 +175,6 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
             ownerUserId: p.ownerUserId,
             ownerSchoolId: p.ownerSchoolId ?? null,
             containerType: p.containerType,
-            leafItemCount: 0,
           },
           update: {
             title: p.title,
