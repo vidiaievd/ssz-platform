@@ -525,6 +525,21 @@ Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_r
 content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
 `commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
 hand-in; any failure = inventory notes only.
+Sound-level pronunciation (plan 88): Azure's Pronunciation Assessment times and scores each sound but leaves `nb-NO`
+symbols empty; the sounds are named by the NB Uttale lexicon (Språkbanken, CC0, østnorsk; table `pronunciation_lexicon`,
+`alignWord` fits Azure's sounds to a variant) — a word outside the lexicon or whose sounds do not count up is judged at word
+level, no sound invented. Reference clips `POST internal/reference-clips { language, word }` (`x-internal-token`; caller
+media-service): the word in the carrier *Nå sier jeg … igjen.*, synthesized voice by voice and self-checked (heard back,
+aligned, toneme by F0 against the lexicon, bounds 1.5 / 2.5); toneme-ambiguous homographs refused; platform pays (surface
+`authoring`). Toneme check `POST internal/toneme-checks` (`x-internal-token`, not routed by the gateway; school's
+`ai.practice`, else the learner's plan; surface `pronunciation_drill`): the learner's take of the carrier against the
+reference's stored score, verdict on the raw score (`LEARNER_TONEME_BOUNDS` 0.5 / 3.5, `MIN_GAP_FROM_REFERENCE` 3) —
+`like_reference` / `other_tone` (`atomRef` `nb:tone`) / `unsure` / `not_measured`, both melodies returned. Step 9.5 (OQ-2,
+variant A): the voice's range in the carrier (p90 − p10 of voiced F0 on the carrier's words, the word left out, ≥ 10 points)
+is measured for the take and the reference (`comparison.frameRange`, the reference's `tries[].frameRange`; a clip kept
+before 9.5 is measured around its word) and each measured take is kept in `toneme_measurements` (one row per paid call, no
+audio, no text but the word; a failed write is only logged). Nothing reads the range yet — thresholds on a normalised
+scale wait for recordings of several speakers (plan 89 §4.1, OQ-30).
 Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
 reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
 content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
