@@ -45,6 +45,7 @@ import { readAloudViolations } from './read-aloud-preflight.js';
 import { informationTransferViolations } from './information-transfer-preflight.js';
 import { minimalPairsViolations } from './minimal-pairs-preflight.js';
 import { audioViolations } from './audio-preflight.js';
+import { courseStructureViolations } from './course-structure-preflight.js';
 
 export type RuleSeverity = 'blocker' | 'warning';
 
@@ -112,7 +113,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
 
     const byType = groupBy(items, (i) => i.itemType);
 
-    await Promise.all([
+    const [, , , , moduleTypeCounts] = await Promise.all([
       this.checkLessons(byType['LESSON'] ?? [], blockers, warnings),
       this.checkVocabularyLists(byType['VOCABULARY_LIST'] ?? [], blockers, warnings),
       this.checkExercises(byType['EXERCISE'] ?? [], blockers, warnings),
@@ -120,6 +121,13 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       this.checkModules(byType['CONTAINER'] ?? [], blockers),
       this.checkGrammarRules(byType['GRAMMAR_RULE'] ?? [], blockers),
     ]);
+    // A course keeps its material in modules, so the version-wide counts below take the
+    // modules' items too — counting the course's own items alone warned on every course.
+    const countOf = (itemType: string) =>
+      (byType[itemType] ?? []).length + (moduleTypeCounts.get(itemType) ?? 0);
+
+    // ITEM_OUTSIDE_MODULE: material on a course itself, which learners never reach (OQ-6).
+    blockers.push(...courseStructureViolations(version.container.containerType, items));
 
     // SECTION_EMPTY: a section in this version has no items assigned to it.
     const itemsBySection = groupBy(
@@ -174,8 +182,8 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       }
     }
 
-    // NO_GRAMMAR: no grammar-rule items in this version.
-    if ((byType['GRAMMAR_RULE'] ?? []).length === 0) {
+    // NO_GRAMMAR: no grammar-rule items in this version or its modules.
+    if (countOf('GRAMMAR_RULE') === 0) {
       warnings.push({
         ruleCode: 'NO_GRAMMAR',
         severity: 'warning',
@@ -185,8 +193,8 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       });
     }
 
-    // EXERCISE_COUNT_LOW: fewer than 4 exercise items.
-    const exerciseCount = (byType['EXERCISE'] ?? []).length;
+    // EXERCISE_COUNT_LOW: fewer than 4 exercise items, the modules' included.
+    const exerciseCount = countOf('EXERCISE');
     if (exerciseCount < 4) {
       warnings.push({
         ruleCode: 'EXERCISE_COUNT_LOW',
@@ -336,11 +344,13 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
     }
   }
 
+  /** MODULE_EMPTY per module; answers how many items of each type the modules hold. */
   private async checkModules(
     items: Array<{ itemType: string; itemId: string }>,
     blockers: RuleViolation[],
-  ): Promise<void> {
-    if (items.length === 0) return;
+  ): Promise<Map<string, number>> {
+    const typeCounts = new Map<string, number>();
+    if (items.length === 0) return typeCounts;
 
     const moduleContainerIds = items.map((i) => i.itemId);
 
@@ -367,11 +377,21 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
       .filter((id): id is string => !!id);
 
     const itemCounts = await this.prisma.containerItem.groupBy({
-      by: ['containerVersionId'],
+      by: ['containerVersionId', 'itemType'],
       where: { containerVersionId: { in: resolvedVersionIds } },
       _count: { id: true },
     });
-    const countByVersion = new Map(itemCounts.map((c) => [c.containerVersionId, c._count.id]));
+    const countByVersion = new Map<string, number>();
+    for (const c of itemCounts) {
+      countByVersion.set(
+        c.containerVersionId,
+        (countByVersion.get(c.containerVersionId) ?? 0) + c._count.id,
+      );
+    }
+    // A module placed twice is counted once: `groupBy` answers each version once.
+    for (const c of itemCounts) {
+      typeCounts.set(c.itemType, (typeCounts.get(c.itemType) ?? 0) + c._count.id);
+    }
 
     for (const item of items) {
       const versionId =
@@ -389,6 +409,7 @@ export class GetPreflightHandler implements IQueryHandler<GetPreflightQuery, Pre
         });
       }
     }
+    return typeCounts;
   }
 
   private async checkGrammarRules(

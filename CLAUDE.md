@@ -303,6 +303,11 @@ enrolment or assignment of the school in any status reads it (reason `former_sch
 level (course, lesson, exercise — the rule is by `ownerSchoolId`). Never `enroll` / `edit`; `suspended` is not asked (the roster
 still answers); unreadable status or answer → refused.
 
+Course structure (OQ-6): a `COURSE` version holds modules only — any other item placed on the course itself is the preflight
+blocker `ITEM_OUTSIDE_MODULE` (learners and the phone reach a course through its modules; the editor cannot put material there,
+only seeds and the raw API). `NO_GRAMMAR` / `EXERCISE_COUNT_LOW` count the modules' items too. Demo «Stein på stein»
+(`prisma/seed-demo-norwegian.ts`) is `SINGLE`: three chapter modules, sections Lesetekst / Ordforråd / Grammatikk / Test.
+
 Share by e-mail (plan 90, session 16 remark 4, variant A): `POST content-shares/by-email { entityType, entityId, email, permission }` —
 edit right + visibility `shared` checked first, then the caller's lookup limit (Redis `content:user-lookup:rl:<userId>`, same env names
 and defaults as organization) → 429 `LOOKUP_RATE_LIMITED`, then user-profile `internal/users/lookup` (`PROFILE_SERVICE_URL`); no account
