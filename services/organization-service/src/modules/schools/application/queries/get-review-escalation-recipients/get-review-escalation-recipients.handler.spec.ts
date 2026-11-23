@@ -101,7 +101,7 @@ describe('GetReviewEscalationRecipientsHandler', () => {
 
   it('names the primary teacher of the group the late work belongs to', async () => {
     const { handler } = makeHandler('primary_teacher', {
-      assignments: [{ userId: 'teacher-1' }],
+      assignments: [{ userId: 'teacher-1', groupId: GROUP_ID }],
       members: [{ userId: 'teacher-1', name: 'Anna Lund' }],
     });
 
@@ -126,17 +126,69 @@ describe('GetReviewEscalationRecipientsHandler', () => {
   });
 
   /**
-   * The setting points at nobody. That is an answer, and the caller writes to nobody —
-   * quietly picking a different recipient would send a stranger a school's business and
-   * hide the fact that the setting is useless as it stands.
+   * A group with no primary teacher is handed to the school's administrators (OQ-13,
+   * variant B): silence would swallow that group's late work, and the reason on each
+   * recipient says why they hear about it.
    */
-  it('answers with nobody rather than falling back to another target', async () => {
-    const { handler } = makeHandler('primary_teacher', { assignments: [] });
+  it('hands a group without a primary teacher to the school’s administrators', async () => {
+    const { handler } = makeHandler('primary_teacher', {
+      assignments: [],
+      members: [{ userId: 'kari', name: 'Kari', role: 'ADMIN' }],
+    });
 
     await expect(handler.execute(query([GROUP_ID]))).resolves.toEqual({
       target: 'primary_teacher',
-      recipients: [],
+      recipients: [
+        { userId: 'owner-1', name: 'owner-1', role: 'school_admin_fallback' },
+        { userId: 'kari', name: 'Kari', role: 'school_admin_fallback' },
+      ],
     });
+  });
+
+  it('names the primaries of covered groups and the admins for the uncovered one', async () => {
+    const { handler, prisma } = makeHandler('primary_teacher', {
+      assignments: [{ userId: 'teacher-1', groupId: GROUP_ID }],
+    });
+    // Names of the primaries first, then the admin roster.
+    prisma.schoolMember.findMany
+      .mockResolvedValueOnce([{ userId: 'teacher-1', name: 'Anna Lund' }])
+      .mockResolvedValueOnce([{ userId: 'kari', name: 'Kari', role: 'ADMIN' }]);
+
+    const result = await handler.execute(query([GROUP_ID, 'group-2']));
+
+    expect(result.recipients).toEqual([
+      { userId: 'teacher-1', name: 'Anna Lund', role: 'primary' },
+      { userId: 'owner-1', name: 'owner-1', role: 'school_admin_fallback' },
+      { userId: 'kari', name: 'Kari', role: 'school_admin_fallback' },
+    ]);
+  });
+
+  it('lists a primary teacher who is also an admin once, as the primary', async () => {
+    const { handler, prisma } = makeHandler('primary_teacher', {
+      assignments: [{ userId: 'kari', groupId: GROUP_ID }],
+    });
+    prisma.schoolMember.findMany
+      .mockResolvedValueOnce([{ userId: 'kari', name: 'Kari' }])
+      .mockResolvedValueOnce([{ userId: 'kari', name: 'Kari', role: 'ADMIN' }]);
+
+    const result = await handler.execute(query([GROUP_ID, 'group-2']));
+
+    expect(result.recipients).toEqual([
+      { userId: 'kari', name: 'Kari', role: 'primary' },
+      { userId: 'owner-1', name: 'owner-1', role: 'school_admin_fallback' },
+    ]);
+  });
+
+  it('asks for no admins when every group has its primary', async () => {
+    const { handler, prisma } = makeHandler('primary_teacher', {
+      assignments: [{ userId: 'teacher-1', groupId: GROUP_ID }],
+      members: [{ userId: 'teacher-1', name: 'Anna Lund' }],
+    });
+
+    await handler.execute(query([GROUP_ID]));
+
+    expect(prisma.schoolMember.findFirst).not.toHaveBeenCalled();
+    expect(prisma.schoolMember.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('has nobody to name for a primary teacher when no group was given', async () => {

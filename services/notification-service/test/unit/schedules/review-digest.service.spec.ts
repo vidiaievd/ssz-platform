@@ -289,6 +289,20 @@ describe('ReviewDigestService — the school threshold and the weekly summary', 
     ).toEqual(['kari']);
   });
 
+  it('logs late school work that has nobody to go to', async () => {
+    const { service } = makeService({
+      pending: late,
+      recipients: { target: 'primary_teacher', recipients: [] },
+    });
+    const warn = jest
+      .spyOn((service as unknown as { logger: { warn: (m: string) => void } }).logger, 'warn')
+      .mockImplementation(() => undefined);
+
+    await service.runEscalation(NOW);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('escalateTo=primary_teacher'));
+  });
+
   it('sends the weekly picture even when nothing is late', async () => {
     const { service, notifications } = makeService({
       pending: [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(5) }],

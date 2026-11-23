@@ -155,7 +155,17 @@ export class ReviewDigestService {
       schoolId,
       summary.overdueGroupIds,
     );
-    if (recipients === null || recipients.recipients.length === 0) return;
+    if (recipients === null) return;
+    if (recipients.recipients.length === 0) {
+      // Late work and nobody to tell: organization already hands a group with no primary
+      // teacher to the school's admins (OQ-13), so an empty list here is a school whose
+      // setting truly points at nobody. Say so in the log instead of swallowing it.
+      this.logger.warn(
+        `Review escalation: ${summary.overdue} late submission(s) in school ${schoolId}, ` +
+          `but escalateTo=${recipients.target} names nobody`,
+      );
+      return;
+    }
 
     const states = await this.state.load(recipients.recipients.map((one) => one.userId));
     const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
