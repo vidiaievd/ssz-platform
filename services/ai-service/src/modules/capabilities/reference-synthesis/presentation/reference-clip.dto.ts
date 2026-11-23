@@ -37,6 +37,15 @@ export class ReferenceTryDto {
   @ApiProperty({ type: Number, nullable: true, example: 97, description: "Azure's 0–100 score of the word" })
   accuracy!: number | null;
   @ApiProperty({ type: TonemeMeasureDto, nullable: true }) measure!: TonemeMeasureDto | null;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: 7.2,
+    description:
+      "The voice's range in the carrier around the word: p90 − p10 of its voiced F0, semitones (plan 88, " +
+      'step 9.5). Reference only — no clip is kept or refused by it; null when not measured',
+  })
+  frameRange!: number | null;
 }
 
 export class ReferenceClipDto {

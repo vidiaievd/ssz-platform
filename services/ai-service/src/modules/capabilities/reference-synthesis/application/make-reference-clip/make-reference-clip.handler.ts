@@ -9,6 +9,7 @@ import {
   type IPronunciationLexiconReader,
 } from '../../../../pronunciation/application/ports/pronunciation-lexicon.reader.js';
 import { alignWord, type LexiconVariant } from '../../../../pronunciation/domain/align-word.js';
+import { frameRange, frameSpans } from '../../../../pronunciation/domain/frame-range.js';
 import { measureToneme, tonemeWindow } from '../../../../pronunciation/domain/toneme-feature.js';
 import type { SynthesisResult } from '../../../../providers/domain/synthesis-result.js';
 import {
@@ -119,9 +120,10 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
       outcome: ReferenceTry['outcome'],
       accuracy: number | null,
       measure: ReferenceTry['measure'] = null,
+      range: number | null = null,
     ): Tried => ({
       kind: 'not_kept',
-      try: { voice: clip.voice, outcome, accuracy, measure },
+      try: { voice: clip.voice, outcome, accuracy, measure, frameRange: range },
     });
     const scored = wordAt(heard.routed.value.result.pronunciation?.words ?? [], carrier.wordIndex, word);
     if (!scored || scored.accuracy < MIN_WORD_ACCURACY || scored.phonemes.length === 0) {
@@ -134,19 +136,27 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
     const first = alignment.sounds[0]!;
     const last = alignment.sounds[alignment.sounds.length - 1]!;
     const wordSpan = { startMs: first.startMs, endMs: last.startMs + last.durationMs };
-    const kept = (measure: ReferenceTry['measure'], stressedVowel: ReferenceClip['stressedVowel']): Tried => ({
+    const kept = (
+      measure: ReferenceTry['measure'],
+      stressedVowel: ReferenceClip['stressedVowel'],
+      range: number | null = null,
+    ): Tried => ({
       kind: 'kept',
       clip: { ...clipOf(clip, carrier), word: wordSpan, stressedVowel },
-      try: { voice: clip.voice, outcome: 'kept', accuracy: scored.accuracy, measure },
+      try: { voice: clip.voice, outcome: 'kept', accuracy: scored.accuracy, measure, frameRange: range },
     });
     if (tone === null) return kept(null, null);
 
     const window = tonemeWindow(alignment.sounds, alignment.primaryIndex);
     if (!window) return notKept('not_measured', scored.accuracy);
+    // The carrier's words, as Azure timed them, give the voice's range beside the toneme (step 9.5).
+    const frame = frameSpans(heard.routed.value.result.words, wordSpan);
     let measure;
+    let range: number | null;
     try {
-      const curves = await this.pitch.track(Buffer.from(clip.audio.data), [window.span]);
+      const curves = await this.pitch.track(Buffer.from(clip.audio.data), [window.span, ...frame]);
       measure = measureToneme(curves.curves[0]!, curves.stepMs, window);
+      range = frameRange(curves.curves.slice(1));
     } catch (err) {
       this.logger.warn(
         `Pitch of a reference of «${word}» not tracked: ${err instanceof Error ? err.message : String(err)}`,
@@ -154,11 +164,11 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
       return { kind: 'failed', errorCode: 'pitch_unavailable' };
     }
     if (!measure) return notKept('not_measured', scored.accuracy);
-    if (measure.tone === null) return notKept('tone_unsure', scored.accuracy, measure);
-    if (measure.tone !== tone) return notKept('tone_mismatch', scored.accuracy, measure);
+    if (measure.tone === null) return notKept('tone_unsure', scored.accuracy, measure, range);
+    if (measure.tone !== tone) return notKept('tone_mismatch', scored.accuracy, measure, range);
 
     const vowel = alignment.sounds[alignment.primaryIndex!]!;
-    return kept(measure, { startMs: vowel.startMs, endMs: vowel.startMs + vowel.durationMs });
+    return kept(measure, { startMs: vowel.startMs, endMs: vowel.startMs + vowel.durationMs }, range);
   }
 }
 

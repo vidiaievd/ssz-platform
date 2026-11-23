@@ -433,3 +433,33 @@ model PronunciationEntry {
   @@index([language, dialect, wordKey])
   @@map("pronunciation_lexicon")
 }
+
+// ─── Toneme measurements (plan 88, step 9.5) ─────────────────────────────────
+
+/// One measured toneme take: the raw scores its verdict was given on, and beside them the
+/// learner's and the reference voice's range in the carrier sentence (p90 − p10 of voiced F0,
+/// semitones). Kept to draw thresholds on a range-normalised scale once there are recordings of
+/// several speakers (plan 89 §4.1, OQ-30); the verdict does not read them. No audio, no text but
+/// the word. Keyed by the ledger row of the call that heard the take.
+model TonemeMeasurement {
+  aiCallId            String   @id @map("ai_call_id")
+  language            String   @db.VarChar(8)
+  word                String   @db.VarChar(64)
+  /// The word's toneme by the lexicon: 1 or 2.
+  tone                Int      @db.SmallInt
+  /// Null when the learner's toneme was not measured (`not_measured`).
+  learnerScore        Float?   @map("learner_score")
+  learnerFrameRange   Float?   @map("learner_frame_range")
+  referenceScore      Float    @map("reference_score")
+  /// Null for a reference kept before step 9.5 whose clip could not be measured again.
+  referenceFrameRange Float?   @map("reference_frame_range")
+  referenceVoice      String   @map("reference_voice")
+  /// `like_reference` | `other_tone` | `unsure` | `not_measured`.
+  verdict             String   @db.VarChar(16)
+  sessionId           String?  @map("session_id")
+  measuredAt          DateTime @default(now()) @map("measured_at")
+
+  @@index([language, word])
+  @@index([measuredAt])
+  @@map("toneme_measurements")
+}

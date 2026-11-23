@@ -70,6 +70,12 @@ export interface ReferenceTry {
   /** Azure's 0–100 score of the word; null when it was not heard. */
   accuracy: number | null;
   measure: TonemeMeasure | null;
+  /**
+   * The voice's range in the carrier around the word (plan 88, step 9.5; `frameRange`), measured
+   * with the toneme; null when the toneme was not measured or the carrier had too little voice.
+   * Kept for analysis only — no clip is kept or refused by it.
+   */
+  frameRange: number | null;
 }
 
 /**

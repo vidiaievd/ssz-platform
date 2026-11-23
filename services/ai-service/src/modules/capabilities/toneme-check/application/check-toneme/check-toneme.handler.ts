@@ -21,9 +21,11 @@ import {
   LEARNER_TONEME_BOUNDS,
   melodySpan,
 } from '../../../../pronunciation/domain/toneme-comparison.js';
+import { frameRange, frameSpans } from '../../../../pronunciation/domain/frame-range.js';
 import { measureToneme, POST_TAIL_MS, tonemeWindow } from '../../../../pronunciation/domain/toneme-feature.js';
 import { lexicalWords } from '../../../../providers/domain/lexical.js';
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
+import { wavDurationMs } from '../../../../providers/domain/wav.js';
 import { carrierOf, wordAt } from '../../../reference-synthesis/domain/reference-clip.js';
 import {
   RECORDING_AUDIO_SOURCE,
@@ -33,6 +35,11 @@ import type { StoredReference } from '../../domain/stored-reference.js';
 import type { TonemeCheckOutcome, TonemeCheckRefusal } from '../../domain/toneme-check.js';
 import { TONEME_CHECK } from '../../toneme-check.capability.js';
 import { REFERENCE_CLIP_SOURCE, type IReferenceClipSource } from '../ports/reference-clip.source.js';
+import {
+  TONEME_MEASUREMENT_RECORDER,
+  type ITonemeMeasurementRecorder,
+  type TonemeMeasurement,
+} from '../ports/toneme-measurement.recorder.js';
 import { SOUND_SESSION_LIMITER, type ISoundSessionLimiter } from '../../../sound-session/application/ports/sound-session.limiter.js';
 import { SOUND_SESSION_SURFACE } from '../../../sound-session/domain/sound-session.js';
 import { CheckTonemeCommand, type TonemeCheckRequest } from './check-toneme.command.js';
@@ -50,7 +57,9 @@ type Failed = Extract<TonemeCheckOutcome, { status: 'failed' }>;
  * compared with the reference's stored score (Q16). Both melodies come back whatever the verdict.
  *
  * Everything that costs nothing is checked before the one paid call: the word, the lexicon, the
- * reference, the take and its level. Nothing is written but the ledger — no atom is marked here;
+ * reference, the take and its level. Beside the verdict, the voices' ranges in the carrier are
+ * measured and every measured take is kept in `toneme_measurements` (step 9.5, OQ-2 variant A) —
+ * the verdict stays on the raw score. Nothing else is written but the ledger — no atom is marked here;
  * the drill marks `nb:tone` after several `other_tone` takes (Q4). A pronunciation session's take
  * (`sessionId`, plan 86 step 14.1) is paid from `pronunciation_session` and counted against the
  * session's takes, just before the call.
@@ -66,6 +75,7 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(REFERENCE_CLIP_SOURCE) private readonly references: IReferenceClipSource,
     @Inject(SOUND_SESSION_LIMITER) private readonly sessions: ISoundSessionLimiter,
+    @Inject(TONEME_MEASUREMENT_RECORDER) private readonly measurements: ITonemeMeasurementRecorder,
   ) {}
 
   async execute({ request }: CheckTonemeCommand): Promise<TonemeCheckOutcome> {
@@ -129,11 +139,20 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
       startMs: reference.stored.stressedVowel.startMs,
       endMs: reference.stored.wordSpan.endMs + POST_TAIL_MS,
     };
+    // The carrier's words beside the word, for the voices' ranges (step 9.5): the take's as Azure
+    // timed them; the reference's only when its self-check kept none (a clip kept before 9.5).
+    const first = alignment.sounds[0]!;
+    const last = alignment.sounds[alignment.sounds.length - 1]!;
+    const learnerFrame = frameSpans(heard.routed.value.result.words, {
+      startMs: first.startMs,
+      endMs: last.startMs + last.durationMs,
+    });
+    const referenceFrame = reference.stored.frameRange === null ? referenceFrameOf(reference) : [];
     let learnerCurves, referenceCurves;
     try {
       [learnerCurves, referenceCurves] = await Promise.all([
-        this.pitch.track(Buffer.from(take), [learnerSpan]),
-        this.pitch.track(Buffer.from(reference.wav), [referenceSpan]),
+        this.pitch.track(Buffer.from(take), [learnerSpan, ...learnerFrame]),
+        this.pitch.track(Buffer.from(reference.wav), [referenceSpan, ...referenceFrame]),
       ]);
     } catch (err) {
       this.logger.warn(`Pitch of a take of «${word}» not tracked: ${messageOf(err)}`);
@@ -142,13 +161,32 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     const learnerCurve = learnerCurves.curves[0]!;
     const learner = measureToneme(learnerCurve, learnerCurves.stepMs, window, LEARNER_TONEME_BOUNDS);
     const comparison = compareToneme({ tone, learner, referenceScore: reference.stored.score });
+    const range = {
+      learner: frameRange(learnerCurves.curves.slice(1)),
+      reference: reference.stored.frameRange ?? frameRange(referenceCurves.curves.slice(1)),
+    };
+
+    await this.keep({
+      aiCallId: heard.recorded.callId,
+      language: request.language,
+      word,
+      tone,
+      learnerScore: learner?.score ?? null,
+      learnerFrameRange: range.learner,
+      referenceScore: reference.stored.score,
+      referenceFrameRange: range.reference,
+      referenceVoice: reference.stored.voice,
+      verdict: comparison.verdict.kind,
+      sessionId: request.sessionId,
+      measuredAt: new Date(),
+    });
 
     return {
       status: 'ok',
       word,
       sentence: carrier.sentence,
       accuracy: scored.accuracy,
-      comparison,
+      comparison: { ...comparison, frameRange: range },
       melody: {
         stepMs: learnerCurves.stepMs,
         learner: learnerCurve.points,
@@ -160,6 +198,15 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
           : null,
       aiCallIds,
     };
+  }
+
+  /** A measurement that cannot be kept costs the sample one row, never the learner the answer. */
+  private async keep(measurement: TonemeMeasurement): Promise<void> {
+    try {
+      await this.measurements.record(measurement);
+    } catch (err) {
+      this.logger.warn(`Toneme measurement of «${measurement.word}» not kept: ${messageOf(err)}`);
+    }
   }
 
   /** The word's reference and its stored check; a refusal or failure when there is none to compare with. */
@@ -209,6 +256,25 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     }
     return audio.wav;
   }
+}
+
+/**
+ * The carrier around the word in a reference clip whose self-check measured no range: everything
+ * before and after the word. Its timed words were not kept, but outside the word a synthetic
+ * clip holds only the carrier and silence, and silence is unvoiced. None when the clip's length
+ * cannot be read.
+ */
+function referenceFrameOf(reference: { wav: Uint8Array; stored: StoredReference }): PitchSpan[] {
+  const durationMs = wavDurationMs(reference.wav);
+  if (durationMs === null) return [];
+  const { wordSpan } = reference.stored;
+  return frameSpans(
+    [
+      { startMs: 0, endMs: wordSpan.startMs },
+      { startMs: wordSpan.endMs, endMs: durationMs },
+    ],
+    wordSpan,
+  );
 }
 
 /** The school when there is one (Q15), else the learner under their own plan. */

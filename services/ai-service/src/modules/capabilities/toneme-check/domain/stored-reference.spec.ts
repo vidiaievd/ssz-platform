@@ -33,7 +33,16 @@ describe('storedReferenceOf (plan 88, step 8.2)', () => {
       stressedVowel: { startMs: 870, endMs: 940 },
       score: 3.3,
       voice: 'nb-NO-PernilleNeural',
+      // Kept before step 9.5: no range measured.
+      frameRange: null,
     });
+  });
+
+  it('takes the kept voice’s carrier range when its check measured one (step 9.5)', () => {
+    const measured = { ...BONNER, tries: [BONNER.tries[0], { ...BONNER.tries[1], frameRange: 7.18 }] };
+    expect(storedReferenceOf(measured)).toMatchObject({ score: 3.3, frameRange: 7.18 });
+    const garbled = { ...BONNER, tries: [{ ...BONNER.tries[1], frameRange: 'wide' }] };
+    expect(storedReferenceOf(garbled)).toMatchObject({ score: 3.3, frameRange: null });
   });
 
   it('tells a word without a toneme from an asset that is no reference', () => {

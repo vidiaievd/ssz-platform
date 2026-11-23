@@ -13,6 +13,11 @@ import type { IReferenceClipSource, ReferenceClipAudio } from './application/por
 import { CheckTonemeCommand, type TonemeCheckRequest } from './application/check-toneme/check-toneme.command.js';
 import { CheckTonemeHandler } from './application/check-toneme/check-toneme.handler.js';
 import type { StoredReference } from './domain/stored-reference.js';
+import type {
+  ITonemeMeasurementRecorder,
+  TonemeMeasurement,
+} from './application/ports/toneme-measurement.recorder.js';
+import { BENCH_93_FRAMES } from '../../pronunciation/domain/frame-range.fixture.js';
 import type { ISoundSessionLimiter } from '../sound-session/application/ports/sound-session.limiter.js';
 import { SOUND_SESSION_SURFACE } from '../sound-session/domain/sound-session.js';
 
@@ -56,6 +61,7 @@ const BONNER: StoredReference = {
   stressedVowel: { startMs: 870, endMs: 940 },
   score: 3.3,
   voice: 'nb-NO-PernilleNeural',
+  frameRange: 7.18,
 };
 
 // The learner's word starts 800 ms into the take; the stressed vowel at 850.
@@ -92,6 +98,11 @@ interface Setup {
   speech?: unknown;
   pitchFails?: boolean;
   sessionTakeAllowed?: boolean;
+  /** Azure's timed words of the take (`SpeechResult.words`); default: none. */
+  timed?: Array<{ text: string; startMs: number; endMs: number; confidence: null }>;
+  /** F0 of each carrier word asked for after the melody, per take (1 the learner's, 2 the reference). */
+  frame?: Record<number, Array<Array<number | null>>>;
+  recordFails?: boolean;
 }
 
 function setup(options: Setup = {}) {
@@ -107,7 +118,7 @@ function setup(options: Setup = {}) {
         Result.ok({
           result: {
             transcript: '',
-            words: [],
+            words: options.timed ?? [],
             pronunciation: { accuracy: 92, fluency: 90, completeness: 100, prosody: null, words },
           },
         });
@@ -123,9 +134,13 @@ function setup(options: Setup = {}) {
   const pitch: IPitchTracker = {
     track: jest.fn(async (wav: Buffer, asked: readonly PitchSpan[]) => {
       if (options.pitchFails) throw new Error('Pitch tracker answered 404');
-      spans.push({ take: wav[0]!, spans: [...asked] });
-      const points = wav[0] === 1 ? (options.learnerCurve ?? TONE_2) : TONE_2;
-      return { durationMs: 2250, referenceHz: 180, stepMs: 10, curves: [{ ...asked[0]!, points }] };
+      // 1 is the learner's take; anything else (CLIP, a real WAV) the reference.
+      const who = wav[0] === 1 ? 1 : 2;
+      spans.push({ take: who, spans: [...asked] });
+      const points = who === 1 ? (options.learnerCurve ?? TONE_2) : TONE_2;
+      const frame = options.frame?.[who] ?? [];
+      const curves = asked.map((span, i) => ({ ...span, points: i === 0 ? points : (frame[i - 1] ?? []) }));
+      return { durationMs: 2250, referenceHz: 180, stepMs: 10, curves };
     }),
   };
   const recordings: IRecordingAudioSource = {
@@ -142,7 +157,22 @@ function setup(options: Setup = {}) {
       return options.sessionTakeAllowed ?? true;
     },
   };
-  const handler = new CheckTonemeHandler(gateway as unknown as AiGateway, lexicon, pitch, recordings, references, sessions);
+  const kept: TonemeMeasurement[] = [];
+  const measurements: ITonemeMeasurementRecorder = {
+    record: async (m) => {
+      if (options.recordFails) throw new Error('db down');
+      kept.push(m);
+    },
+  };
+  const handler = new CheckTonemeHandler(
+    gateway as unknown as AiGateway,
+    lexicon,
+    pitch,
+    recordings,
+    references,
+    sessions,
+    measurements,
+  );
   const check = (request: Partial<TonemeCheckRequest> = {}) =>
     handler.execute(
       new CheckTonemeCommand({
@@ -157,7 +187,7 @@ function setup(options: Setup = {}) {
         ...request,
       }),
     );
-  return { check, gateway, pitch, contexts, spans, sessionTakes };
+  return { check, gateway, pitch, contexts, spans, sessionTakes, kept };
 }
 
 describe('toneme check (plan 88, step 8.3)', () => {
@@ -176,6 +206,8 @@ describe('toneme check (plan 88, step 8.3)', () => {
         learner: { score: 3.3, tone: null },
         gap: 0,
         verdict: { kind: 'like_reference' },
+        // No timed words in this take: its range is not measured; the reference's is its self-check's.
+        frameRange: { learner: null, reference: 7.18 },
       },
       melody: { stepMs: 10, learner: TONE_2, reference: TONE_2 },
       atomRef: null,
@@ -312,6 +344,85 @@ describe('toneme check (plan 88, step 8.3)', () => {
       status: 'failed',
       errorCode: 'pitch_unavailable',
       aiCallIds: ['heard-1'],
+    });
+  });
+
+  describe("the voices' ranges in the carrier (plan 88, step 9.5)", () => {
+    const TIMED = [
+      { text: 'nå', startMs: 100, endMs: 300, confidence: null },
+      { text: 'sier', startMs: 300, endMs: 560, confidence: null },
+      { text: 'jeg', startMs: 560, endMs: 790, confidence: null },
+      { text: 'bønner', startMs: 800, endMs: 1090, confidence: null },
+      { text: 'igjen', startMs: 1100, endMs: 1500, confidence: null },
+    ];
+    const OWNER = BENCH_93_FRAMES['owner_w01_own']!;
+
+    it('measures the take on its carrier words and keeps the measurement, the verdict untouched', async () => {
+      const { check, spans, kept } = setup({ timed: TIMED, frame: { 1: OWNER.curves.map((c) => c.points) } });
+      const outcome = await check({ sessionId: 'session-1' });
+
+      expect(outcome).toMatchObject({
+        status: 'ok',
+        comparison: { verdict: { kind: 'like_reference' }, frameRange: { learner: OWNER.range, reference: 7.18 } },
+      });
+      // The word itself is not in the frame; the reference measured at its self-check is not tracked again.
+      expect(spans[0]!.spans).toEqual([
+        { startMs: 850, endMs: 1120 },
+        { startMs: 100, endMs: 300 },
+        { startMs: 300, endMs: 560 },
+        { startMs: 560, endMs: 790 },
+        { startMs: 1100, endMs: 1500 },
+      ]);
+      expect(spans[1]!.spans).toEqual([{ startMs: 870, endMs: 1270 }]);
+      expect(kept).toEqual([
+        {
+          aiCallId: 'heard-1',
+          language: 'nb',
+          word: 'bønner',
+          tone: 2,
+          learnerScore: 3.3,
+          learnerFrameRange: OWNER.range,
+          referenceScore: 3.3,
+          referenceFrameRange: 7.18,
+          referenceVoice: 'nb-NO-PernilleNeural',
+          verdict: 'like_reference',
+          sessionId: 'session-1',
+          measuredAt: expect.any(Date),
+        },
+      ]);
+    });
+
+    it('measures a reference kept before 9.5 on everything around its word', async () => {
+      const reference: ReferenceClipAudio = {
+        kind: 'ready',
+        wav: silentWav(), // 500 ms
+        reference: { ...BONNER, wordSpan: { startMs: 100, endMs: 300 }, stressedVowel: { startMs: 150, endMs: 200 }, frameRange: null },
+      };
+      const pernille = BENCH_93_FRAMES['synth_w01_Pernille']!.curves.map((c) => c.points);
+      const { check, spans } = setup({ reference, frame: { 2: [pernille.slice(0, 2).flat(), pernille.slice(2).flat()] } });
+      const outcome = await check();
+      expect(spans[1]!.spans).toEqual([
+        { startMs: 150, endMs: 330 },
+        { startMs: 0, endMs: 100 },
+        { startMs: 300, endMs: 500 },
+      ]);
+      expect(outcome).toMatchObject({ comparison: { frameRange: { reference: BENCH_93_FRAMES['synth_w01_Pernille']!.range } } });
+    });
+
+    it('keeps an unmeasured take too, and answers when the measurement cannot be kept', async () => {
+      const unvoiced = TONE_2.map((p, i) => (i < 10 ? null : p));
+      const notMeasured = setup({ learnerCurve: unvoiced });
+      await notMeasured.check();
+      expect(notMeasured.kept).toMatchObject([{ learnerScore: null, verdict: 'not_measured', sessionId: null }]);
+
+      expect((await setup({ recordFails: true }).check()).status).toBe('ok');
+    });
+
+    it('keeps nothing for a take whose word was not heard', async () => {
+      const missing = heard('bønner').filter((w) => w.text !== 'bønner');
+      const { check, kept } = setup({ words: missing });
+      await check();
+      expect(kept).toEqual([]);
     });
   });
 });

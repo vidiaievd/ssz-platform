@@ -15,6 +15,11 @@ export interface StoredReference {
   /** The kept voice's toneme score (`onset − post`, semitones). */
   score: number;
   voice: string;
+  /**
+   * The kept voice's range in the carrier (plan 88, step 9.5); null for a clip kept before it
+   * was measured, or with too little voice in the carrier.
+   */
+  frameRange: number | null;
 }
 
 /**
@@ -42,7 +47,18 @@ export function storedReferenceOf(raw: unknown): StoredReference | NoStoredRefer
   if (kept['outcome'] !== 'kept' || typeof kept['voice'] !== 'string' || !isRecord(measure)) return 'not_a_reference';
   const score = measure['score'];
   if (typeof score !== 'number' || !Number.isFinite(score)) return 'not_a_reference';
-  return { word: raw['word'], sentence: raw['sentence'], tone, wordSpan, stressedVowel, score, voice: kept['voice'] };
+  const range = kept['frameRange'];
+  const frameRange = typeof range === 'number' && Number.isFinite(range) ? range : null;
+  return {
+    word: raw['word'],
+    sentence: raw['sentence'],
+    tone,
+    wordSpan,
+    stressedVowel,
+    score,
+    voice: kept['voice'],
+    frameRange,
+  };
 }
 
 function spanOf(raw: unknown): ClipSpan | null {

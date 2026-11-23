@@ -9,6 +9,7 @@ import { CheckReferenceWordsHandler } from './application/check-reference-words/
 import { CheckReferenceWordsQuery } from './application/check-reference-words/check-reference-words.query.js';
 import { MakeReferenceClipCommand } from './application/make-reference-clip/make-reference-clip.command.js';
 import { MakeReferenceClipHandler } from './application/make-reference-clip/make-reference-clip.handler.js';
+import { BENCH_93_FRAMES } from '../../pronunciation/domain/frame-range.fixture.js';
 import { carrierOf, wordAt } from './domain/reference-clip.js';
 
 const VOICES = ['nb-NO-PernilleNeural', 'nb-NO-FinnNeural', 'nb-NO-IselinNeural'];
@@ -58,6 +59,10 @@ interface Setup {
   synthesis?: (n: number) => unknown;
   pitchFails?: boolean;
   lexiconFails?: boolean;
+  /** Azure's timed words of the sentence (`SpeechResult.words`); default: none. */
+  timed?: Array<{ text: string; startMs: number; endMs: number; confidence: null }>;
+  /** F0 of each carrier word asked for after the toneme window. */
+  frame?: Array<Array<number | null>>;
 }
 
 function setup(options: Setup = {}) {
@@ -90,7 +95,7 @@ function setup(options: Setup = {}) {
       const words = options.words?.(n, word) ?? heard(word);
       const result = {
         transcript: '',
-        words: [],
+        words: options.timed ?? [],
         pronunciation: { accuracy: 95, fluency: 95, completeness: 100, prosody: null, words },
       };
       return {
@@ -111,7 +116,8 @@ function setup(options: Setup = {}) {
       if (options.pitchFails) throw new Error('Pitch tracker answered 404');
       spans.push([...asked]);
       const points = options.curves?.[tracked++] ?? TONE_2;
-      return { durationMs: 2250, referenceHz: 180, stepMs: 10, curves: [{ ...asked[0]!, points }] };
+      const curves = asked.map((span, i) => ({ ...span, points: i === 0 ? points : (options.frame?.[i - 1] ?? []) }));
+      return { durationMs: 2250, referenceHz: 180, stepMs: 10, curves };
     }),
   };
   const handler = new MakeReferenceClipHandler(gateway as unknown as AiGateway, lexicon, pitch);
@@ -132,6 +138,35 @@ describe('reference clips (plan 88, step 6b.2)', () => {
       expect(wordAt(words, 3, 'bønner')?.text).toBe('bønner');
       expect(wordAt(words, 3, 'bønder')).toBeNull();
     });
+  });
+
+  it("measures the voice's range on the carrier's words beside the toneme (step 9.5)", async () => {
+    const timed = [
+      { text: 'nå', startMs: 100, endMs: 300, confidence: null },
+      { text: 'sier', startMs: 300, endMs: 560, confidence: null },
+      { text: 'jeg', startMs: 560, endMs: 790, confidence: null },
+      { text: 'bønner', startMs: 800, endMs: 1090, confidence: null },
+      { text: 'igjen', startMs: 1100, endMs: 1500, confidence: null },
+    ];
+    const { curves } = BENCH_93_FRAMES['synth_w01_Pernille']!;
+    const { make, spans } = setup({ timed, frame: curves.map((c) => c.points) });
+    expect(await make('bønner')).toMatchObject({
+      status: 'ok',
+      tries: [{ outcome: 'kept', measure: { tone: 2 }, frameRange: BENCH_93_FRAMES['synth_w01_Pernille']!.range }],
+    });
+    expect(spans).toEqual([
+      [
+        { startMs: 850, endMs: 1070 },
+        { startMs: 100, endMs: 300 },
+        { startMs: 300, endMs: 560 },
+        { startMs: 560, endMs: 790 },
+        { startMs: 1100, endMs: 1500 },
+      ],
+    ]);
+  });
+
+  it('keeps a clip whose carrier had too little voice, its range unknown', async () => {
+    expect(await setup().make('bønner')).toMatchObject({ tries: [{ outcome: 'kept', frameRange: null }] });
   });
 
   it('keeps the first clip whose toneme agrees with the lexicon, paid by the platform', async () => {
