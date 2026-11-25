@@ -108,13 +108,15 @@ export class ExerciseMapper {
       answerCheckSettings: (entity.answerCheckSettings ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftContent: (entity.draft?.content ?? Prisma.JsonNull) as
+      // No draft is SQL NULL, as the draft promoter leaves it: a JSON `null` here read as
+      // "a draft" to any query that tested the column instead of `draft_updated_at`.
+      draftContent: (entity.draft?.content ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.JsonNull) as
+      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.JsonNull) as
+      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
       draftUpdatedAt: entity.draft?.updatedAt ?? null,
@@ -140,13 +142,15 @@ export class ExerciseMapper {
       answerCheckSettings: (entity.answerCheckSettings ?? Prisma.JsonNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftContent: (entity.draft?.content ?? Prisma.JsonNull) as
+      // No draft is SQL NULL, as the draft promoter leaves it: a JSON `null` here read as
+      // "a draft" to any query that tested the column instead of `draft_updated_at`.
+      draftContent: (entity.draft?.content ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.JsonNull) as
+      draftExpectedAnswers: (entity.draft?.expectedAnswers ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
-      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.JsonNull) as
+      draftAnswerCheckSettings: (entity.draft?.answerCheckSettings ?? Prisma.DbNull) as
         | Prisma.InputJsonValue
         | Prisma.NullableJsonNullValueInput,
       draftUpdatedAt: entity.draft?.updatedAt ?? null,

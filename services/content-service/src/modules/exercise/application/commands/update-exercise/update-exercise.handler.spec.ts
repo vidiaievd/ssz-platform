@@ -156,3 +156,95 @@ describe('UpdateExerciseHandler — audit', () => {
     expect(auditLog.record).not.toHaveBeenCalled();
   });
 });
+
+describe('UpdateExerciseHandler — fields the request did not carry', () => {
+  function withSettings(): ExerciseEntity {
+    // A live exercise with answer-check settings and a duration, and nothing waiting in
+    // the draft: what a rename from the structure tree meets most of the time.
+    return ExerciseEntity.reconstitute(EXERCISE_ID, {
+      exerciseTemplateId: 'template-1',
+      templateCode: 'word_bank_gap_fill',
+      title: null,
+      targetLanguage: 'nb',
+      difficultyLevel: DifficultyLevel.B1,
+      content: { sentences: [] },
+      expectedAnswers: { feedback: {} },
+      answerCheckSettings: { caseSensitive: false },
+      ownerUserId: USER_ID,
+      ownerSchoolId: null,
+      visibility: Visibility.PUBLIC,
+      estimatedDurationSeconds: 60,
+      createdAt: STORED_AT,
+      updatedAt: STORED_AT,
+      deletedAt: null,
+      draft: null,
+      skillOverride: null,
+      instructions: null,
+    });
+  }
+
+  function rename(title: string): UpdateExerciseCommand {
+    return new UpdateExerciseCommand(
+      USER_ID,
+      EXERCISE_ID,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      title,
+    );
+  }
+
+  it('a rename keeps the duration, opens no draft and lands on the live row', async () => {
+    const exercise = withSettings();
+    const { handler, saved, auditLog } = makeHandler(exercise);
+
+    const result = await handler.execute(rename('Ord fra tekst 1A'));
+
+    expect(result.isOk).toBe(true);
+    expect(saved[0].title).toBe('Ord fra tekst 1A');
+    expect(saved[0].estimatedDurationSeconds).toBe(60);
+    expect(saved[0].draft).toBeNull();
+    expect(saved[0].authoringAnswerCheckSettings).toEqual({ caseSensitive: false });
+    expect(saved[0].updatedAt.getTime()).toBeGreaterThan(STORED_AT.getTime());
+    expect(auditLog.record).toHaveBeenCalledWith(
+      expect.objectContaining({ changedFields: ['title'] }),
+    );
+  });
+
+  it('an edit of the document keeps the answer-check settings in the draft', async () => {
+    const exercise = withSettings();
+    const { handler, saved } = makeHandler(exercise);
+
+    await handler.execute(
+      new UpdateExerciseCommand(USER_ID, EXERCISE_ID, undefined, { sentences: ['ny'] }),
+    );
+
+    expect(saved[0].draft?.answerCheckSettings).toEqual({ caseSensitive: false });
+    expect(saved[0].estimatedDurationSeconds).toBe(60);
+  });
+
+  it('an explicit null still clears the duration and the settings', async () => {
+    const exercise = withSettings();
+    const { handler, saved } = makeHandler(exercise);
+
+    await handler.execute(
+      new UpdateExerciseCommand(
+        USER_ID,
+        EXERCISE_ID,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        undefined,
+        null,
+      ),
+    );
+
+    expect(saved[0].estimatedDurationSeconds).toBeNull();
+    expect(saved[0].draft?.answerCheckSettings).toBeNull();
+  });
+});
