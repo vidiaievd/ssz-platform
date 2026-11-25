@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { GetActivityQuery } from './get-activity.query.js';
+import { shownTarget, unresolvedTargetIds } from './activity-targets.js';
 import type { GetActivityResponseDto, ActivityItemDto } from '../dto/activity-response.dto.js';
 
 const ALLOWED_ROLES = new Set(['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN']);
@@ -33,19 +34,32 @@ export class GetActivityHandler implements IQueryHandler<GetActivityQuery, GetAc
         what: true,
         eventType: true,
         target: true,
+        targetId: true,
         tag: true,
         occurredAt: true,
       },
     });
 
     const hasMore = rows.length > limit;
-    const items = (hasMore ? rows.slice(0, limit) : rows).map(
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    // Rows written before their course had a directory row carry its id as the target.
+    const unresolved = unresolvedTargetIds(page);
+    const known = unresolved.length
+      ? await this.prisma.containerDirectory.findMany({
+          where: { containerId: { in: unresolved } },
+          select: { containerId: true, title: true },
+        })
+      : [];
+    const titles = new Map(known.map((c) => [c.containerId, c.title]));
+
+    const items = page.map(
       (r): ActivityItemDto => ({
         id: r.id,
         who: r.actorName ?? null,
         what: r.what,
         eventType: r.eventType,
-        target: r.target ?? null,
+        target: shownTarget(r, titles),
         occurredAt: r.occurredAt.toISOString(),
         tag: r.tag,
       }),
