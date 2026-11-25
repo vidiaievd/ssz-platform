@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { missingDirectoryIds } from './missing-directory-ids.js';
 
 interface EnrollmentRow {
   id: string;
@@ -61,10 +62,9 @@ export class SeedService implements OnApplicationBootstrap {
       // Guarded per projection, not once for all of them. A projection added later —
       // `item_progress` is the first — would otherwise never be filled anywhere the
       // service has already run, which is every environment that has one.
-      const [enrollments, itemProgress, containers] = await Promise.all([
+      const [enrollments, itemProgress] = await Promise.all([
         this.prisma.enrollmentProjection.count(),
         this.prisma.itemProgress.count(),
-        this.prisma.containerDirectory.count(),
       ]);
 
       if (enrollments === 0) {
@@ -77,8 +77,10 @@ export class SeedService implements OnApplicationBootstrap {
 
       if (itemProgress === 0) await this.seedItemProgress();
       // Last on purpose: it names the courses the rows above refer to, so it wants them
-      // already loaded.
-      if (containers === 0) await this.seedContainerDirectory();
+      // already loaded. Run on every start, not only into an empty table: it fills just
+      // the courses that are referenced but missing, and those keep appearing — seed
+      // scripts write content_db directly and announce nothing.
+      await this.seedContainerDirectory();
 
       this.logger.log('SeedService: seed complete');
     } catch (err) {
@@ -142,6 +144,12 @@ export class SeedService implements OnApplicationBootstrap {
    * about, and it is a handful rather than a catalogue. A container content-service will
    * not describe is skipped and logged, never invented: a directory row with a guessed
    * title would be worse than a missing one.
+   *
+   * Only ids without a row are fetched: a row that exists is kept up to date by the
+   * events, and refetching it here could undo a deletion mark the events set. Until the
+   * OQ-S3 live run this ran into an empty table only, so a course seeded after the first
+   * backfill (Nordick's "Norsk uttale") stayed unnamed for good — a raw UUID in the
+   * school's activity feed and no row in course health.
    */
   private async seedContainerDirectory(): Promise<void> {
     const [enrolled, courses, groups] = await Promise.all([
@@ -153,10 +161,16 @@ export class SeedService implements OnApplicationBootstrap {
       this.prisma.groupDirectory.findMany({ distinct: ['courseId'], select: { courseId: true } }),
     ]);
 
-    const ids = new Set<string>();
-    for (const row of enrolled) ids.add(row.containerId);
-    for (const row of courses) if (row.courseId !== null) ids.add(row.courseId);
-    for (const row of groups) if (row.courseId !== null) ids.add(row.courseId);
+    const known = await this.prisma.containerDirectory.findMany({ select: { containerId: true } });
+    const ids = missingDirectoryIds(
+      [
+        ...enrolled.map((row) => row.containerId),
+        ...courses.map((row) => row.courseId),
+        ...groups.map((row) => row.courseId),
+      ],
+      known.map((row) => row.containerId),
+    );
+    if (ids.size === 0) return;
 
     let seeded = 0;
     for (const containerId of ids) {
@@ -172,7 +186,7 @@ export class SeedService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced`,
+      `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced and missing`,
     );
   }
 
