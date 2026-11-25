@@ -182,6 +182,8 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
             ownerUserId: p.ownerUserId,
             ownerSchoolId: p.ownerSchoolId ?? null,
             containerType: p.containerType,
+            // A container that is created exists: a deletion mark left on its id is stale.
+            deletedAt: null,
           },
         });
         break;
@@ -209,6 +211,13 @@ export class ContainerDirectoryConsumer implements OnModuleInit, OnModuleDestroy
 
       case 'content.container.published': {
         const p = payload as unknown as ContainerPublishedPayload;
+        // Only a live container publishes. Clearing the mark here heals rows the pre-4b bug
+        // (an event without containerId marked the whole directory deleted) left behind:
+        // their courses vanished from course health and at-risk progress.
+        await this.prisma.containerDirectory.updateMany({
+          where: { containerId: p.containerId, deletedAt: { not: null } },
+          data: { deletedAt: null },
+        });
         await this.courseOutline.refresh(p.containerId);
         break;
       }

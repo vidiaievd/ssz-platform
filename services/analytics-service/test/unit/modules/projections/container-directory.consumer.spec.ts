@@ -126,6 +126,35 @@ describe("ContainerDirectoryConsumer", () => {
     expect(outline.refresh).toHaveBeenCalledWith(CONTAINER_ID);
   });
 
+  it("clears a stale deletion mark when the container is created again", async () => {
+    const { prisma, send } = makeConsumer();
+    await send(
+      wrapped("content.container.created", {
+        containerId: CONTAINER_ID,
+        title: "Kurs",
+        targetLanguage: "nb",
+        ownerUserId: "u",
+        containerType: "COURSE",
+      }),
+    );
+    const call = prisma.containerDirectory.upsert.mock.calls[0][0] as {
+      update: Record<string, unknown>;
+    };
+    expect(call.update.deletedAt).toBeNull();
+  });
+
+  it("revives a container marked deleted when it publishes", async () => {
+    const { prisma, outline, send } = makeConsumer();
+    await send(
+      wrapped("content.container.published", { containerId: CONTAINER_ID }),
+    );
+    expect(prisma.containerDirectory.updateMany).toHaveBeenCalledWith({
+      where: { containerId: CONTAINER_ID, deletedAt: { not: null } },
+      data: { deletedAt: null },
+    });
+    expect(outline.refresh).toHaveBeenCalledWith(CONTAINER_ID);
+  });
+
   it("discards an event without a containerId and writes nothing", async () => {
     const { prisma, channel, send } = makeConsumer();
     await send(wrapped("content.container.deleted", { ownerUserId: "u" }));
