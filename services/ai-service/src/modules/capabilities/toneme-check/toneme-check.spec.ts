@@ -11,13 +11,14 @@ import type {
 } from '../voice-review/application/ports/recording-audio.source.js';
 import type { IReferenceClipSource, ReferenceClipAudio } from './application/ports/reference-clip.source.js';
 import { CheckTonemeCommand, type TonemeCheckRequest } from './application/check-toneme/check-toneme.command.js';
-import { CheckTonemeHandler } from './application/check-toneme/check-toneme.handler.js';
+import { CheckTonemeHandler, MIN_TAKE_WORD_ACCURACY } from './application/check-toneme/check-toneme.handler.js';
 import type { StoredReference } from './domain/stored-reference.js';
 import type {
   ITonemeMeasurementRecorder,
   TonemeMeasurement,
 } from './application/ports/toneme-measurement.recorder.js';
 import { BENCH_93_FRAMES } from '../../pronunciation/domain/frame-range.fixture.js';
+import { FRAME_END_MARGIN_MS } from '../../pronunciation/domain/frame-range.js';
 import type { ISoundSessionLimiter } from '../sound-session/application/ports/sound-session.limiter.js';
 import { SOUND_SESSION_SURFACE } from '../sound-session/domain/sound-session.js';
 
@@ -305,6 +306,21 @@ describe('toneme check (plan 88, step 8.3)', () => {
     });
   });
 
+  // A take of «lampe» against «bønner» on dev: Azure laid bønner's sounds over it at accuracy 0.
+  it('takes another word laid over the carrier for a word not heard, and keeps nothing', async () => {
+    const words = heard('bønner').map((w) =>
+      w.text === 'bønner' ? { ...w, accuracy: MIN_TAKE_WORD_ACCURACY - 1, error: 'mispronunciation' as const } : w,
+    );
+    const { check, kept } = setup({ words });
+    expect(await check()).toEqual({
+      status: 'unheard',
+      reason: 'word_not_heard',
+      accuracy: MIN_TAKE_WORD_ACCURACY - 1,
+      aiCallIds: ['heard-1'],
+    });
+    expect(kept).toEqual([]);
+  });
+
   it('maps a gateway that does not answer as a rehearsal does', async () => {
     const quota = setup({ speech: Result.fail({ kind: 'refused', code: 'quota_exhausted' }) });
     expect(await quota.check()).toEqual({ status: 'refused', reason: 'pool_empty' });
@@ -404,7 +420,8 @@ describe('toneme check (plan 88, step 8.3)', () => {
       expect(spans[1]!.spans).toEqual([
         { startMs: 150, endMs: 330 },
         { startMs: 0, endMs: 100 },
-        { startMs: 300, endMs: 500 },
+        // Clear of the clip's end: the sidecar's own length can be a millisecond shorter.
+        { startMs: 300, endMs: 500 - FRAME_END_MARGIN_MS },
       ]);
       expect(outcome).toMatchObject({ comparison: { frameRange: { reference: BENCH_93_FRAMES['synth_w01_Pernille']!.range } } });
     });

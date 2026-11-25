@@ -47,6 +47,15 @@ import { CheckTonemeCommand, type TonemeCheckRequest } from './check-toneme.comm
 /** Where a toneme check is paid from: a pronunciation drill (plan 88, step 8.3, Q15). */
 export const PRONUNCIATION_DRILL_SURFACE = 'pronunciation_drill';
 
+/**
+ * Below this Azure's accuracy on the word, the take is another word, not the word said badly.
+ * With the carrier as its reference text Azure always lays the word's sounds over the take, so
+ * a take of «lampe» came back as «bønner» at accuracy 0 and got a toneme verdict. The owner's
+ * own takes of the right word scored 46–100 (25.11); a wrong word of his scored 38 and is still
+ * judged — a tighter floor waits for several speakers (OQ-109).
+ */
+export const MIN_TAKE_WORD_ACCURACY = 20;
+
 type Refused = Extract<TonemeCheckOutcome, { status: 'refused' }>;
 type Failed = Extract<TonemeCheckOutcome, { status: 'failed' }>;
 
@@ -126,7 +135,9 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
       accuracy: scored?.accuracy ?? null,
       aiCallIds,
     });
-    if (!scored || scored.phonemes.length === 0) return unheard('word_not_heard');
+    if (!scored || scored.phonemes.length === 0 || scored.accuracy < MIN_TAKE_WORD_ACCURACY) {
+      return unheard('word_not_heard');
+    }
     const alignment = alignWord({ text: scored.text, error: scored.error, phonemes: scored.phonemes }, variants);
     // The toneme's variant must be what was said: a homograph of another toneme is another word.
     if (alignment.status !== 'aligned' || alignment.tone !== tone) return unheard('sounds_not_aligned');
@@ -143,10 +154,11 @@ export class CheckTonemeHandler implements ICommandHandler<CheckTonemeCommand, T
     // timed them; the reference's only when its self-check kept none (a clip kept before 9.5).
     const first = alignment.sounds[0]!;
     const last = alignment.sounds[alignment.sounds.length - 1]!;
-    const learnerFrame = frameSpans(heard.routed.value.result.words, {
-      startMs: first.startMs,
-      endMs: last.startMs + last.durationMs,
-    });
+    const learnerFrame = frameSpans(
+      heard.routed.value.result.words,
+      { startMs: first.startMs, endMs: last.startMs + last.durationMs },
+      wavDurationMs(take),
+    );
     const referenceFrame = reference.stored.frameRange === null ? referenceFrameOf(reference) : [];
     let learnerCurves, referenceCurves;
     try {
@@ -274,6 +286,7 @@ function referenceFrameOf(reference: { wav: Uint8Array; stored: StoredReference 
       { startMs: wordSpan.endMs, endMs: durationMs },
     ],
     wordSpan,
+    durationMs,
   );
 }
 

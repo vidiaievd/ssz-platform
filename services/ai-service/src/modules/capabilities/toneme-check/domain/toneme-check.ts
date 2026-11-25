@@ -25,7 +25,8 @@ export type TonemeCheckRefusal =
 
 /**
  * The word was heard, but its toneme cannot be read off the take:
- * - `word_not_heard` — Azure did not hear the word where the carrier puts it;
+ * - `word_not_heard` — Azure did not hear the word where the carrier puts it, or heard another word
+ *   (accuracy below `MIN_TAKE_WORD_ACCURACY`);
  * - `sounds_not_aligned` — its sounds are not the lexicon's variant with the toneme (another word said);
  * - `no_toneme_window` — no single stressed vowel with a syllable after it.
  */

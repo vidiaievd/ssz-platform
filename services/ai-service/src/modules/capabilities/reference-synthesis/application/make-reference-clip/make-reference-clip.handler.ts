@@ -12,6 +12,7 @@ import { alignWord, type LexiconVariant } from '../../../../pronunciation/domain
 import { frameRange, frameSpans } from '../../../../pronunciation/domain/frame-range.js';
 import { measureToneme, tonemeWindow } from '../../../../pronunciation/domain/toneme-feature.js';
 import type { SynthesisResult } from '../../../../providers/domain/synthesis-result.js';
+import { wavDurationMs } from '../../../../providers/domain/wav.js';
 import {
   MIN_WORD_ACCURACY,
   referenceToneOf,
@@ -150,7 +151,7 @@ export class MakeReferenceClipHandler implements ICommandHandler<MakeReferenceCl
     const window = tonemeWindow(alignment.sounds, alignment.primaryIndex);
     if (!window) return notKept('not_measured', scored.accuracy);
     // The carrier's words, as Azure timed them, give the voice's range beside the toneme (step 9.5).
-    const frame = frameSpans(heard.routed.value.result.words, wordSpan);
+    const frame = frameSpans(heard.routed.value.result.words, wordSpan, wavDurationMs(clip.audio.data));
     let measure;
     let range: number | null;
     try {

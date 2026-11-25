@@ -16,16 +16,30 @@ export const FRAME_RANGE_MIN_POINTS = 10;
 const MAX_SPAN_MS = 2000;
 
 /**
+ * Kept clear of the recording's end. The sidecar resamples to 16 kHz and rounds its own length,
+ * which can come out a millisecond short of ours (a 2263 ms reference clip was 2262 there).
+ */
+export const FRAME_END_MARGIN_MS = 10;
+
+/**
  * The spans of the carrier's words as the recognizer timed them, the toneme word left out:
  * every heard word that does not overlap `word`. Words of no length are skipped.
+ *
+ * `recordingMs` is the recording's own length: the recognizer may time the last word a few
+ * milliseconds past it, and the sidecar refuses such a span (400) — which used to fail the whole
+ * take, verdict included, for a range that is only kept. Spans are cut `FRAME_END_MARGIN_MS` short
+ * of it; null = not known.
  */
 export function frameSpans(
   heard: readonly { startMs: number; endMs: number }[],
   word: PitchSpan,
+  recordingMs: number | null,
 ): PitchSpan[] {
+  const end = recordingMs === null ? Number.POSITIVE_INFINITY : recordingMs - FRAME_END_MARGIN_MS;
   return heard
     .filter((w) => w.endMs > w.startMs && w.startMs >= 0 && (w.endMs <= word.startMs || w.startMs >= word.endMs))
-    .map((w) => ({ startMs: w.startMs, endMs: Math.min(w.endMs, w.startMs + MAX_SPAN_MS) }));
+    .map((w) => ({ startMs: w.startMs, endMs: Math.min(w.endMs, w.startMs + MAX_SPAN_MS, end) }))
+    .filter((w) => w.endMs > w.startMs);
 }
 
 /**

@@ -1,4 +1,4 @@
-import { FRAME_RANGE_MIN_POINTS, frameRange, frameSpans } from './frame-range.js';
+import { FRAME_END_MARGIN_MS, FRAME_RANGE_MIN_POINTS, frameRange, frameSpans } from './frame-range.js';
 import { BENCH_93_FRAMES } from './frame-range.fixture.js';
 
 describe('frame range (plan 88, step 9.5)', () => {
@@ -41,19 +41,33 @@ describe('frame range (plan 88, step 9.5)', () => {
       { startMs: 1100, endMs: 1100 }, // nothing
       { startMs: 1110, endMs: 1500 }, // igjen
     ];
-    expect(frameSpans(heard, { startMs: 800, endMs: 1100 })).toEqual([
+    expect(frameSpans(heard, { startMs: 800, endMs: 1100 }, null)).toEqual([
       { startMs: 100, endMs: 300 },
       { startMs: 300, endMs: 560 },
       { startMs: 560, endMs: 790 },
       { startMs: 1110, endMs: 1500 },
     ]);
     // A word the recognizer stretched over the toneme word overlaps it and is left out.
-    expect(frameSpans([{ startMs: 700, endMs: 900 }], { startMs: 800, endMs: 1100 })).toEqual([]);
+    expect(frameSpans([{ startMs: 700, endMs: 900 }], { startMs: 800, endMs: 1100 }, null)).toEqual([]);
   });
 
   it('cuts a word longer than the sidecar takes', () => {
-    expect(frameSpans([{ startMs: 0, endMs: 2600 }], { startMs: 3000, endMs: 3300 })).toEqual([
+    expect(frameSpans([{ startMs: 0, endMs: 2600 }], { startMs: 3000, endMs: 3300 }, null)).toEqual([
       { startMs: 0, endMs: 2000 },
+    ]);
+  });
+
+  // The «alle» reference on dev: 2263 ms by its header, 2262 ms in the sidecar, and the sidecar's
+  // 400 on a span to 2263 failed the whole check.
+  it('keeps the spans clear of the end of the recording and drops a word past it', () => {
+    const heard = [
+      { startMs: 100, endMs: 400 },
+      { startMs: 1070, endMs: 2263 },
+      { startMs: 2258, endMs: 2300 },
+    ];
+    expect(frameSpans(heard, { startMs: 500, endMs: 1000 }, 2263)).toEqual([
+      { startMs: 100, endMs: 400 },
+      { startMs: 1070, endMs: 2263 - FRAME_END_MARGIN_MS },
     ]);
   });
 });
