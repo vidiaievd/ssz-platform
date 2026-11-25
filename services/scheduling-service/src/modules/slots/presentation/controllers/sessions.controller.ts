@@ -123,6 +123,7 @@ export class SessionsController {
   @Post('schools/:schoolId/groups/:groupId/sessions')
   @ApiOperation({ summary: 'Add a session outside the weekly pattern' })
   @ApiResponse({ status: 201, type: SessionResponseDto })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   @ApiResponse({ status: 403, description: 'A teacher may add only their own make-up class' })
   async create(
     @Param('schoolId') schoolId: string,
@@ -149,8 +150,9 @@ export class SessionsController {
   @ApiResponse({ status: 200, type: SessionResponseDto })
   @ApiResponse({
     status: 400,
-    description: 'Held before it happened, incoherent times, or attendance on an exam',
+    description: 'Held before it happened, or attendance on an exam',
   })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   @ApiResponse({ status: 403, description: 'Not this teacher’s session, or not their field' })
   @ApiResponse({ status: 404, description: 'No such session' })
   async patch(

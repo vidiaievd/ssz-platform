@@ -3,6 +3,7 @@ import { Inject, NotFoundException } from '@nestjs/common';
 import { CreateSlotCommand } from './create-slot.command.js';
 import { SLOT_REPOSITORY, type ISlotRepository } from '../../../domain/repositories/slot.repository.interface.js';
 import type { Slot } from '../../../domain/entities/slot.entity.js';
+import { requireTimeRange } from '../../services/time-range.js';
 import { OrgServiceHttpClient } from '../../../../../infrastructure/org/org-service.http-client.js';
 
 @CommandHandler(CreateSlotCommand)
@@ -13,6 +14,7 @@ export class CreateSlotHandler implements ICommandHandler<CreateSlotCommand, Slo
   ) {}
 
   async execute(cmd: CreateSlotCommand): Promise<Slot> {
+    requireTimeRange(cmd.startTime, cmd.endTime);
     await this.orgClient.assertSchoolActive(cmd.schoolId);
     const group = await this.orgClient.getGroup(cmd.schoolId, cmd.groupId);
     if (!group) throw new NotFoundException(`Group ${cmd.groupId} not found in school ${cmd.schoolId}`);
