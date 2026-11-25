@@ -11,6 +11,7 @@ function makeService(
     reviewers?: { groupId: string; teachers: { userId: string; name: string }[] }[] | null;
     told?: { attemptId: string; userId: string }[];
     enabled?: boolean;
+    inactive?: string[];
   } = {},
 ) {
   const load = {
@@ -26,6 +27,9 @@ function makeService(
   };
   const directory = {
     configured: true,
+    activeOnly: jest.fn(async (schools: { schoolId: string }[]) =>
+      schools.filter((one) => !(overrides.inactive ?? []).includes(one.schoolId)),
+    ),
     reviewersOf: jest.fn(async () =>
       overrides.reviewers === undefined
         ? [{ groupId: 'g1', teachers: [{ userId: 'kari', name: 'Kari' }] }]
@@ -86,6 +90,14 @@ describe('ReviewTermWarningService', () => {
     expect(prisma.reviewTermWarning.createMany.mock.calls[0]![0].data).toEqual([
       { attemptId: 'a1', userId: 'kari' },
     ]);
+  });
+
+  it('does not warn about a school that is not active', async () => {
+    const { service, load, notifications } = makeService({ inactive: ['school-1'] });
+
+    expect(await service.run(NOW)).toBe(0);
+    expect(load.termsAhead).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
   });
 
   it('stays quiet on a rerun', async () => {

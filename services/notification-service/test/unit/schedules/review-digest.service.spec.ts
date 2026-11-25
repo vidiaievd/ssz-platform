@@ -24,6 +24,8 @@ function makeService(
     states?: Map<string, { lastMaxSubmittedAt: Date; lastEscalatedAt: Date | null }>;
     terms?: { attemptId: string; groupId: string | null; autoAcceptAt: Date }[] | null;
     enabled?: boolean;
+    /** Schools organization reports as not `active` (or could not report at all). */
+    inactive?: string[];
   } = {},
 ) {
   const load = {
@@ -40,6 +42,9 @@ function makeService(
   };
   const directory = {
     configured: true,
+    activeOnly: jest.fn(async (schools: { schoolId: string }[]) =>
+      schools.filter((one) => !(overrides.inactive ?? []).includes(one.schoolId)),
+    ),
     escalationRecipientsOf: jest.fn(async () =>
       overrides.recipients === undefined
         ? { target: 'school_admins', recipients: [{ userId: 'admin-1', name: 'Ola' }] }
@@ -191,6 +196,24 @@ describe('ReviewDigestService — the digest run', () => {
 });
 
 describe('ReviewDigestService — the daily escalation', () => {
+  /**
+   * A suspended, closed or purged school keeps its unreviewed work in the engine's queue,
+   * but the engine refuses review there: escalating it would ask for what nobody can do.
+   */
+  it('passes over a school that is not active', async () => {
+    const { service, load, notifications, directory } = makeService({
+      pending: [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(200) }],
+      inactive: ['school-1'],
+    });
+
+    await service.runEscalation(NOW);
+
+    expect(directory.activeOnly).toHaveBeenCalledWith([{ schoolId: 'school-1' }]);
+    expect(load.pendingSubmissions).not.toHaveBeenCalled();
+    expect(directory.escalationRecipientsOf).not.toHaveBeenCalled();
+    expect(notifications.create).not.toHaveBeenCalled();
+  });
+
   it('tells a teacher when work has been waiting past what the school promised', async () => {
     const { service, notifications, state } = makeService({
       pending: [{ groupId: 'g1', containerId: 'course-1', submittedAt: hoursAgo(60) }],

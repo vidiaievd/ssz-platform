@@ -325,7 +325,9 @@ export class ReviewDigestService {
       this.logger.warn('Review digest skipped: the engine did not answer');
       return null;
     }
-    return schools;
+    // Only schools whose work can still be reviewed: a suspended, closed or purged school's
+    // queue stays in the engine, but nobody can act on it.
+    return this.directory.activeOnly(schools);
   }
 
   private get termWarningHours(): number {

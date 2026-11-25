@@ -69,6 +69,27 @@ export class ReviewReviewersClient {
     return this.send('post', '/internal/review/escalation-recipients', { schoolId, groupIds });
   }
 
+  /**
+   * The schools of `schools` that are `active` today (plan 90, phase 5).
+   *
+   * A suspended or closed school's work cannot be reviewed — the engine refuses it with
+   * `SCHOOL_NOT_ACTIVE` — and a purged school is gone, yet its unreviewed submissions stay
+   * in the engine's queue. Telling anyone about them every day asks for something nobody
+   * can do. A school whose status cannot be read is left out too: a run that cannot find
+   * something out says nothing.
+   */
+  async activeOnly<T extends { schoolId: string }>(schools: T[]): Promise<T[]> {
+    const active: T[] = [];
+    for (const school of schools) {
+      const body = await this.send<{ status: string }>(
+        'get',
+        `/internal/schools/${school.schoolId}/status`,
+      );
+      if (body?.status === 'active') active.push(school);
+    }
+    return active;
+  }
+
   async settingsOf(schoolId: string): Promise<SchoolReviewSettings | null> {
     return this.send<SchoolReviewSettings>(
       'get',
