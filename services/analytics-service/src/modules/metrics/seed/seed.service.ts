@@ -46,6 +46,7 @@ export class SeedService implements OnApplicationBootstrap {
 
   private readonly learningBaseUrl: string;
   private readonly contentBaseUrl: string;
+  private readonly profileBaseUrl: string;
   private readonly serviceToken: string;
 
   constructor(
@@ -54,6 +55,7 @@ export class SeedService implements OnApplicationBootstrap {
   ) {
     this.learningBaseUrl = this.config.get<AppConfig['learning']>('learning')?.baseUrl ?? 'http://learning-service:3007';
     this.contentBaseUrl = this.config.get<AppConfig['content']>('content')?.baseUrl ?? 'http://content-service:3003';
+    this.profileBaseUrl = this.config.get<AppConfig['profile']>('profile')?.baseUrl ?? 'http://user-profile-service:3001';
     this.serviceToken = this.config.get<AppConfig['organization']>('organization')?.token ?? 'internal-dev-token';
   }
 
@@ -81,6 +83,7 @@ export class SeedService implements OnApplicationBootstrap {
       // the courses that are referenced but missing, and those keep appearing — seed
       // scripts write content_db directly and announce nothing.
       await this.seedContainerDirectory();
+      await this.seedUserDirectory();
 
       this.logger.log('SeedService: seed complete');
     } catch (err) {
@@ -188,6 +191,64 @@ export class SeedService implements OnApplicationBootstrap {
     this.logger.log(
       `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced and missing`,
     );
+  }
+
+  /**
+   * Backfill of the people directory, on the same terms as the course one above.
+   *
+   * `user_directory` is built from `profile.created` / `profile.updated` only, so a profile
+   * older than the projection never got a row: Nordick's owner reviewed work as "someone"
+   * in the school feed and was nameless wherever analytics names people. Every start
+   * fetches the referenced users without a row — feed actors, roster, enrolments — from
+   * user-profile; a profile it will not describe is skipped, never invented.
+   */
+  private async seedUserDirectory(): Promise<void> {
+    const [actors, members, learners, known] = await Promise.all([
+      this.prisma.schoolActivity.findMany({ distinct: ['actorId'], select: { actorId: true } }),
+      this.prisma.schoolMembership.findMany({ distinct: ['userId'], select: { userId: true } }),
+      this.prisma.enrollmentProjection.findMany({ distinct: ['userId'], select: { userId: true } }),
+      this.prisma.userDirectory.findMany({ select: { userId: true } }),
+    ]);
+    const ids = missingDirectoryIds(
+      [
+        ...actors.map((row) => row.actorId),
+        ...members.map((row) => row.userId),
+        ...learners.map((row) => row.userId),
+      ],
+      known.map((row) => row.userId),
+    );
+    if (ids.size === 0) return;
+
+    let seeded = 0;
+    for (const userId of ids) {
+      const displayName = await this.fetchDisplayName(userId);
+      if (displayName === null) continue;
+      await this.prisma.userDirectory.upsert({
+        where: { userId },
+        create: { userId, displayName },
+        update: { displayName },
+      });
+      seeded += 1;
+    }
+
+    this.logger.log(`SeedService: seeded ${seeded} user_directory rows of ${ids.size} referenced and missing`);
+  }
+
+  private async fetchDisplayName(userId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.profileBaseUrl}/api/v1/internal/profiles/${userId}`, {
+        headers: { 'x-service-token': this.serviceToken },
+      });
+      if (!res.ok) {
+        this.logger.warn(`SeedService: profile ${userId} not described: ${res.status}`);
+        return null;
+      }
+      const body = (await res.json()) as { displayName?: string | null };
+      return body.displayName ? body.displayName : null;
+    } catch (error) {
+      this.logger.warn(`SeedService: profile ${userId} unreachable: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   private async fetchContainer(containerId: string): Promise<ContainerRow | null> {

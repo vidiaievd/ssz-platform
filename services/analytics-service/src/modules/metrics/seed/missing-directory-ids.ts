@@ -1,4 +1,4 @@
-/** Referenced course ids that have no directory row yet (nulls dropped, each id once). */
+/** Referenced ids that have no directory row yet (nulls dropped, each id once) — courses and users alike. */
 export function missingDirectoryIds(
   referenced: ReadonlyArray<string | null>,
   known: ReadonlyArray<string>,

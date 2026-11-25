@@ -20,3 +20,12 @@ export function shownTarget(
   if (row.target !== row.targetId) return row.target;
   return titles.get(row.target) ?? null;
 }
+
+/** Actors whose name was not known when their row was written. */
+export function unnamedActorIds(
+  rows: ReadonlyArray<{ actorName: string | null; actorId: string | null }>,
+): string[] {
+  const ids = new Set<string>();
+  for (const r of rows) if (r.actorName === null && r.actorId !== null) ids.add(r.actorId);
+  return [...ids];
+}
