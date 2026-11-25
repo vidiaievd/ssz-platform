@@ -41,6 +41,15 @@ export class SubmitAnswerResponseDto {
   @ApiPropertyOptional({ nullable: true })
   score!: number | null;
 
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Whether the scored attempt counts as passed (the verdict progress and SRS get). Can be ' +
+      'true while `correct` is false — a set scored by share, 3 of 4 right. Absent when nothing ' +
+      'was scored: a check of one open question, or an answer sent to review.',
+  })
+  passed?: boolean;
+
   @ApiProperty()
   requiresReview!: boolean;
 

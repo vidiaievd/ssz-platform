@@ -106,6 +106,14 @@ export interface SubmitAnswerResult {
   attemptId: string;
   correct: boolean;
   score: number | null;
+  /**
+   * Whether the scored attempt counts as passed — the same verdict progress and SRS get
+   * (`outcome.passed ?? score >= passingThreshold`). Differs from `correct` on a set or a
+   * board scored by share: 3 of 4 right is not `correct` but is `passed`, and a client that
+   * reads `correct` alone tells the learner «wrong, try again» over work that counted.
+   * Absent when nothing was scored: a check of one open question, or work sent to review.
+   */
+  passed?: boolean;
   requiresReview: boolean;
   /**
    * Who will read work that `requiresReview` (plan 79, step 2.1c): the school's teacher, a
@@ -621,6 +629,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       attemptId: attempt.id,
       correct: outcome.correct,
       score: outcome.score,
+      passed,
       requiresReview: false,
       feedback,
       details: await this.withPairClips(
