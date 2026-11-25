@@ -66,6 +66,8 @@ interface VocabWord {
 
 interface ExerciseDef {
   key: string;
+  /** Shown in the tree and to learners; without it both fall back to the template's name. */
+  title: string;
   template: string; // ExerciseTemplate.code
   content: Prisma.InputJsonValue;
   expectedAnswers: Prisma.InputJsonValue;
@@ -172,6 +174,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
     test: [
       {
         key: 'ch1-mc',
+        title: 'Velg riktig form — presens',
         template: 'multiple_choice',
         instruction: 'Выберите правильную форму глагола в презенсе.',
         hint: 'Презенс большинства глаголов оканчивается на -r.',
@@ -191,6 +194,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-fib',
+        title: 'Fyll inn — preteritum',
         template: 'fill_in_blank',
         instruction: 'Поставьте глагол в скобках в претеритум.',
         hint: 'å spise → spiste, å bo → bodde.',
@@ -208,6 +212,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-tr',
+        title: 'Oversett — familie og dagligliv',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -237,6 +242,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-match',
+        title: 'Ord og oversettelse — familie',
         template: 'match_pairs',
         instruction: 'Сопоставьте норвежские слова с переводом.',
         content: {
@@ -344,6 +350,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
     test: [
       {
         key: 'ch2-mc',
+        title: 'Velg riktig form — bestemt form',
         template: 'multiple_choice',
         instruction: 'Выберите правильную определённую форму существительного.',
         hint: 'et hus → huset.',
@@ -363,6 +370,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-fib',
+        title: 'Fyll inn — bestemt form',
         template: 'fill_in_blank',
         instruction: 'Вставьте существительные в определённой форме.',
         hint: 'en leilighet → leiligheten, et nabolag → nabolaget.',
@@ -380,6 +388,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-tr',
+        title: 'Oversett — bolig og nærmiljø',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -411,6 +420,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-match',
+        title: 'Ord og oversettelse — bolig',
         template: 'match_pairs',
         instruction: 'Сопоставьте слова с переводом.',
         content: {
@@ -513,6 +523,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
     test: [
       {
         key: 'ch3-mc',
+        title: 'Velg riktig form — modale verb',
         template: 'multiple_choice',
         instruction: 'Выберите правильный вариант с модальным глаголом.',
         hint: 'После модального глагола инфинитив идёт без «å».',
@@ -532,6 +543,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-fib',
+        title: 'Fyll inn — modale verb',
         template: 'fill_in_blank',
         instruction: 'Вставьте подходящий модальный глагол в презенсе.',
         hint: 'хотеть = vil, мочь/уметь = kan.',
@@ -549,6 +561,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-tr',
+        title: 'Oversett — jobb og arbeidsliv',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -588,6 +601,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-match',
+        title: 'Ord og oversettelse — jobb',
         template: 'match_pairs',
         instruction: 'Сопоставьте слова с переводом.',
         content: {
@@ -867,6 +881,7 @@ async function main(): Promise<void> {
       await prisma.exercise.upsert({
         where: { id: exerciseId },
         update: {
+          title: ex.title,
           content: ex.content,
           expectedAnswers: ex.expectedAnswers,
           ownerUserId: TEACHER_ID,
@@ -876,6 +891,7 @@ async function main(): Promise<void> {
         create: {
           id: exerciseId,
           exerciseTemplateId: templateByCode.get(ex.template)!,
+          title: ex.title,
           targetLanguage: TARGET_LANG,
           difficultyLevel: LEVEL,
           content: ex.content,
