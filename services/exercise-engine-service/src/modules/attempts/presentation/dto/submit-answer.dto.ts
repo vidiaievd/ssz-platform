@@ -63,6 +63,15 @@ export class SubmitAnswerResponseDto {
   })
   reviewer?: 'teacher' | 'ai' | 'none';
 
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'With reviewer `teacher`: the school has a model answer first (plan 80, ai_then_teacher / ' +
+      'ai_with_sampling) — its provisional verdict arrives as `provisionalVerdict` on the attempt ' +
+      'before the teacher\'s. Absent when nothing went to review.',
+  })
+  aiFirst?: boolean;
+
   @ApiProperty({ type: FeedbackDto })
   feedback!: FeedbackDto;
 

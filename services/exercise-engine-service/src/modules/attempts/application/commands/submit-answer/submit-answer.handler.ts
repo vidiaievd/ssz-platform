@@ -121,6 +121,11 @@ export interface SubmitAnswerResult {
    * instead of «sent for review». Absent when nothing went to review.
    */
   reviewer?: Reviewer;
+  /**
+   * With `reviewer: 'teacher'`: the school has a model answer first (plan 80), so a
+   * provisional verdict comes before the teacher's (OQ-110). Absent when nothing went to review.
+   */
+  aiFirst?: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
   /** Per-item verdicts for the templates graded item by item, and nothing for the rest. */
   details?: unknown;
@@ -539,6 +544,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         // decide below is all the learner gets. `reviewer` says nobody is coming.
         requiresReview: true,
         reviewer,
+        aiFirst: attempt.aiFirst,
         feedback: {
           summary:
             reviewer === 'none'

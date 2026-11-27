@@ -129,6 +129,9 @@ export class MySubmissionDto {
   })
   provisional!: PendingAiVerdictDto | null;
 
+  @ApiProperty({ description: 'A model reads this work before the teacher (plan 80; OQ-110).' })
+  aiFirst!: boolean;
+
   @ApiProperty({ description: 'Only on the returned row a new attempt at this exercise would resume.' })
   canResubmit!: boolean;
 }

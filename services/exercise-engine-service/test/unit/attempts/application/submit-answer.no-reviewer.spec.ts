@@ -151,8 +151,9 @@ describe('SubmitAnswerHandler — the school’s review policy (plan 80, 3a)', (
     const s = setup({ schoolId: 'school-1', policy: AI_FIRST });
     const result = await s.submit();
 
-    // A teacher still owns the work.
+    // A teacher still owns the work, and the learner is told a model answers first (OQ-110).
     expect(result.value.reviewer).toBe('teacher');
+    expect(result.value.aiFirst).toBe(true);
     expect(s.attempt.status).toBe('ROUTED_FOR_REVIEW');
     expect(s.attempt.reviewAiPolicy).toEqual(AI_FIRST);
     expect(s.routed()).toMatchObject({ schoolId: 'school-1', reviewAiMode: 'ai_with_sampling' });
@@ -163,8 +164,9 @@ describe('SubmitAnswerHandler — the school’s review policy (plan 80, 3a)', (
 
   it('routes to the teacher alone when the school has no model first', async () => {
     const s = setup({ schoolId: 'school-1', policy: null });
-    await s.submit();
+    const result = await s.submit();
 
+    expect(result.value.aiFirst).toBe(false);
     expect(s.attempt.reviewAiPolicy).toBeNull();
     expect(s.routed()).toMatchObject({ reviewAiMode: null });
   });
