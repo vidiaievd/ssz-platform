@@ -377,6 +377,9 @@ Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no 
 Definition cache (`exercise-def:<id>:<lang>:<mode>`, key included, TTL 300 s) is dropped on `content.exercise.deleted` and on
 `content.exercise.released` (`ExerciseReleasedConsumer`, queue `exercise-engine.content-exercise-released`, prefetch 1, no
 `processed_events` — a repeat drop is harmless; one retry, then the TTL). Without it a publish left grading on the old key.
+Model first at a school (plan 80; OQ-110): work routed with a review policy (`ai_then_teacher` / `ai_with_sampling`) answers `aiFirst: true`
+beside `reviewer: 'teacher'` in the submit answer, on the attempt read (with `provisionalVerdict`) and on `my-submissions` rows (with
+`provisional`) — the clients wait for the model's provisional verdict and show it as not counting yet; a dispute stays for a final one.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
