@@ -18,6 +18,7 @@ import type { WordSounds } from '../../pronunciation/application/passage-sounds.
 import type { AlignedSound, WordAlignment } from '../../pronunciation/domain/align-word.js';
 import type { SpeechContext } from '../../pronunciation/domain/sound-inventory.js';
 import { weakSounds } from '../../pronunciation/domain/weak-sounds.js';
+import { ExplanationLanguage } from '../application/explanation-language.js';
 
 const SCHOOL = 'f3ced490-5f8b-4d04-bd05-45ab1a101ff8';
 const LEARNER = 'b0000000-0000-4000-8000-000000000002';
@@ -87,7 +88,7 @@ function setup(
     },
   };
   const sounds = over.sounds ?? ({ of: async () => null } as unknown as PassageSounds);
-  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sessions, sounds, { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, over.explainer ?? new SoundExplainer(gateway, { base: async () => [] }));
+  const handler = new SentenceCheckHandler(gateway, recordings, limiter, sessions, sounds, new ExplanationLanguage({ explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, { interfaceLanguage: async () => null }), over.explainer ?? new SoundExplainer(gateway, { base: async () => [] }));
   return { run: (req = request()) => handler.execute(new SentenceCheckCommand(req)), speech, taken, sessionTakes };
 }
 

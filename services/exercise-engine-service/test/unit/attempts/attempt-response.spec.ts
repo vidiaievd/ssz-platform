@@ -160,6 +160,14 @@ describe('toAttemptDto — who delivered the verdict (plan 79, 2.3)', () => {
     expect(dto.reviewedBy).toBeNull();
   });
 
+  it('says a model reads the school work first (OQ-110)', () => {
+    expect(toAttemptDto(attempt()).aiFirst).toBe(false);
+    const dto = toAttemptDto(
+      attempt({ reviewAiPolicy: { mode: 'ai_with_sampling', autoAcceptAt: null, teacherDrawn: true } }),
+    );
+    expect(dto.aiFirst).toBe(true);
+  });
+
   it('says whose queue routed work waits in — none without a school (plan 79, 2.3c2)', () => {
     expect(toAttemptDto(attempt()).schoolId).toBe('school-1');
     expect(toAttemptDto(attempt({ schoolId: null })).schoolId).toBeNull();

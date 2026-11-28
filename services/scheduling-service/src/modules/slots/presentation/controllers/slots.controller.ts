@@ -46,6 +46,7 @@ export class SlotsController {
   @Put('slots')
   @ApiOperation({ summary: 'Replace all slots for a group and regenerate lessons' })
   @ApiResponse({ status: 200, type: [SlotResponseDto] })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   async replace(
     @Param('schoolId') schoolId: string,
     @Param('groupId') groupId: string,
@@ -60,6 +61,7 @@ export class SlotsController {
   @Post('slots')
   @ApiOperation({ summary: 'Add a single slot to a group' })
   @ApiResponse({ status: 201, type: SlotResponseDto })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   async create(
     @Param('schoolId') schoolId: string,
     @Param('groupId') groupId: string,

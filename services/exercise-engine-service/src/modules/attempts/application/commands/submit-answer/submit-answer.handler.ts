@@ -106,6 +106,14 @@ export interface SubmitAnswerResult {
   attemptId: string;
   correct: boolean;
   score: number | null;
+  /**
+   * Whether the scored attempt counts as passed — the same verdict progress and SRS get
+   * (`outcome.passed ?? score >= passingThreshold`). Differs from `correct` on a set or a
+   * board scored by share: 3 of 4 right is not `correct` but is `passed`, and a client that
+   * reads `correct` alone tells the learner «wrong, try again» over work that counted.
+   * Absent when nothing was scored: a check of one open question, or work sent to review.
+   */
+  passed?: boolean;
   requiresReview: boolean;
   /**
    * Who will read work that `requiresReview` (plan 79, step 2.1c): the school's teacher, a
@@ -113,6 +121,11 @@ export interface SubmitAnswerResult {
    * instead of «sent for review». Absent when nothing went to review.
    */
   reviewer?: Reviewer;
+  /**
+   * With `reviewer: 'teacher'`: the school has a model answer first (plan 80), so a
+   * provisional verdict comes before the teacher's (OQ-110). Absent when nothing went to review.
+   */
+  aiFirst?: boolean;
   feedback: { summary: string; hints?: string[]; correctAnswer?: unknown };
   /** Per-item verdicts for the templates graded item by item, and nothing for the rest. */
   details?: unknown;
@@ -531,6 +544,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
         // decide below is all the learner gets. `reviewer` says nobody is coming.
         requiresReview: true,
         reviewer,
+        aiFirst: attempt.aiFirst,
         feedback: {
           summary:
             reviewer === 'none'
@@ -621,6 +635,7 @@ export class SubmitAnswerHandler implements ICommandHandler<SubmitAnswerCommand>
       attemptId: attempt.id,
       correct: outcome.correct,
       score: outcome.score,
+      passed,
       requiresReview: false,
       feedback,
       details: await this.withPairClips(

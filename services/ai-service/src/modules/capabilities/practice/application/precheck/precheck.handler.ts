@@ -6,10 +6,7 @@ import type { AiFeedback } from '@ssz/contracts';
 import { AiGateway, type GatewayCallOf, type GatewayFailureOf } from '../../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../../ledger/domain/ai-call.js';
 import type { EngineSubject } from '../../../review-draft/application/ports/review-attempts.client.js';
-import {
-  SCHOOL_LANGUAGE_READER,
-  type ISchoolLanguageReader,
-} from '../../../review-draft/application/ports/school-language.reader.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voice-review/application/ports/recording-audio.source.js';
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
@@ -115,7 +112,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   constructor(
     private readonly gateway: AiGateway,
     private readonly schoolPayers: SchoolPayerResolver,
-    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly languages: ExplanationLanguage,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     @Inject(PRACTICE_USAGE_READER) private readonly usageReader: IPracticeUsageReader,
     private readonly atomCatalogs: AtomCatalogResolver,
@@ -153,7 +150,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   }
 
   private async readText(request: PrecheckRequest, context: CallContext, subject: EngineSubject): Promise<Ran> {
-    const language = await this.schoolLanguage(request.schoolId);
+    const language = await this.languages.of(request);
     const prepared = toPracticeSubject(subject, language);
     // Only worth reading when a grammar aspect is checked: no other remark names an atom.
     const catalog = prepared.input.aspects.some((aspect) => GRAMMAR_ASPECTS.has(aspect))
@@ -203,7 +200,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
 
   /**
    * The weak sounds explained by a model (plan 88, step 5b; base of plan 86, step 9.2), all in one
-   * call, in the school's language — English, the inventory's, without one.
+   * call, in the school's language, else the learner's (П-10) — English, the inventory's, without either.
    */
   private async explainSounds(
     request: PrecheckRequest,
@@ -211,7 +208,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     targetLanguage: string,
     sounds: SoundToExplain[],
   ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
-    const school = await this.schoolLanguage(request.schoolId);
+    const school = await this.languages.of(request);
     return this.explainer.explain({
       capability: PRONUNCIATION_EXPLAIN.code,
       context,
@@ -302,15 +299,6 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
   }
 
 
-  /** A nicety, as for the draft: unreadable → the exercise's own label. */
-  private async schoolLanguage(schoolId: string): Promise<string | null> {
-    try {
-      return await this.schools.explanationLanguage(schoolId);
-    } catch (err) {
-      this.logger.warn(`Explanation language of school ${schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
-    }
-  }
 }
 
 const TEXT_TEMPLATES: ReadonlySet<string> = new Set<EngineSubject['template']>(['translate', 'error_correction', 'writing_task', 'short_answer']);

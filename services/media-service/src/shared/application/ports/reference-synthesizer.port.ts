@@ -13,6 +13,8 @@ export interface ReferenceTry {
   outcome: string;
   accuracy: number | null;
   measure: { onset: number; post: number; score: number; tone: 1 | 2 | null } | null;
+  /** The voice's range in the carrier, semitones (plan 88, step 9.5); absent on clips kept before it. */
+  frameRange?: number | null;
 }
 
 /** A clip whose toneme agreed with the lexicon. */

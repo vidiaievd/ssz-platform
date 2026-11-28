@@ -311,6 +311,14 @@ export class AttemptResponseDto {
       'remarks from `GET …/ai-review`. Null once a verdict counts, and everywhere else.',
   })
   provisionalVerdict!: PendingAiVerdictDto | null;
+
+  @ApiProperty({
+    example: false,
+    description:
+      'The school has a model answer this work first (plan 80): while ROUTED_FOR_REVIEW the learner ' +
+      'waits for `provisionalVerdict`, then for the teacher\'s (OQ-110).',
+  })
+  aiFirst!: boolean;
 }
 
 export class ListAttemptsResponseDto {

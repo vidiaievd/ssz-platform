@@ -27,7 +27,9 @@ export class InternalTonemeChecksController {
       "one; surface `pronunciation_drill`), the word's sounds are named by the lexicon and the stressed vowel's F0 " +
       "is compared with the reference's stored score. `other_tone` only when the take is past the learner's bounds " +
       '(< 0.5 / > 3.5) on the other side and at least 3 semitones from the reference — say «listen to the reference», ' +
-      'never «wrong». Both melodies come back whatever the verdict. Every outcome is a 200: `ok`, `unheard` (the word ' +
+      'never «wrong». Both melodies come back whatever the verdict. Beside it, `comparison.frameRange` gives the ' +
+      "voices' ranges in the carrier (plan 88, step 9.5; reference only), and each measured take is kept in " +
+      '`toneme_measurements`. Every outcome is a 200: `ok`, `unheard` (the word ' +
       'or its toneme could not be read off the take), `refused` or `failed`. Nothing is written but the ledger.',
   })
   @ApiOkResponse({ type: TonemeCheckResponseDto })

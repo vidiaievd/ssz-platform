@@ -41,6 +41,15 @@ export class SubmitAnswerResponseDto {
   @ApiPropertyOptional({ nullable: true })
   score!: number | null;
 
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Whether the scored attempt counts as passed (the verdict progress and SRS get). Can be ' +
+      'true while `correct` is false — a set scored by share, 3 of 4 right. Absent when nothing ' +
+      'was scored: a check of one open question, or an answer sent to review.',
+  })
+  passed?: boolean;
+
   @ApiProperty()
   requiresReview!: boolean;
 
@@ -53,6 +62,15 @@ export class SubmitAnswerResponseDto {
       'more will come. Absent when nothing went to review.',
   })
   reviewer?: 'teacher' | 'ai' | 'none';
+
+  @ApiPropertyOptional({
+    example: false,
+    description:
+      'With reviewer `teacher`: the school has a model answer first (plan 80, ai_then_teacher / ' +
+      'ai_with_sampling) — its provisional verdict arrives as `provisionalVerdict` on the attempt ' +
+      'before the teacher\'s. Absent when nothing went to review.',
+  })
+  aiFirst?: boolean;
 
   @ApiProperty({ type: FeedbackDto })
   feedback!: FeedbackDto;

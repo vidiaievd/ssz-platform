@@ -25,7 +25,8 @@ export type TonemeCheckRefusal =
 
 /**
  * The word was heard, but its toneme cannot be read off the take:
- * - `word_not_heard` — Azure did not hear the word where the carrier puts it;
+ * - `word_not_heard` — Azure did not hear the word where the carrier puts it, or heard another word
+ *   (accuracy below `MIN_TAKE_WORD_ACCURACY`);
  * - `sounds_not_aligned` — its sounds are not the lexicon's variant with the toneme (another word said);
  * - `no_toneme_window` — no single stressed vowel with a syllable after it.
  */
@@ -40,6 +41,17 @@ export interface TonemeMelody {
 }
 
 /**
+ * The voices' ranges in the carrier sentence (plan 88, step 9.5): p90 − p10 of voiced F0 on its
+ * words, the word left out, in semitones. For reference only — the verdict does not read them,
+ * and neither do the engine and the clients; null where too little was voiced (or, for the
+ * reference, a clip kept before the range was measured that could not be measured again).
+ */
+export interface TonemeFrameRange {
+  learner: number | null;
+  reference: number | null;
+}
+
+/**
  * `atomRef` is the `sound` atom of the toneme (`nb:tone`) only on `other_tone`; the caller marks it
  * after several such takes, not after one (Q4). `aiCallIds` are the ledger rows of the take.
  */
@@ -50,7 +62,7 @@ export type TonemeCheckOutcome =
       sentence: string;
       /** Azure's 0–100 score of the word. */
       accuracy: number;
-      comparison: TonemeComparison;
+      comparison: TonemeComparison & { frameRange: TonemeFrameRange };
       melody: TonemeMelody;
       atomRef: { atomType: 'sound'; atomId: string } | null;
       aiCallIds: string[];

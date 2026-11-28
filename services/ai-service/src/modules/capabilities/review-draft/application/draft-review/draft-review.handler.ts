@@ -13,7 +13,7 @@ import {
   type IReviewAttemptsClient,
 } from '../ports/review-attempts.client.js';
 import { toReviewSubject, unaskable } from '../review-input.js';
-import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../ports/school-language.reader.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 import { SchoolPayerResolver } from '../school-payer.resolver.js';
 import { DraftReviewCommand } from './draft-review.command.js';
 import { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
@@ -57,7 +57,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     private readonly gateway: AiGateway,
     private readonly payers: SchoolPayerResolver,
     @Inject(REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IReviewAttemptsClient,
-    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly languages: ExplanationLanguage,
     private readonly atomCatalogs: AtomCatalogResolver,
     @Optional() @Inject(DRAFT_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
   ) {}
@@ -76,7 +76,7 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     const unasked = unaskable(found.subject);
     if (unasked) return { kind: 'skipped', reason: unasked };
 
-    const language = await this.schoolLanguage(found.schoolId);
+    const language = await this.languages.of({ schoolId: found.schoolId, userId: found.userId });
     const subject = toReviewSubject(found.subject, language);
     // Only worth reading when a grammar aspect is checked: no other remark names an atom.
     const catalog = subject.input.aspects.some((aspect) => GRAMMAR_ASPECTS.has(aspect))
@@ -143,15 +143,6 @@ export class DraftReviewHandler implements ICommandHandler<DraftReviewCommand, D
     }
   }
 
-  /** The language is a nicety, not a precondition: unreadable → the exercise's own label. */
-  private async schoolLanguage(schoolId: string): Promise<string | null> {
-    try {
-      return await this.schools.explanationLanguage(schoolId);
-    } catch (err) {
-      this.logger.warn(`Explanation language of school ${schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
-    }
-  }
 }
 
 function calledProviderId({ routed }: GatewayCall): string | null {

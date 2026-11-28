@@ -15,7 +15,10 @@ import {
 export interface EscalationRecipientDto {
   userId: string;
   name: string;
-  /** Why this person is on the list — a school role, or `primary` for a group's teacher. */
+  /**
+   * Why this person is on the list — a school role, `primary` for a group's teacher, or
+   * `school_admin_fallback` for an administrator standing in for a group with no primary.
+   */
   role: string;
 }
 
@@ -28,6 +31,9 @@ export interface ReviewEscalationRecipientsResult {
 /** An owner is an administrator of their own school, whatever the roster calls them. */
 const ADMIN_ROLES = ['OWNER', 'ADMIN'];
 
+/** The role-reason of an administrator named because a group has no primary teacher. */
+export const SCHOOL_ADMIN_FALLBACK = 'school_admin_fallback';
+
 /**
  * The address behind `escalateTo` (plan 44 §44.12), resolved once, here.
  *
@@ -37,10 +43,13 @@ const ADMIN_ROLES = ['OWNER', 'ADMIN'];
  * out for itself would be a second copy of the rule, drifting the first time a school
  * adds an administrator.
  *
- * It never falls back to another target. A school that escalates to its group's primary
- * teacher and has none gets an empty list, and the caller writes to nobody — quietly
- * picking a different recipient would send a stranger a school's dirty laundry, and hide
- * that the setting points at nobody.
+ * One fallback, and only one (OQ-13, decided 22.11): a group the late work belongs to
+ * that has no live primary teacher is handed to the school's administrators — the owner
+ * and every ADMIN, exactly as `school_admins` would name them — with the role-reason
+ * `school_admin_fallback`, so the reader can tell they hear about it because the group
+ * has nobody, not because the school chose them. Silence was the alternative, and a
+ * setting that quietly swallows a group's late work is the worse of the two. The other
+ * targets never fall back: an owner always exists, and admins include the owner.
  */
 @QueryHandler(GetReviewEscalationRecipientsQuery)
 export class GetReviewEscalationRecipientsHandler
@@ -60,23 +69,46 @@ export class GetReviewEscalationRecipientsHandler
     const target = school.reviewSettings.escalateTo;
 
     if (target === ReviewEscalationTarget.PRIMARY_TEACHER) {
-      return { target, recipients: await this.primaryTeachers(query) };
+      const { primaries, uncovered } = await this.primaryTeachers(query);
+      if (uncovered.length === 0) return { target, recipients: primaries };
+
+      // A group with nobody to answer for it goes to the school's administrators. A
+      // primary teacher who is also an admin keeps the `primary` reason and is listed once.
+      const admins = await this.admins(school.ownerId, query.schoolId, ADMIN_ROLES);
+      const named = new Set(primaries.map((one) => one.userId));
+      return {
+        target,
+        recipients: [
+          ...primaries,
+          ...admins
+            .filter((one) => !named.has(one.userId))
+            .map((one) => ({ ...one, role: SCHOOL_ADMIN_FALLBACK })),
+        ],
+      };
     }
 
     const roles = target === ReviewEscalationTarget.OWNER ? ['OWNER'] : ADMIN_ROLES;
-    const fromRoster = await this.membersWithRoles(query.schoolId, roles);
+    return { target, recipients: await this.admins(school.ownerId, query.schoolId, roles) };
+  }
 
-    // The owner is the school's `ownerId` column, and is not necessarily on the roster
-    // at all — most schools in the wild have no `OWNER` member row, only teachers and
-    // students. Reading the roster alone made both admin targets answer "nobody" for an
-    // ordinary school, which is the silent swallowing this query exists to prevent.
-    const owner = await this.owner(school.ownerId, query.schoolId);
-    return {
-      target,
-      recipients: fromRoster.some((one) => one.userId === owner.userId)
-        ? fromRoster
-        : [owner, ...fromRoster],
-    };
+  /**
+   * The owner plus the roster members with the given roles.
+   *
+   * The owner is the school's `ownerId` column, and is not necessarily on the roster
+   * at all — most schools in the wild have no `OWNER` member row, only teachers and
+   * students. Reading the roster alone made both admin targets answer "nobody" for an
+   * ordinary school, which is the silent swallowing this query exists to prevent.
+   */
+  private async admins(
+    ownerId: string,
+    schoolId: string,
+    roles: string[],
+  ): Promise<EscalationRecipientDto[]> {
+    const fromRoster = await this.membersWithRoles(schoolId, roles);
+    const owner = await this.owner(ownerId, schoolId);
+    return fromRoster.some((one) => one.userId === owner.userId)
+      ? fromRoster
+      : [owner, ...fromRoster];
   }
 
   /**
@@ -120,11 +152,15 @@ export class GetReviewEscalationRecipientsHandler
    * responsible at submission time, and the difference is deliberate: a substitution that
    * has ended should stop producing escalations, while the record of who was on duty then
    * must not change under anyone.
+   *
+   * `uncovered` is the given groups that have no live primary today — the ones the
+   * administrators stand in for.
    */
   private async primaryTeachers(
     query: GetReviewEscalationRecipientsQuery,
-  ): Promise<EscalationRecipientDto[]> {
-    if (query.groupIds.length === 0) return [];
+  ): Promise<{ primaries: EscalationRecipientDto[]; uncovered: string[] }> {
+    // No group given: nothing is late in a group, so no group is left without a teacher.
+    if (query.groupIds.length === 0) return { primaries: [], uncovered: [] };
 
     const assignments = await (this.prisma as any).groupTeacher.findMany({
       where: {
@@ -135,11 +171,14 @@ export class GetReviewEscalationRecipientsHandler
           { OR: [{ toDate: null }, { toDate: { gte: query.at } }] },
         ],
       },
-      select: { userId: true },
+      select: { userId: true, groupId: true },
     });
 
+    const covered = new Set(assignments.map((a: any) => String(a.groupId)));
+    const uncovered = [...new Set(query.groupIds)].filter((id) => !covered.has(id));
+
     const userIds = [...new Set(assignments.map((a: any) => String(a.userId)))];
-    if (userIds.length === 0) return [];
+    if (userIds.length === 0) return { primaries: [], uncovered };
 
     const members = await (this.prisma as any).schoolMember.findMany({
       where: { schoolId: query.schoolId, userId: { in: userIds } },
@@ -149,10 +188,11 @@ export class GetReviewEscalationRecipientsHandler
       members.map((m: any) => [String(m.userId), (m.name as string | null) ?? String(m.userId)]),
     );
 
-    return userIds.map((userId) => ({
+    const primaries = userIds.map((userId) => ({
       userId: userId as string,
       name: nameById.get(userId as string) ?? (userId as string),
       role: 'primary',
     }));
+    return { primaries, uncovered };
   }
 }

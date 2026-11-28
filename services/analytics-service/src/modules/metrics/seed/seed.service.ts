@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import type { AppConfig } from '../../../config/configuration.js';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
+import { missingDirectoryIds } from './missing-directory-ids.js';
 
 interface EnrollmentRow {
   id: string;
@@ -45,6 +46,7 @@ export class SeedService implements OnApplicationBootstrap {
 
   private readonly learningBaseUrl: string;
   private readonly contentBaseUrl: string;
+  private readonly profileBaseUrl: string;
   private readonly serviceToken: string;
 
   constructor(
@@ -53,6 +55,7 @@ export class SeedService implements OnApplicationBootstrap {
   ) {
     this.learningBaseUrl = this.config.get<AppConfig['learning']>('learning')?.baseUrl ?? 'http://learning-service:3007';
     this.contentBaseUrl = this.config.get<AppConfig['content']>('content')?.baseUrl ?? 'http://content-service:3003';
+    this.profileBaseUrl = this.config.get<AppConfig['profile']>('profile')?.baseUrl ?? 'http://user-profile-service:3001';
     this.serviceToken = this.config.get<AppConfig['organization']>('organization')?.token ?? 'internal-dev-token';
   }
 
@@ -61,10 +64,9 @@ export class SeedService implements OnApplicationBootstrap {
       // Guarded per projection, not once for all of them. A projection added later —
       // `item_progress` is the first — would otherwise never be filled anywhere the
       // service has already run, which is every environment that has one.
-      const [enrollments, itemProgress, containers] = await Promise.all([
+      const [enrollments, itemProgress] = await Promise.all([
         this.prisma.enrollmentProjection.count(),
         this.prisma.itemProgress.count(),
-        this.prisma.containerDirectory.count(),
       ]);
 
       if (enrollments === 0) {
@@ -77,8 +79,11 @@ export class SeedService implements OnApplicationBootstrap {
 
       if (itemProgress === 0) await this.seedItemProgress();
       // Last on purpose: it names the courses the rows above refer to, so it wants them
-      // already loaded.
-      if (containers === 0) await this.seedContainerDirectory();
+      // already loaded. Run on every start, not only into an empty table: it fills just
+      // the courses that are referenced but missing, and those keep appearing — seed
+      // scripts write content_db directly and announce nothing.
+      await this.seedContainerDirectory();
+      await this.seedUserDirectory();
 
       this.logger.log('SeedService: seed complete');
     } catch (err) {
@@ -142,6 +147,12 @@ export class SeedService implements OnApplicationBootstrap {
    * about, and it is a handful rather than a catalogue. A container content-service will
    * not describe is skipped and logged, never invented: a directory row with a guessed
    * title would be worse than a missing one.
+   *
+   * Only ids without a row are fetched: a row that exists is kept up to date by the
+   * events, and refetching it here could undo a deletion mark the events set. Until the
+   * OQ-S3 live run this ran into an empty table only, so a course seeded after the first
+   * backfill (Nordick's "Norsk uttale") stayed unnamed for good — a raw UUID in the
+   * school's activity feed and no row in course health.
    */
   private async seedContainerDirectory(): Promise<void> {
     const [enrolled, courses, groups] = await Promise.all([
@@ -153,10 +164,16 @@ export class SeedService implements OnApplicationBootstrap {
       this.prisma.groupDirectory.findMany({ distinct: ['courseId'], select: { courseId: true } }),
     ]);
 
-    const ids = new Set<string>();
-    for (const row of enrolled) ids.add(row.containerId);
-    for (const row of courses) if (row.courseId !== null) ids.add(row.courseId);
-    for (const row of groups) if (row.courseId !== null) ids.add(row.courseId);
+    const known = await this.prisma.containerDirectory.findMany({ select: { containerId: true } });
+    const ids = missingDirectoryIds(
+      [
+        ...enrolled.map((row) => row.containerId),
+        ...courses.map((row) => row.courseId),
+        ...groups.map((row) => row.courseId),
+      ],
+      known.map((row) => row.containerId),
+    );
+    if (ids.size === 0) return;
 
     let seeded = 0;
     for (const containerId of ids) {
@@ -165,15 +182,73 @@ export class SeedService implements OnApplicationBootstrap {
 
       await this.prisma.containerDirectory.upsert({
         where: { containerId },
-        create: { ...row, leafItemCount: 0 },
+        create: row,
         update: row,
       });
       seeded += 1;
     }
 
     this.logger.log(
-      `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced`,
+      `SeedService: seeded ${seeded} container_directory rows of ${ids.size} referenced and missing`,
     );
+  }
+
+  /**
+   * Backfill of the people directory, on the same terms as the course one above.
+   *
+   * `user_directory` is built from `profile.created` / `profile.updated` only, so a profile
+   * older than the projection never got a row: Nordick's owner reviewed work as "someone"
+   * in the school feed and was nameless wherever analytics names people. Every start
+   * fetches the referenced users without a row — feed actors, roster, enrolments — from
+   * user-profile; a profile it will not describe is skipped, never invented.
+   */
+  private async seedUserDirectory(): Promise<void> {
+    const [actors, members, learners, known] = await Promise.all([
+      this.prisma.schoolActivity.findMany({ distinct: ['actorId'], select: { actorId: true } }),
+      this.prisma.schoolMembership.findMany({ distinct: ['userId'], select: { userId: true } }),
+      this.prisma.enrollmentProjection.findMany({ distinct: ['userId'], select: { userId: true } }),
+      this.prisma.userDirectory.findMany({ select: { userId: true } }),
+    ]);
+    const ids = missingDirectoryIds(
+      [
+        ...actors.map((row) => row.actorId),
+        ...members.map((row) => row.userId),
+        ...learners.map((row) => row.userId),
+      ],
+      known.map((row) => row.userId),
+    );
+    if (ids.size === 0) return;
+
+    let seeded = 0;
+    for (const userId of ids) {
+      const displayName = await this.fetchDisplayName(userId);
+      if (displayName === null) continue;
+      await this.prisma.userDirectory.upsert({
+        where: { userId },
+        create: { userId, displayName },
+        update: { displayName },
+      });
+      seeded += 1;
+    }
+
+    this.logger.log(`SeedService: seeded ${seeded} user_directory rows of ${ids.size} referenced and missing`);
+  }
+
+  private async fetchDisplayName(userId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.profileBaseUrl}/api/v1/internal/profiles/${userId}`, {
+        headers: { 'x-service-token': this.serviceToken },
+      });
+      if (!res.ok) {
+        this.logger.warn(`SeedService: profile ${userId} not described: ${res.status}`);
+        return null;
+      }
+      const body = (await res.json()) as { displayName?: string | null };
+      return body.displayName ? body.displayName : null;
+    } catch (error) {
+      this.logger.warn(`SeedService: profile ${userId} unreachable: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   private async fetchContainer(containerId: string): Promise<ContainerRow | null> {

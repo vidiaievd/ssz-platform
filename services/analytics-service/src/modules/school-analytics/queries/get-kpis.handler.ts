@@ -294,12 +294,20 @@ export class GetKpisHandler implements IQueryHandler<GetKpisQuery, GetKpisRespon
 
   private emptyResponse(role: SchoolRole): GetKpisResponseDto {
     const base: KpiDto[] = [
-      { key: 'active_students_7d', label: 'Active students · 7d', value: 0, hint: 'of 0 enrolled' },
-      { key: 'lessons_completed_7d', label: 'Lessons completed · 7d', value: 0, hint: 'across 0 courses' },
+      // The numbers go along here too: a client words the hint from them, and without them it can
+      // only show this English text.
+      { key: 'active_students_7d', label: 'Active students · 7d', value: 0, hint: 'of 0 enrolled', hintValues: { enrolled: 0 } },
+      { key: 'lessons_completed_7d', label: 'Lessons completed · 7d', value: 0, hint: 'across 0 courses', hintValues: { courses: 0 } },
       { key: 'pending_reviews', label: 'Pending reviews', value: 0, hint: 'submissions waiting for a teacher' },
     ];
     if (OWNER_ADMIN.has(role)) {
-      base.push({ key: 'at_risk', label: 'At-risk students', value: 0, hint: `haven't logged in ${this.atRiskDays}+ days` });
+      base.push({
+        key: 'at_risk',
+        label: 'At-risk students',
+        value: 0,
+        hint: `haven't logged in ${this.atRiskDays}+ days`,
+        hintValues: { days: this.atRiskDays },
+      });
     }
     return { role, kpis: base };
   }

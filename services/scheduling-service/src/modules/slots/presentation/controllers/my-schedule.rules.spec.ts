@@ -1,4 +1,4 @@
-import { parseRange, resolveScheduleTarget } from './my-schedule.rules.js';
+import { parseRange, resolveScheduleTarget, visibleSchoolSessions } from './my-schedule.rules.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 
 const TUTOR = 'tutor-1';
@@ -65,5 +65,27 @@ describe('the window', () => {
 
   it('allows exactly the widest range', () => {
     expect(() => parseRange('2026-01-01', '2026-04-03')).not.toThrow();
+  });
+});
+
+describe("a school's sessions", () => {
+  const sessions = [
+    { id: 'a', teacherId: TUTOR },
+    { id: 'b', teacherId: 'another-teacher' },
+    { id: 'c', teacherId: null },
+  ];
+
+  it('shows the staff every session, unassigned ones included', () => {
+    expect(visibleSchoolSessions('manager', TUTOR, sessions).map((s) => s.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('shows a teacher only the sessions they are named on', () => {
+    expect(visibleSchoolSessions('teacher', TUTOR, sessions).map((s) => s.id)).toEqual(['a']);
+  });
+
+  it('refuses a learner rather than answering an empty day', () => {
+    expect(() => visibleSchoolSessions('none', TUTOR, sessions)).toThrow(
+      "Only the school's staff read its day",
+    );
   });
 });

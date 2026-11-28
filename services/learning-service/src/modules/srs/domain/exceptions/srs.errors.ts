@@ -19,21 +19,7 @@ export class CardAlreadyExistsError extends DomainError {
   }
 }
 
-export class DailyNewCardLimitReachedError extends DomainError {
-  constructor() {
-    super('Daily new-card introduction limit reached');
-  }
-}
-
-export class DailyReviewLimitReachedError extends DomainError {
-  constructor() {
-    super('Daily review limit reached');
-  }
-}
-
 export type SrsDomainError =
   | CardSuspendedError
   | CardNotDueError
-  | CardAlreadyExistsError
-  | DailyNewCardLimitReachedError
-  | DailyReviewLimitReachedError;
+  | CardAlreadyExistsError;

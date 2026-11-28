@@ -23,7 +23,7 @@ import { OrgServiceHttpClient } from '../../../../infrastructure/org/org-service
 import { PrismaService } from '../../../../infrastructure/database/prisma.service.js';
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
-import { parseRange, resolveScheduleTarget } from './my-schedule.rules.js';
+import { parseRange, resolveScheduleTarget, visibleSchoolSessions } from './my-schedule.rules.js';
 import {
   CreateSessionDto,
   GradingPolicyDto,
@@ -78,6 +78,31 @@ export class SessionsController {
     return sessions.map(toSessionDto);
   }
 
+  @Get('schools/:schoolId/sessions')
+  @ApiOperation({
+    summary: "A school's dated sessions in a window, across every group",
+    description:
+      "The school dashboard's «today's classes». Staff see every session, a teacher only their own; " +
+      'cancelled ones are included, as in a teacher\'s schedule. Names are not resolved here — the ' +
+      'dashboard already holds the groups.',
+  })
+  @ApiQuery({ name: 'from', example: '2026-11-22', description: 'First day, inclusive' })
+  @ApiQuery({ name: 'to', example: '2026-11-22', description: 'Last day, inclusive' })
+  @ApiResponse({ status: 200, type: [SessionResponseDto] })
+  @ApiResponse({ status: 400, description: 'Missing, unordered or too wide a range' })
+  @ApiResponse({ status: 403, description: 'Not on the staff of this school' })
+  async schoolSessions(
+    @Param('schoolId') schoolId: string,
+    @Query('from') from: string,
+    @Query('to') to: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<SessionResponseDto[]> {
+    const role = await this.access.requireReader(schoolId, user);
+    const range = parseRange(from, to);
+    const sessions = await this.lessons.findBySchoolAndDateRange(schoolId, range.from, range.to);
+    return visibleSchoolSessions(role, user.userId, sessions).map(toSessionDto);
+  }
+
   @Get('schools/:schoolId/groups/:groupId/sessions')
   @ApiOperation({
     summary: 'Every session of a group, oldest first',
@@ -98,6 +123,7 @@ export class SessionsController {
   @Post('schools/:schoolId/groups/:groupId/sessions')
   @ApiOperation({ summary: 'Add a session outside the weekly pattern' })
   @ApiResponse({ status: 201, type: SessionResponseDto })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   @ApiResponse({ status: 403, description: 'A teacher may add only their own make-up class' })
   async create(
     @Param('schoolId') schoolId: string,
@@ -124,8 +150,9 @@ export class SessionsController {
   @ApiResponse({ status: 200, type: SessionResponseDto })
   @ApiResponse({
     status: 400,
-    description: 'Held before it happened, incoherent times, or attendance on an exam',
+    description: 'Held before it happened, or attendance on an exam',
   })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   @ApiResponse({ status: 403, description: 'Not this teacher’s session, or not their field' })
   @ApiResponse({ status: 404, description: 'No such session' })
   async patch(

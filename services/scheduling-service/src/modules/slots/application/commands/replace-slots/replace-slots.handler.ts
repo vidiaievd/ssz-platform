@@ -4,6 +4,7 @@ import { ReplaceSlotsCommand } from './replace-slots.command.js';
 import { SLOT_REPOSITORY, type ISlotRepository } from '../../../domain/repositories/slot.repository.interface.js';
 import { LessonGeneratorService } from '../../services/lesson-generator.service.js';
 import { OrgServiceHttpClient } from '../../../../../infrastructure/org/org-service.http-client.js';
+import { requireTimeRange } from '../../services/time-range.js';
 import type { Slot } from '../../../domain/entities/slot.entity.js';
 
 @CommandHandler(ReplaceSlotsCommand)
@@ -15,6 +16,8 @@ export class ReplaceSlotsHandler implements ICommandHandler<ReplaceSlotsCommand,
   ) {}
 
   async execute(cmd: ReplaceSlotsCommand): Promise<Slot[]> {
+    // Every slot is checked before the old pattern is dropped: one bad row refuses the whole set.
+    for (const s of cmd.slots) requireTimeRange(s.startTime, s.endTime);
     await this.orgClient.assertSchoolActive(cmd.schoolId);
     const [group, teachers] = await Promise.all([
       this.orgClient.getGroup(cmd.schoolId, cmd.groupId),

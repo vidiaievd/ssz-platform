@@ -94,7 +94,8 @@ export class LessonsController {
       'Delegates to PATCH /sessions/:id — one set of rules, whichever door a caller comes through.',
   })
   @ApiResponse({ status: 200, type: LessonResponseDto })
-  @ApiResponse({ status: 400, description: 'Held before it happened, or incoherent times' })
+  @ApiResponse({ status: 400, description: 'Held before it happened' })
+  @ApiResponse({ status: 422, description: 'END_TIME_NOT_AFTER_START or LESSON_TOO_LONG (over 4 hours)' })
   @ApiResponse({ status: 404, description: 'No such lesson' })
   async patch(
     @Param('lessonId') lessonId: string,

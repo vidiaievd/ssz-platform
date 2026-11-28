@@ -81,6 +81,7 @@ import {
 } from './grammar-atoms/application/ports/grammar-atoms.readers.js';
 import { HttpCourseAtomCatalogReader, HttpLearnerGrammarAtomsReader } from './grammar-atoms/infrastructure/http-grammar-atoms.readers.js';
 import { SoundExplainer } from './pronunciation-explain/application/sound-explainer.js';
+import { ExplanationLanguage } from './application/explanation-language.js';
 import { SOUND_BASE_READER } from './pronunciation-explain/application/ports/sound-base.reader.js';
 import { HttpSoundBaseReader } from './pronunciation-explain/infrastructure/http-sound-base.reader.js';
 import { TryTranslateReviewHandler } from './review-draft/application/try-translate-review.handler.js';
@@ -96,6 +97,8 @@ import { PrismaEvalRunRepository } from './review-draft/eval/infrastructure/pris
 import { AdminReviewEvalsController } from './review-draft/eval/presentation/admin-review-evals.controller.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from './voice-review/application/ports/recording-audio.source.js';
 import { REFERENCE_CLIP_SOURCE } from './toneme-check/application/ports/reference-clip.source.js';
+import { TONEME_MEASUREMENT_RECORDER } from './toneme-check/application/ports/toneme-measurement.recorder.js';
+import { PrismaTonemeMeasurementRecorder } from './toneme-check/infrastructure/prisma-toneme-measurement.recorder.js';
 import { HttpReferenceClipSource } from './toneme-check/infrastructure/http-reference-clip.source.js';
 import { VOICE_REVIEW_ATTEMPTS_CLIENT } from './voice-review/application/ports/voice-review-attempts.client.js';
 import { VoiceReviewHandler } from './voice-review/application/voice-review/voice-review.handler.js';
@@ -239,6 +242,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     },
     // the articulation base an explanation of weak sounds quotes (plan 86, step 9.2)
     SoundExplainer,
+    ExplanationLanguage,
     {
       provide: SOUND_BASE_READER,
       inject: [ConfigService],
@@ -251,6 +255,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     GetReviewEvalRunHandler,
     ReviewEvalRunner,
     { provide: EVAL_RUN_REPOSITORY, useClass: PrismaEvalRunRepository },
+    { provide: TONEME_MEASUREMENT_RECORDER, useClass: PrismaTonemeMeasurementRecorder },
     // speech models measured on the readings teachers ruled on, same runs table (plan 82, step 10b)
     RunVoiceEvalHandler,
     ListVoiceEvalRunsHandler,

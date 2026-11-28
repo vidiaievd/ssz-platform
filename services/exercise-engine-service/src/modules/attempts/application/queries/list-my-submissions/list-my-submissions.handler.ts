@@ -84,6 +84,8 @@ export interface MySubmissionEntry {
    * reads it at once, labelled as not counting yet. Only on `pending` rows.
    */
   provisional: PendingAiVerdict | null;
+  /** A model reads this work before the teacher (plan 80; OQ-110) — said on a row still without its verdict. */
+  aiFirst: boolean;
   /** `true` only on the `RETURNED` row a resubmit actually resumes (see below). */
   canResubmit: boolean;
 }
@@ -151,6 +153,7 @@ export class ListMySubmissionsHandler implements IQueryHandler<ListMySubmissions
         attemptNo: attempt.revisionCount + 1,
         decision: decisionOf(attempt, aiDrafted.has(attempt.id)),
         provisional: attempt.pendingAiVerdict(),
+        aiFirst: attempt.aiFirst,
         canResubmit: status === 'returned' && latestReturnedByExercise.get(attempt.exerciseId) === attempt.id,
       };
     });

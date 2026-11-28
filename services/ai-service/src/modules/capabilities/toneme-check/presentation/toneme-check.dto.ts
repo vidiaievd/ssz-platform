@@ -56,6 +56,13 @@ export class TonemeVerdictDto {
   heardAs?: 1 | 2;
 }
 
+export class TonemeFrameRangeDto {
+  @ApiProperty({ type: Number, nullable: true, example: 4.2, description: "The learner's range in the take's carrier" })
+  learner!: number | null;
+  @ApiProperty({ type: Number, nullable: true, example: 7.2, description: "The reference voice's range in its clip" })
+  reference!: number | null;
+}
+
 export class TonemeComparisonDto {
   @ApiProperty({ enum: [1, 2], description: "The word's toneme by the lexicon" }) tone!: 1 | 2;
   @ApiProperty({
@@ -69,6 +76,13 @@ export class TonemeComparisonDto {
   @ApiProperty({ type: Number, nullable: true, example: -3.8, description: '`learner.score − referenceScore`' })
   gap!: number | null;
   @ApiProperty({ type: TonemeVerdictDto }) verdict!: TonemeVerdictDto;
+  @ApiProperty({
+    type: TonemeFrameRangeDto,
+    description:
+      "The voices' ranges in the carrier sentence: p90 − p10 of voiced F0 on its words, the word left out, " +
+      'semitones (plan 88, step 9.5). Reference only — the verdict, the engine and the clients do not read it',
+  })
+  frameRange!: TonemeFrameRangeDto;
 }
 
 export class TonemeMelodyDto {

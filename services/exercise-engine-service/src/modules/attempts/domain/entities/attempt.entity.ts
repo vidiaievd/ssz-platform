@@ -1878,6 +1878,12 @@ export class Attempt extends AggregateRoot {
    */
   get recordedOffline(): boolean { return this._recordedOffline; }
   get reviewAiPolicy(): AttemptReviewAiPolicy | null { return this._reviewAiPolicy; }
+
+  /**
+   * A model reads this school work before the teacher (plan 80; OQ-110): the learner is told
+   * so at hand-in and waits for its provisional verdict, not only for the teacher's.
+   */
+  get aiFirst(): boolean { return this._reviewAiPolicy !== null; }
   /**
    * The model's verdict that does not count yet (plan 80, step 3b). Kept after a teacher's
    * verdict too: what the model said beside what the teacher decided is the measure of it.

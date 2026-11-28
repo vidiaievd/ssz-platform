@@ -96,6 +96,7 @@ describe('ListMySubmissionsHandler', () => {
         attemptNo: 1,
         decision: null,
         provisional: null,
+        aiFirst: false,
         canResubmit: false,
       },
     ]);
@@ -182,6 +183,17 @@ describe('ListMySubmissionsHandler', () => {
       aiDrafted: false,
       acceptedAtTerm: false,
     });
+  });
+
+  it('says a model reads a pending row first, before its verdict is in (OQ-110)', async () => {
+    const waiting = attempt({
+      reviewAiPolicy: { mode: 'ai_then_teacher', autoAcceptAt: null, teacherDrawn: false },
+    });
+    const { handler } = makeHandler([waiting]);
+
+    const result = await handler.execute(query());
+
+    expect(result.items[0]).toMatchObject({ status: 'pending', provisional: null, aiFirst: true });
   });
 
   it('says a school’s work counted by itself when the term ran out (plan 80, step 4)', async () => {

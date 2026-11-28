@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { GetActivityQuery } from './get-activity.query.js';
+import { shownTarget, unnamedActorIds, unresolvedTargetIds } from './activity-targets.js';
 import type { GetActivityResponseDto, ActivityItemDto } from '../dto/activity-response.dto.js';
 
 const ALLOWED_ROLES = new Set(['OWNER', 'ADMIN', 'TEACHER', 'CONTENT_ADMIN']);
@@ -30,22 +31,47 @@ export class GetActivityHandler implements IQueryHandler<GetActivityQuery, GetAc
       select: {
         id: true,
         actorName: true,
+        actorId: true,
         what: true,
         eventType: true,
         target: true,
+        targetId: true,
         tag: true,
         occurredAt: true,
       },
     });
 
     const hasMore = rows.length > limit;
-    const items = (hasMore ? rows.slice(0, limit) : rows).map(
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    // Rows written before their course had a directory row carry its id as the target.
+    // Likewise an actor whose profile reached the directory after the row was written.
+    const unresolved = unresolvedTargetIds(page);
+    const unnamed = unnamedActorIds(page);
+    const [known, people] = await Promise.all([
+      unresolved.length
+        ? this.prisma.containerDirectory.findMany({
+            where: { containerId: { in: unresolved } },
+            select: { containerId: true, title: true },
+          })
+        : Promise.resolve([] as Array<{ containerId: string; title: string }>),
+      unnamed.length
+        ? this.prisma.userDirectory.findMany({
+            where: { userId: { in: unnamed } },
+            select: { userId: true, displayName: true },
+          })
+        : Promise.resolve([] as Array<{ userId: string; displayName: string }>),
+    ]);
+    const titles = new Map<string, string>(known.map((c) => [c.containerId, c.title]));
+    const names = new Map<string, string>(people.map((u) => [u.userId, u.displayName]));
+
+    const items = page.map(
       (r): ActivityItemDto => ({
         id: r.id,
-        who: r.actorName ?? null,
+        who: r.actorName ?? (r.actorId ? (names.get(r.actorId) ?? null) : null),
         what: r.what,
         eventType: r.eventType,
-        target: r.target ?? null,
+        target: shownTarget(r, titles),
         occurredAt: r.occurredAt.toISOString(),
         tag: r.tag,
       }),

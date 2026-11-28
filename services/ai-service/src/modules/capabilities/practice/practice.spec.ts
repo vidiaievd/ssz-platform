@@ -30,6 +30,7 @@ import type { PassageSounds, WordSounds } from '../../pronunciation/application/
 import { alignWord } from '../../pronunciation/domain/align-word.js';
 import { weakSounds } from '../../pronunciation/domain/weak-sounds.js';
 import { SoundExplainer } from '../pronunciation-explain/application/sound-explainer.js';
+import { ExplanationLanguage } from '../application/explanation-language.js';
 
 // Plan 84, step 2.
 
@@ -314,7 +315,10 @@ describe('PrecheckHandler', () => {
     } = {},
     ledger: { usage?: PracticeUsage | Error; limits?: PrecheckLimits } = {},
     atoms: { resolver?: AtomCatalogResolver; courseId?: string | null; promptVersion?: string } = {},
+    /** The learner's interface language — the fallback when the school set none (П-10). */
+    learnerLanguage: string | null = null,
   ) {
+    const learners = { interfaceLanguage: async () => learnerLanguage };
     const usageAsked: Array<{ from: Date; to: Date; exerciseId: string }> = [];
     const usageReader = {
       usage: async (q: { from: Date; to: Date; exerciseId: string }) => {
@@ -351,7 +355,7 @@ describe('PrecheckHandler', () => {
         return audio;
       },
     };
-    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), schools, recordings, usageReader, atoms.resolver ?? NO_ATOMS, voice.sounds ?? NO_SOUNDS, new SoundExplainer(gateway, { base: async () => [] }), [0, 0]);
+    const handler = new PrecheckHandler(gateway, new SchoolPayerResolver(), new ExplanationLanguage(schools, learners), recordings, usageReader, atoms.resolver ?? NO_ATOMS, voice.sounds ?? NO_SOUNDS, new SoundExplainer(gateway, { base: async () => [] }), [0, 0]);
     const run = (subject: PracticeSubject) =>
       handler.execute(
         new PrecheckCommand({
@@ -718,7 +722,7 @@ describe('PrecheckHandler limits (step 3)', () => {
     const h = new PrecheckHandler(
       gateway,
       new SchoolPayerResolver(),
-      { explanationLanguage: async () => 'ru' } as ISchoolLanguageReader,
+      new ExplanationLanguage({ explanationLanguage: async () => 'ru' } as ISchoolLanguageReader, { interfaceLanguage: async () => null }),
       { fetch: async () => ({ kind: 'missing' }) },
       {
         usage: async (q) => {

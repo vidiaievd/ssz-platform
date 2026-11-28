@@ -61,7 +61,9 @@ export class ReviewTermWarningService {
     });
 
     let sent = 0;
-    for (const school of schools) {
+    // A school that is not active cannot have its work opened (the engine refuses review
+    // there), so a "last chance to open it" would ask for something nobody can do.
+    for (const school of await this.directory.activeOnly(schools)) {
       sent += await this.warnOneSchool(school.schoolId);
     }
     return sent;

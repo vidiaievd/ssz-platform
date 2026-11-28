@@ -12,6 +12,7 @@ import { SchoolPayerResolver } from './application/school-payer.resolver.js';
 import { writingTaskAspects } from './domain/review-aspect.js';
 import { reviewSchema, toReviewDraft } from './domain/review-remarks.js';
 import { reviewRequest } from './prompts/prompts.js';
+import { ExplanationLanguage } from '../application/explanation-language.js';
 
 // Plan 79, step 1.7b: writing_task.
 
@@ -199,7 +200,7 @@ describe('DraftReviewHandler — writing_task', () => {
       },
       listCases: async () => ({ cases: [], skipped: {} }),
     };
-    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, { explanationLanguage: async () => 'uk' }, { forLearner: async () => [] } as never, 0);
+    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, new ExplanationLanguage({ explanationLanguage: async () => 'uk' }, { interfaceLanguage: async () => null }), { forLearner: async () => [] } as never, 0);
 
     const outcome = await handler.execute(new DraftReviewCommand('a1', 'learner-1', 'writing_task', 'school-1'));
 

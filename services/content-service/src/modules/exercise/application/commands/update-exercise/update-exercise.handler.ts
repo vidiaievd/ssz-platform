@@ -78,15 +78,23 @@ export class UpdateExerciseHandler implements ICommandHandler<
       template = (await this.templateRepo.findById(exercise.exerciseTemplateId)) ?? undefined;
     }
 
+    // Only the fields the request carried. The entity reads `'field' in changes` as
+    // "set it" for the clearable ones (title, answer-check settings, duration), so a key
+    // present with `undefined` cleared it: a rename from the tree wiped the duration and
+    // rewrote the draft with no answer-check settings (OQ-S3 live check, OQ-50).
     const updateResult = exercise.update(
       {
         ...(command.title !== undefined && { title: command.title }),
-        difficultyLevel: command.difficultyLevel,
-        content: command.content,
-        expectedAnswers: command.expectedAnswers,
-        answerCheckSettings: command.answerCheckSettings,
-        visibility: command.visibility,
-        estimatedDurationSeconds: command.estimatedDurationSeconds,
+        ...(command.difficultyLevel !== undefined && { difficultyLevel: command.difficultyLevel }),
+        ...(command.content !== undefined && { content: command.content }),
+        ...(command.expectedAnswers !== undefined && { expectedAnswers: command.expectedAnswers }),
+        ...(command.answerCheckSettings !== undefined && {
+          answerCheckSettings: command.answerCheckSettings,
+        }),
+        ...(command.visibility !== undefined && { visibility: command.visibility }),
+        ...(command.estimatedDurationSeconds !== undefined && {
+          estimatedDurationSeconds: command.estimatedDurationSeconds,
+        }),
       },
       template,
     );

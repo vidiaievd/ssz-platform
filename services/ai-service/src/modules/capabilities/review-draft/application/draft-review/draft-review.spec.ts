@@ -16,6 +16,7 @@ import { DraftReviewCommand } from './draft-review.command.js';
 import { DraftReviewHandler, REVIEW_QUEUE_SURFACE } from './draft-review.handler.js';
 import type { AtomCatalogResolver } from '../../../grammar-atoms/application/atom-catalog.resolver.js';
 import type { AtomCatalog } from '../../../grammar-atoms/domain/atom-catalog.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 
 // Plan 79, step 1.3.
 
@@ -78,6 +79,8 @@ interface Setup {
   /** The learner's grammar atoms (plan 85, step 3b); none by default. */
   atoms?: AtomCatalog;
   promptVersion?: string;
+  /** The learner's interface language — the fallback when the school set none (П-10). */
+  learnerLanguage?: string | null;
 }
 
 function setup({
@@ -87,7 +90,9 @@ function setup({
   put = ['ok'],
   atoms: catalog = [],
   promptVersion = 'review_draft@1',
+  learnerLanguage = null,
 }: Setup = {}) {
+  const learners = { interfaceLanguage: async () => learnerLanguage };
   const atomsAsked: unknown[] = [];
   const atoms = {
     forLearner: async (input: unknown) => {
@@ -125,7 +130,7 @@ function setup({
       return language;
     },
   };
-  const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, schools, atoms, 0);
+  const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, new ExplanationLanguage(schools, learners), atoms, 0);
   return { handler, calls, writes, reads: () => reads, atomsAsked };
 }
 
@@ -267,6 +272,21 @@ describe('DraftReviewHandler', () => {
       await handler.execute(command());
       expect(calls[0]!.request.system).toContain('in Russisk');
     }
+  });
+
+  // П-10: a school without a language no longer sends a Russian-speaking learner's remarks in English.
+  it('writes the remarks in the learner’s interface language when the school set none', async () => {
+    for (const language of [null, 'throws'] as const) {
+      const { handler, calls } = setup({ language, learnerLanguage: 'uk' });
+      await handler.execute(command());
+      expect(calls[0]!.request.system).toContain('in Ukrainian');
+    }
+  });
+
+  it('keeps the school’s language over the learner’s', async () => {
+    const { handler, calls } = setup({ language: 'ru', learnerLanguage: 'uk' });
+    await handler.execute(command());
+    expect(calls[0]!.request.system).toContain('in Russian');
   });
 
   it('retries a failed write itself rather than asking the model again', async () => {

@@ -1,13 +1,20 @@
 /**
  * Demo seed — Norwegian B1 course modelled after the «Stein på stein» textbook.
  *
- * Creates a full, frontend-ready COURSE container with three chapters. Each
- * chapter (a ContainerSection) groups:
- *   1. a LESSON          — reading text + explanation (learning material)
- *   2. a VOCABULARY_LIST — themed word list with Russian translations
- *   3. a GRAMMAR_RULE    — grammar explanation for the chapter
- *   4. a TEST            — several EXERCISES of different templates that
- *                          verify the student's knowledge after the lesson
+ * Creates a full, frontend-ready COURSE container (level system SINGLE — a flat
+ * list of modules) with three chapters. Each chapter is a MODULE container — a
+ * unit on the phone — with four sections:
+ *   1. Lesetekst  — a LESSON: reading text + explanation
+ *   2. Ordforråd  — a VOCABULARY_LIST: themed words with Russian translations
+ *   3. Grammatikk — a GRAMMAR_RULE: grammar explanation for the chapter
+ *   4. Test       — several EXERCISES of different templates that verify the
+ *                   student's knowledge after the lesson
+ *
+ * Material sits inside modules only (OQ-6): learners reach a course through its
+ * modules, and content-service refuses to publish a course with material on the
+ * course itself (preflight `ITEM_OUTSIDE_MODULE`). Before 23.11 the chapters were
+ * sections of the course and the course opened empty on the phone. The ids of
+ * the lessons, lists, rules and exercises are unchanged, so progress stays.
  *
  * Idempotent: every entity id is derived deterministically with uuid v5 from a
  * fixed namespace, and all writes use upsert. Re-running the script updates the
@@ -59,6 +66,8 @@ interface VocabWord {
 
 interface ExerciseDef {
   key: string;
+  /** Shown in the tree and to learners; without it both fall back to the template's name. */
+  title: string;
   template: string; // ExerciseTemplate.code
   content: Prisma.InputJsonValue;
   expectedAnswers: Prisma.InputJsonValue;
@@ -165,6 +174,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
     test: [
       {
         key: 'ch1-mc',
+        title: 'Velg riktig form — presens',
         template: 'multiple_choice',
         instruction: 'Выберите правильную форму глагола в презенсе.',
         hint: 'Презенс большинства глаголов оканчивается на -r.',
@@ -184,6 +194,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-fib',
+        title: 'Fyll inn — preteritum',
         template: 'fill_in_blank',
         instruction: 'Поставьте глагол в скобках в претеритум.',
         hint: 'å spise → spiste, å bo → bodde.',
@@ -201,6 +212,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-tr',
+        title: 'Oversett — familie og dagligliv',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -230,6 +242,7 @@ leser bøker. I helgene besøker de ofte besteforeldrene som bor på landet.
       },
       {
         key: 'ch1-match',
+        title: 'Ord og oversettelse — familie',
         template: 'match_pairs',
         instruction: 'Сопоставьте норвежские слова с переводом.',
         content: {
@@ -337,6 +350,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
     test: [
       {
         key: 'ch2-mc',
+        title: 'Velg riktig form — bestemt form',
         template: 'multiple_choice',
         instruction: 'Выберите правильную определённую форму существительного.',
         hint: 'et hus → huset.',
@@ -356,6 +370,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-fib',
+        title: 'Fyll inn — bestemt form',
         template: 'fill_in_blank',
         instruction: 'Вставьте существительные в определённой форме.',
         hint: 'en leilighet → leiligheten, et nabolag → nabolaget.',
@@ -373,6 +388,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-tr',
+        title: 'Oversett — bolig og nærmiljø',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -404,6 +420,7 @@ hage, fire soverom og en garasje. De trives godt, men de bruker mer tid på
       },
       {
         key: 'ch2-match',
+        title: 'Ord og oversettelse — bolig',
         template: 'match_pairs',
         instruction: 'Сопоставьте слова с переводом.',
         content: {
@@ -506,6 +523,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
     test: [
       {
         key: 'ch3-mc',
+        title: 'Velg riktig form — modale verb',
         template: 'multiple_choice',
         instruction: 'Выберите правильный вариант с модальным глаголом.',
         hint: 'После модального глагола инфинитив идёт без «å».',
@@ -525,6 +543,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-fib',
+        title: 'Fyll inn — modale verb',
         template: 'fill_in_blank',
         instruction: 'Вставьте подходящий модальный глагол в презенсе.',
         hint: 'хотеть = vil, мочь/уметь = kan.',
@@ -542,6 +561,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-tr',
+        title: 'Oversett — jobb og arbeidsliv',
         template: 'translate_to_target',
         instruction: 'Переведите предложение на норвежский.',
         content: {
@@ -581,6 +601,7 @@ ta mer utdanning for å få en bedre stilling i framtiden.
       },
       {
         key: 'ch3-match',
+        title: 'Ord og oversettelse — jobb',
         template: 'match_pairs',
         instruction: 'Сопоставьте слова с переводом.',
         content: {
@@ -645,6 +666,7 @@ async function main(): Promise<void> {
       ownerSchoolId: SCHOOL_ID,
       visibility: VISIBILITY,
       accessTier: ACCESS_TIER,
+      levelSystem: 'SINGLE',
       currentPublishedVersionId: versionId,
     },
     create: {
@@ -662,6 +684,7 @@ async function main(): Promise<void> {
       ownerSchoolId: SCHOOL_ID,
       visibility: VISIBILITY,
       accessTier: ACCESS_TIER,
+      levelSystem: 'SINGLE',
     },
   });
 
@@ -688,23 +711,8 @@ async function main(): Promise<void> {
 
   console.log('  ✓ Course container + published version');
 
-  // 2. Chapters: section + lesson + vocab + grammar + test exercises.
-  let itemPosition = 0;
-
-  for (const [chapterIndex, ch] of chapters.entries()) {
-    const sectionId = id('section', ch.key);
-
-    await prisma.containerSection.upsert({
-      where: { id: sectionId },
-      update: { title: ch.sectionTitle },
-      create: {
-        id: sectionId,
-        containerVersionId: versionId,
-        title: ch.sectionTitle,
-        position: chapterIndex,
-      },
-    });
-
+  // 2. Chapters: lesson + vocab + grammar + test exercises, then the chapter's module.
+  for (const ch of chapters) {
     // 2a. Lesson + content variant.
     const lessonId = id('lesson', ch.key);
     await prisma.lesson.upsert({
@@ -748,7 +756,6 @@ async function main(): Promise<void> {
         publishedAt: new Date(),
       },
     });
-    await upsertItem(versionId, sectionId, itemPosition++, 'LESSON', lessonId);
 
     // 2b. Vocabulary list + items + translations.
     const vocabListId = id('vocab', ch.key);
@@ -822,7 +829,6 @@ async function main(): Promise<void> {
         },
       });
     }
-    await upsertItem(versionId, sectionId, itemPosition++, 'VOCABULARY_LIST', vocabListId);
 
     // 2c. Grammar rule + explanation.
     const grammarId = id('grammar', ch.key);
@@ -868,7 +874,6 @@ async function main(): Promise<void> {
         publishedAt: new Date(),
       },
     });
-    await upsertItem(versionId, sectionId, itemPosition++, 'GRAMMAR_RULE', grammarId);
 
     // 2d. Test — exercises after the lesson, wired into the grammar rule pool too.
     for (const [exIndex, ex] of ch.test.entries()) {
@@ -876,6 +881,7 @@ async function main(): Promise<void> {
       await prisma.exercise.upsert({
         where: { id: exerciseId },
         update: {
+          title: ex.title,
           content: ex.content,
           expectedAnswers: ex.expectedAnswers,
           ownerUserId: TEACHER_ID,
@@ -885,6 +891,7 @@ async function main(): Promise<void> {
         create: {
           id: exerciseId,
           exerciseTemplateId: templateByCode.get(ex.template)!,
+          title: ex.title,
           targetLanguage: TARGET_LANG,
           difficultyLevel: LEVEL,
           content: ex.content,
@@ -920,24 +927,142 @@ async function main(): Promise<void> {
           addedByUserId: TEACHER_ID,
         },
       });
-      await upsertItem(versionId, sectionId, itemPosition++, 'EXERCISE', exerciseId);
     }
 
+    await seedModule(ch, [
+      { key: 'tekst', title: 'Lesetekst', items: [['LESSON', lessonId]] },
+      { key: 'ord', title: 'Ordforråd', items: [['VOCABULARY_LIST', vocabListId]] },
+      { key: 'grammatikk', title: 'Grammatikk', items: [['GRAMMAR_RULE', grammarId]] },
+      {
+        key: 'test',
+        title: 'Test',
+        items: ch.test.map((ex) => ['EXERCISE', id('exercise', ex.key)] as const),
+      },
+    ]);
     console.log(`  ✓ ${ch.sectionTitle}`);
   }
 
+  // 3. The course holds the three modules and nothing else. Its published version
+  // and every draft (the editor opens one of its own) are rebuilt the same way, so
+  // no version keeps the old chapter sections with material on the course itself.
+  const drafts = await prisma.containerVersion.findMany({
+    where: { containerId, status: 'DRAFT' },
+    select: { id: true },
+  });
+  for (const courseVersionId of [versionId, ...drafts.map((d) => d.id)]) {
+    await prisma.containerItem.deleteMany({ where: { containerVersionId: courseVersionId } });
+    await prisma.containerSection.deleteMany({ where: { containerVersionId: courseVersionId } });
+    for (const [position, ch] of chapters.entries()) {
+      await upsertItem(
+        courseVersionId,
+        null,
+        position,
+        'CONTAINER',
+        id('module-container', ch.key),
+      );
+    }
+  }
+  console.log(`  ✓ Course versions: ${chapters.length} modules (${1 + drafts.length} version(s))`);
+
   console.log(
-    `Done. 1 course, ${chapters.length} chapters, ` +
+    `Done. 1 course, ${chapters.length} chapter modules, ` +
       `${chapters.length} lessons, ${chapters.length} vocab lists, ` +
       `${chapters.length} grammar rules, ` +
       `${chapters.reduce((n, c) => n + c.test.length, 0)} exercises seeded.`,
   );
 }
 
+type ModuleItem = readonly [itemType: string, targetId: string];
+
+/**
+ * One chapter as a MODULE container with a published and a draft version, both
+ * holding the chapter's sections and material. Rebuilt from scratch on every run.
+ */
+async function seedModule(
+  ch: Chapter,
+  sections: Array<{ key: string; title: string; items: readonly ModuleItem[] }>,
+): Promise<void> {
+  const moduleId = id('module-container', ch.key);
+  const publishedId = id('module-version', ch.key);
+  const draftId = id('module-version-draft', ch.key);
+  const fields = {
+    title: ch.sectionTitle,
+    description: ch.lesson.description,
+    ownerUserId: TEACHER_ID,
+    ownerSchoolId: SCHOOL_ID,
+    visibility: VISIBILITY,
+    accessTier: ACCESS_TIER,
+  };
+
+  await prisma.container.upsert({
+    where: { id: moduleId },
+    update: { ...fields, currentPublishedVersionId: publishedId },
+    create: {
+      id: moduleId,
+      slug: `norsk-b1-${ch.key}`,
+      containerType: 'MODULE',
+      targetLanguage: TARGET_LANG,
+      difficultyLevel: LEVEL,
+      ...fields,
+    },
+  });
+  await prisma.containerVersion.upsert({
+    where: { id: publishedId },
+    update: { status: 'PUBLISHED' },
+    create: {
+      id: publishedId,
+      containerId: moduleId,
+      versionNumber: 1,
+      status: 'PUBLISHED',
+      changelog: 'Initial demo content.',
+      createdByUserId: TEACHER_ID,
+      publishedAt: new Date(),
+      publishedByUserId: TEACHER_ID,
+    },
+  });
+  await prisma.containerVersion.upsert({
+    where: { id: draftId },
+    update: { status: 'DRAFT' },
+    create: {
+      id: draftId,
+      containerId: moduleId,
+      versionNumber: 2,
+      status: 'DRAFT',
+      changelog: 'Redigerbart utkast.',
+      createdByUserId: TEACHER_ID,
+    },
+  });
+  await prisma.container.update({
+    where: { id: moduleId },
+    data: { currentPublishedVersionId: publishedId },
+  });
+
+  for (const versionId of [publishedId, draftId]) {
+    await prisma.containerItem.deleteMany({ where: { containerVersionId: versionId } });
+    await prisma.containerSection.deleteMany({ where: { containerVersionId: versionId } });
+    // ContainerItem.position is unique per version, so it runs through all sections.
+    let position = 0;
+    for (const [sectionIndex, section] of sections.entries()) {
+      const sectionId = id('module-section', `${versionId}:${section.key}`);
+      await prisma.containerSection.create({
+        data: {
+          id: sectionId,
+          containerVersionId: versionId,
+          title: section.title,
+          position: sectionIndex,
+        },
+      });
+      for (const [itemType, targetId] of section.items) {
+        await upsertItem(versionId, sectionId, position++, itemType, targetId);
+      }
+    }
+  }
+}
+
 // Upsert a container item by deterministic id derived from version + type + target.
 async function upsertItem(
   versionId: string,
-  sectionId: string,
+  sectionId: string | null,
   position: number,
   itemType: string,
   targetId: string,

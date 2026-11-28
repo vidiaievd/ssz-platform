@@ -170,7 +170,7 @@ const makeReviewContext = (content: IContentClient) =>
       ),
   } as any);
 
-const makeValidator = (outcome = { correct: true, score: 100, details: null, requiresReview: false }): jest.Mocked<IAnswerValidator> => ({
+const makeValidator = (outcome: { correct: boolean; score: number; passed?: boolean; details: unknown; requiresReview: boolean } = { correct: true, score: 100, details: null, requiresReview: false }): jest.Mocked<IAnswerValidator> => ({
   validate: jest.fn<IAnswerValidator['validate']>().mockResolvedValue(Result.ok(outcome)),
 });
 
@@ -378,6 +378,7 @@ describe('SubmitAnswerHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value.correct).toBe(true);
     expect(result.value.score).toBe(100);
+    expect(result.value.passed).toBe(true);
     expect(result.value.requiresReview).toBe(false);
     expect(repo.save).toHaveBeenCalled();
     expect(publisher.publish).toHaveBeenCalledWith(
@@ -397,6 +398,31 @@ describe('SubmitAnswerHandler', () => {
     expect(result.isOk).toBe(true);
     expect(result.value.correct).toBe(false);
     expect(result.value.score).toBe(40);
+    expect(result.value.passed).toBe(false);
+  });
+
+  // A set scored by share: not every item right, so not `correct`, but over the threshold,
+  // so it counts. The answer has to say so, or the runner reads `correct` and says «wrong,
+  // try again» over a set that progress already took as passed.
+  it('closed-form: answers passed=true on a score over the threshold that is not all correct', async () => {
+    const handler = makeHandler(
+      makeRepo(), makeContentClient(),
+      makeValidator({ correct: false, score: 75, details: null, requiresReview: false }),
+      makeFeedback(), makePublisher(),
+    );
+    const result = await handler.execute(cmd);
+    expect(result.value.correct).toBe(false);
+    expect(result.value.passed).toBe(true);
+  });
+
+  it("closed-form: the validator's own verdict wins over the threshold in the answer", async () => {
+    const handler = makeHandler(
+      makeRepo(), makeContentClient(),
+      makeValidator({ correct: false, score: 90, passed: false, details: null, requiresReview: false }),
+      makeFeedback(), makePublisher(),
+    );
+    const result = await handler.execute(cmd);
+    expect(result.value.passed).toBe(false);
   });
 
   /*

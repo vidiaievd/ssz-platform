@@ -17,6 +17,7 @@ import {
 import { SCHEDULING_EVENT_TYPES } from '@ssz/contracts';
 import { OrgServiceHttpClient } from '../../../../infrastructure/org/org-service.http-client.js';
 import { utcMidnight } from './session-plan.js';
+import { requireTimeRange } from './time-range.js';
 import type { AuthenticatedUser } from '../../../../infrastructure/auth/jwt-verifier.service.js';
 import type { Lesson, LessonScore, LessonType } from '../../domain/entities/lesson.entity.js';
 
@@ -215,20 +216,13 @@ export class SessionWriterService {
   }
 
   private assertTimes(startTime: string, endTime: string): void {
-    if (toMinutes(endTime) <= toMinutes(startTime)) {
-      throw new BadRequestException('A session must end after it starts.');
-    }
+    requireTimeRange(startTime, endTime);
   }
 
   private async stitchedUnit(groupId: string, contentUnitId: string): Promise<string | undefined> {
     const units = await this.plan.unitsForGroup(groupId);
     return units.find((u) => u.contentUnitId === contentUnitId)?.id;
   }
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return (h ?? 0) * 60 + (m ?? 0);
 }
 
 /** A session's own day counts as past — it is held after the last bell, not the next day. */

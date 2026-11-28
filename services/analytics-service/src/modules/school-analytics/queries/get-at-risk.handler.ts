@@ -6,6 +6,7 @@ import type { AppConfig } from '../../../config/configuration.js';
 import { SchoolRole } from '@ssz/contracts';
 import { GetAtRiskQuery } from './get-at-risk.query.js';
 import type { GetAtRiskResponseDto, AtRiskStudentDto } from '../dto/at-risk-response.dto.js';
+import { CourseCompletionService, completionRatio } from '../course-completion.service.js';
 
 const OWNER_ADMIN = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN]);
 
@@ -17,6 +18,7 @@ export class GetAtRiskHandler implements IQueryHandler<GetAtRiskQuery, GetAtRisk
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    private readonly completion: CourseCompletionService,
   ) {
     this.atRiskDays = this.config.get<AppConfig['metrics']>('metrics')?.atRiskThresholdDays ?? 7;
   }
@@ -94,21 +96,12 @@ export class GetAtRiskHandler implements IQueryHandler<GetAtRiskQuery, GetAtRisk
 
     const containerEntries = await this.prisma.containerDirectory.findMany({
       where: { containerId: { in: allContainerIds }, deletedAt: null },
-      select: { containerId: true, title: true, lang: true, leafItemCount: true },
+      select: { containerId: true, title: true, lang: true },
     });
     const containerMap = new Map(containerEntries.map((c) => [c.containerId, c]));
 
-    // ── 8. Completion ratio per student ─────────────────────────────────────
-    // completedItems = distinct contentIds in ProgressActivity kind='completed'
-    const completedRows = await this.prisma.progressActivity.findMany({
-      where: { userId: { in: pagedIds }, kind: 'completed' },
-      select: { userId: true, contentId: true },
-      distinct: ['userId', 'contentId'],
-    });
-    const completedCountMap = new Map<string, number>();
-    for (const r of completedRows) {
-      completedCountMap.set(r.userId, (completedCountMap.get(r.userId) ?? 0) + 1);
-    }
+    // ── 8. Items passed per student, in the courses they are enrolled in ──────
+    const completionByCourse = await this.completion.completionOf(allContainerIds, pagedIds);
 
     // ── 9. Assemble response ─────────────────────────────────────────────────
     const students: AtRiskStudentDto[] = pagedIds.map((userId) => {
@@ -120,12 +113,16 @@ export class GetAtRiskHandler implements IQueryHandler<GetAtRiskQuery, GetAtRisk
         ? containerMap.get(primaryEnrollment.containerId)
         : undefined;
 
-      const totalLeafItems = studentEnrollments.reduce((sum, e) => {
-        const c = containerMap.get(e.containerId);
-        return sum + (c?.leafItemCount ?? 0);
-      }, 0);
-      const completedItems = completedCountMap.get(userId) ?? 0;
-      const progress = totalLeafItems > 0 ? Math.round((completedItems / totalLeafItems) * 100) / 100 : 0;
+      // Across all the student's active courses: passed items / items.
+      let totalItems = 0;
+      let passedItems = 0;
+      for (const e of studentEnrollments) {
+        const course = completionByCourse.get(e.containerId);
+        if (course === undefined) continue;
+        totalItems += course.items;
+        passedItems += Math.min(course.passedBy.get(userId) ?? 0, course.items);
+      }
+      const progress = completionRatio(passedItems, totalItems);
 
       return {
         userId,

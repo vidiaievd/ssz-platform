@@ -303,6 +303,11 @@ enrolment or assignment of the school in any status reads it (reason `former_sch
 level (course, lesson, exercise — the rule is by `ownerSchoolId`). Never `enroll` / `edit`; `suspended` is not asked (the roster
 still answers); unreadable status or answer → refused.
 
+Course structure (OQ-6): a `COURSE` version holds modules only — any other item placed on the course itself is the preflight
+blocker `ITEM_OUTSIDE_MODULE` (learners and the phone reach a course through its modules; the editor cannot put material there,
+only seeds and the raw API). `NO_GRAMMAR` / `EXERCISE_COUNT_LOW` count the modules' items too. Demo «Stein på stein»
+(`prisma/seed-demo-norwegian.ts`) is `SINGLE`: three chapter modules, sections Lesetekst / Ordforråd / Grammatikk / Test.
+
 Share by e-mail (plan 90, session 16 remark 4, variant A): `POST content-shares/by-email { entityType, entityId, email, permission }` —
 edit right + visibility `shared` checked first, then the caller's lookup limit (Redis `content:user-lookup:rl:<userId>`, same env names
 and defaults as organization) → 429 `LOOKUP_RATE_LIMITED`, then user-profile `internal/users/lookup` (`PROFILE_SERVICE_URL`); no account
@@ -372,6 +377,9 @@ Other attempt mutations (`save-draft`, `check-row`, sound sessions …) have no 
 Definition cache (`exercise-def:<id>:<lang>:<mode>`, key included, TTL 300 s) is dropped on `content.exercise.deleted` and on
 `content.exercise.released` (`ExerciseReleasedConsumer`, queue `exercise-engine.content-exercise-released`, prefetch 1, no
 `processed_events` — a repeat drop is harmless; one retry, then the TTL). Without it a publish left grading on the old key.
+Model first at a school (plan 80; OQ-110): work routed with a review policy (`ai_then_teacher` / `ai_with_sampling`) answers `aiFirst: true`
+beside `reviewer: 'teacher'` in the submit answer, on the attempt read (with `provisionalVerdict`) and on `my-submissions` rows (with
+`provisional`) — the clients wait for the model's provisional verdict and show it as not counting yet; a dispute stays for a final one.
 
 ### 7. Media Service (NestJS)
 Upload, storage, processing of media files. S3-compatible storage.
@@ -525,6 +533,21 @@ Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_r
 content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
 `commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
 hand-in; any failure = inventory notes only.
+Sound-level pronunciation (plan 88): Azure's Pronunciation Assessment times and scores each sound but leaves `nb-NO`
+symbols empty; the sounds are named by the NB Uttale lexicon (Språkbanken, CC0, østnorsk; table `pronunciation_lexicon`,
+`alignWord` fits Azure's sounds to a variant) — a word outside the lexicon or whose sounds do not count up is judged at word
+level, no sound invented. Reference clips `POST internal/reference-clips { language, word }` (`x-internal-token`; caller
+media-service): the word in the carrier *Nå sier jeg … igjen.*, synthesized voice by voice and self-checked (heard back,
+aligned, toneme by F0 against the lexicon, bounds 1.5 / 2.5); toneme-ambiguous homographs refused; platform pays (surface
+`authoring`). Toneme check `POST internal/toneme-checks` (`x-internal-token`, not routed by the gateway; school's
+`ai.practice`, else the learner's plan; surface `pronunciation_drill`): the learner's take of the carrier against the
+reference's stored score, verdict on the raw score (`LEARNER_TONEME_BOUNDS` 0.5 / 3.5, `MIN_GAP_FROM_REFERENCE` 3) —
+`like_reference` / `other_tone` (`atomRef` `nb:tone`) / `unsure` / `not_measured`, both melodies returned. Step 9.5 (OQ-2,
+variant A): the voice's range in the carrier (p90 − p10 of voiced F0 on the carrier's words, the word left out, ≥ 10 points)
+is measured for the take and the reference (`comparison.frameRange`, the reference's `tries[].frameRange`; a clip kept
+before 9.5 is measured around its word) and each measured take is kept in `toneme_measurements` (one row per paid call, no
+audio, no text but the word; a failed write is only logged). Nothing reads the range yet — thresholds on a normalised
+scale wait for recordings of several speakers (plan 89 §4.1, OQ-30).
 Reference words pre-check (plan 86, step 13.2c): `POST internal/reference-clips/check { language, words[] }` — the refusals a
 reference clip makes before synthesis (`not_in_lexicon`, `tone_ambiguous` by all variants, …), one lexicon read, nothing billed;
 content-service's `prisma/tools/sound-drill.ts` fails a drill word refused here.
@@ -589,6 +612,9 @@ port `IRegistryWriter`, row under `FOR UPDATE`); journal `provider.toggled` / `m
 errorCode, latencyMs, callId, providerCode, providerModelId }`; no reason = `''` in `admin_audit`, `null` in the event); a
 journal failure never takes the answer away (the call is already made and paid) — logged only. Eval runs and runs list: see
 the evals above. Gateway `location`s for these are covered by `/api/v1/admin/ai`, except the two analytics routes below.
+Explanation language (OPEN-QUESTIONS П-10): every agent explains in the school's `defaultExplanationLanguage`, else the
+learner's `uiLocale` (user-profile `internal/profiles/:userId`), else its own default — one `ExplanationLanguage`
+(`capabilities/application/explanation-language.ts`).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.

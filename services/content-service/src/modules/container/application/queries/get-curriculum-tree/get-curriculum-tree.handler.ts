@@ -595,6 +595,10 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
    * since this is the authoring tree. Without it every exercise row read as its template
    * name, and a module of ten exercises was ten identical rows. Only the one field is
    * read, not the documents. `own` is the column alone, for the editor's title field.
+   *
+   * "There is a draft" is `draft_updated_at`, as everywhere else: the entity mapper
+   * writes a JSON `null` (not SQL NULL) into `draft_content` when there is none, so a
+   * COALESCE over the column took that `null` and the row read as its template name.
    */
   private async exerciseTitles(
     exerciseIds: string[],
@@ -604,7 +608,13 @@ export class GetCurriculumTreeHandler implements IQueryHandler<
     >`
       SELECT id::text AS id,
              title AS own_title,
-             COALESCE(title, btrim(COALESCE(draft_content, content)->>'title')) AS title
+             COALESCE(
+               title,
+               btrim(
+                 (CASE WHEN draft_updated_at IS NOT NULL THEN draft_content ELSE content END)
+                   ->>'title'
+               )
+             ) AS title
         FROM exercises
        WHERE id = ANY (${exerciseIds}::uuid[])`;
     return new Map(rows.map((r) => [r.id, { label: r.title || null, own: r.own_title || null }]));

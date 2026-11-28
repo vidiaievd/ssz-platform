@@ -506,7 +506,7 @@ export function route(check: Check, judgement: Judgement): Routing {
 // ── Authoring numbers ───────────────────────────────────────────────────────
 
 /** Items the author has actually written a faulty sentence for. */
-export const authoredItems = (task: ErrorCorrectionTask): Item[] =>
+export const authoredItems = (task: Pick<ErrorCorrectionTask, 'items'>): Item[] =>
   (task.items ?? []).filter((item) => item.wrong.trim() !== '');
 
 export const hasRef = (item: Item): boolean =>

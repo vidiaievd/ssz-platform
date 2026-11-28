@@ -6,6 +6,7 @@ import type { AppConfig } from '../../../config/configuration.js';
 import { SchoolRole } from '@ssz/contracts';
 import { GetCourseHealthQuery } from './get-course-health.query.js';
 import type { GetCourseHealthResponseDto, CourseHealthDto } from '../dto/course-health-response.dto.js';
+import { CourseCompletionService, completionRatio } from '../course-completion.service.js';
 
 const ALLOWED_ROLES = new Set<SchoolRole>([SchoolRole.OWNER, SchoolRole.ADMIN, SchoolRole.TEACHER, SchoolRole.CONTENT_ADMIN]);
 
@@ -17,6 +18,7 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<AppConfig>,
+    private readonly completion: CourseCompletionService,
   ) {
     this.dropoffThreshold =
       this.config.get<AppConfig['metrics']>('metrics')?.dropoffCompletionThreshold ?? 0.3;
@@ -54,24 +56,12 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
     // ── 3. Container metadata ────────────────────────────────────────────────
     const containers = await this.prisma.containerDirectory.findMany({
       where: { containerId: { in: containerIds }, deletedAt: null },
-      select: { containerId: true, title: true, lang: true, leafItemCount: true },
+      select: { containerId: true, title: true, lang: true },
     });
     const containerMap = new Map(containers.map((c) => [c.containerId, c]));
 
-    // ── 4. Completions per course (ProgressActivity kind='completed') ─────────
-    // We attribute a completion to a course if the student is enrolled in that course.
-    // Since ProgressActivity.contentId may be a lesson/exercise (not containerId),
-    // we count by student: completed distinct contentIds per enrolled student.
-    const completedRows = await this.prisma.progressActivity.findMany({
-      where: { userId: { in: allStudentIds }, kind: 'completed' },
-      select: { userId: true, contentId: true },
-      distinct: ['userId', 'contentId'],
-    });
-    // Build completedItems per userId
-    const completedPerUser = new Map<string, number>();
-    for (const r of completedRows) {
-      completedPerUser.set(r.userId, (completedPerUser.get(r.userId) ?? 0) + 1);
-    }
+    // ── 4. Items of each course passed by each enrolled learner ───────────────
+    const completionByCourse = await this.completion.completionOf(containerIds, allStudentIds);
 
     // ── 5. Trend: compare completions in last 7d vs previous 7d ──────────────
     const now = new Date();
@@ -99,15 +89,17 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
       if (!container) continue;
 
       const enrollment = studentSet.size;
-      const leafItemCount = container.leafItemCount;
+      const { items, passedBy } = completionByCourse.get(containerId) ?? {
+        items: 0,
+        passedBy: new Map<string, number>(),
+      };
 
-      // completion = sum(completedItems per enrolled student) / (enrollment × leafItemCount)
-      const totalCompleted = [...studentSet].reduce(
-        (sum, uid) => sum + (completedPerUser.get(uid) ?? 0),
+      // completion = items passed by the enrolled learners / (enrollment × the course's items)
+      const totalPassed = [...studentSet].reduce(
+        (sum, uid) => sum + Math.min(passedBy.get(uid) ?? 0, items),
         0,
       );
-      const denominator = enrollment * Math.max(leafItemCount, 1);
-      const completion = leafItemCount > 0 ? Math.round((totalCompleted / denominator) * 100) / 100 : 0;
+      const completion = completionRatio(totalPassed, enrollment * items);
 
       // trend: more recent active students than previous period → up
       const recentCount = [...studentSet].filter((id) => recentActiveUsers.has(id)).length;
@@ -122,7 +114,9 @@ export class GetCourseHealthHandler implements IQueryHandler<GetCourseHealthQuer
         enrollment,
         completion,
         trend,
-        ...(completion < this.dropoffThreshold ? { dropoff: true } : {}),
+        // A course whose items are unknown (outline unreadable, nothing published) is not
+        // flagged: low completion of nothing is not a drop-off.
+        ...(items > 0 && completion < this.dropoffThreshold ? { dropoff: true } : {}),
       });
     }
 

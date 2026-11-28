@@ -64,6 +64,26 @@ export class AssignGroupTeacherHandler implements ICommandHandler<AssignGroupTea
       throw new ConflictException('reason is required for substitute assignment');
     }
 
+    // ── One role per person in a group (OQ-17) ───────────────────────────────
+    // Someone who already teaches the group must not be added again in another role:
+    // the reviewer rules would count them twice, and the second row only hides who
+    // actually leads. An assignment that ended before today no longer counts; one
+    // that starts later does. The same role again keeps updating the dates.
+    const today = startOfUtcDay(new Date());
+    const otherRole = group.teachers.find(
+      (t) =>
+        t.userId === command.userId &&
+        t.role !== command.role &&
+        (t.toDate == null || t.toDate >= today),
+    );
+    if (otherRole) {
+      throw new ConflictException({
+        error: 'already-in-group',
+        message: `The teacher is already assigned to this group as ${otherRole.role}`,
+        existingRole: otherRole.role,
+      });
+    }
+
     const warnings: Array<{ type: string }> = [];
 
     // ── Language fit (hard block, spec §6) ──────────────────────────────────
@@ -108,4 +128,9 @@ export class AssignGroupTeacherHandler implements ICommandHandler<AssignGroupTea
 
     return { ok: true, warnings };
   }
+}
+
+/** Midnight UTC of the given moment — assignment dates are stored as days. */
+function startOfUtcDay(at: Date): Date {
+  return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
 }

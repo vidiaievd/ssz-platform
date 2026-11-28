@@ -16,6 +16,7 @@ export const envSchema = z.object({
 
   ORGANIZATION_SERVICE_URL: z.string().default('http://organization-service:3002'),
   CONTENT_SERVICE_URL: z.string().default('http://content-service:3003'),
+  PROFILE_SERVICE_URL: z.string().default('http://user-profile-service:3001'),
   LEARNING_SERVICE_URL: z.string().default('http://learning-service:3007'),
   EXERCISE_ENGINE_SERVICE_URL: z.string().default('http://exercise-engine-service:3006'),
   SCHEDULING_SERVICE_URL: z.string().default('http://scheduling-service:3009'),
@@ -74,6 +75,7 @@ export interface AppConfig {
   jwt: { publicKey: string | undefined; publicKeyPath: string | undefined; issuer: string; audience: string };
   organization: { baseUrl: string; token: string };
   content: { baseUrl: string; token: string };
+  profile: { baseUrl: string; token: string };
   learning: { baseUrl: string; token: string };
   exerciseEngine: { baseUrl: string; token: string };
   scheduling: { baseUrl: string; token: string };
@@ -99,6 +101,7 @@ export default (): AppConfig => {
     },
     organization: { baseUrl: env.ORGANIZATION_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     content: { baseUrl: env.CONTENT_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
+    profile: { baseUrl: env.PROFILE_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     learning: { baseUrl: env.LEARNING_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     exerciseEngine: { baseUrl: env.EXERCISE_ENGINE_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },
     scheduling: { baseUrl: env.SCHEDULING_SERVICE_URL, token: env.INTERNAL_SERVICE_TOKEN },

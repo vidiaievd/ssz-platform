@@ -236,6 +236,7 @@ export function toAttemptDto(attempt: Attempt): AttemptResponseDto {
             at: pending.at.toISOString(),
             countsAt: pending.countsAt?.toISOString() ?? null,
           },
+    aiFirst: attempt.aiFirst,
   };
 }
 
