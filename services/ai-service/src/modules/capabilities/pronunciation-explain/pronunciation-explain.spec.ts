@@ -7,7 +7,7 @@ import {
   type ExplainSoundsInput,
 } from './domain/sound-explanations.js';
 import { pronunciationExplainRequest, PRONUNCIATION_EXPLAIN_PROMPT_VERSIONS } from './prompts/prompts.js';
-import { soundBaseFor, type SoundBaseEntry } from './domain/sound-base.js';
+import { explanationsFromBase, soundBaseFor, type SoundBaseEntry } from './domain/sound-base.js';
 import { SoundExplainer } from './application/sound-explainer.js';
 import type { AiGateway } from '../../gateway/application/ai-gateway.js';
 import type { GatewayRequest } from '../../gateway/application/model-router.js';
@@ -162,18 +162,43 @@ describe('pronunciation_explain', () => {
     });
   });
 
+  describe('the base when the model did not explain (П-10, live check 28.11)', () => {
+    const sounds = input().sounds;
+
+    it('gives the title and how to say it, in one line, to the remarks of a family the base has in that language', () => {
+      const lines = explanationsFromBase(sounds, soundBaseFor([KJ_BASE], 'uk'), 'uk');
+      expect(lines?.summary).toBe('');
+      expect(lines?.explanations[0]).toBe('Звук kj [ç]: Підніміть середину язика до твердого піднебіння, кінчик тримайте внизу.');
+      expect(lines?.explanations[1]).toBeUndefined(); // no base for vowel length — the inventory's note stays
+      expect(lines?.explanations[2]).toBe(lines?.explanations[0]);
+    });
+
+    it('falls to the description when the base says nothing of how', () => {
+      const lines = explanationsFromBase(sounds, soundBaseFor([{ ...KJ_BASE, howTo: '  ' }], 'uk'), 'uk');
+      expect(lines?.explanations[0]).toBe('Звук kj [ç]: М’яке шипіння в середині рота.');
+    });
+
+    it('adds nothing for English, for an entry that fell back to English, or for no base', () => {
+      expect(explanationsFromBase(sounds, soundBaseFor([{ ...KJ_BASE, locale: 'en' }], 'en'), 'en')).toBeNull();
+      expect(explanationsFromBase(sounds, soundBaseFor([{ ...KJ_BASE, locale: 'en' }], 'uk'), 'uk')).toBeNull();
+      expect(explanationsFromBase(sounds, soundBaseFor([], 'uk'), 'uk')).toBeNull();
+    });
+  });
+
   describe('SoundExplainer', () => {
     const context = { payer: { type: 'workspace', id: 's' }, actor: { userId: 'u', role: 'student' }, surface: 'precheck' } as CallContext;
     const answer = { items: [0, 1, 2].map((index) => ({ index, explanation: `e${index}` })), summary: 'Почніть з kj.' };
 
-    function setup(base: () => Promise<SoundBaseEntry[]>) {
+    function setup(base: () => Promise<SoundBaseEntry[]>, failWith: string | null = null) {
       const asked: Array<{ capability: string; request: GatewayRequest }> = [];
       const bases: Array<[string, string]> = [];
       const gateway = {
         call: async (capability: string, _context: CallContext, build: (version: string) => GatewayRequest) => {
           asked.push({ capability, request: build('pronunciation_explain@2') });
           return {
-            routed: Result.ok({ result: { output: { kind: 'structured', data: answer } } }),
+            routed: failWith
+              ? Result.fail({ kind: failWith })
+              : Result.ok({ result: { output: { kind: 'structured', data: answer } } }),
             recorded: { callId: 'c1', cost: null, credits: null },
           };
         },
@@ -194,6 +219,17 @@ describe('pronunciation_explain', () => {
       expect(asked[0]!.request.system).toContain('in Ukrainian');
       expect(asked[0]!.request.system).toContain('Where Ukrainian speakers differ:');
       expect(explanations).toEqual({ explanations: ['e0', 'e1', 'e2'], summary: 'Почніть з kj.' });
+    });
+
+    it('hands the base’s lines in the learner’s language when the model fails or is off, never as its answer', async () => {
+      for (const kind of ['timeout', 'disabled']) {
+        const { run } = setup(async () => [KJ_BASE], kind);
+        const { explanations, fromBase } = await run();
+        expect(explanations).toBeNull();
+        expect(fromBase?.explanations[0]).toMatch(/^Звук kj \[ç\]: Підніміть/);
+      }
+      const answered = await setup(async () => [KJ_BASE]).run();
+      expect(answered.fromBase).toBeNull();
     });
 
     it('explains from the inventory when the base cannot be read', async () => {

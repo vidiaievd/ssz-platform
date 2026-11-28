@@ -141,10 +141,10 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
         what: 'a sentence',
       });
       calls.push(explained.call);
-      if (explained.explanations) {
-        feedback = withSoundExplanations(feedback, explained.explanations, asked);
-        targetExplained = target !== null && weak.some((f, i) => asked[i] && isOfTarget(f, target));
-      }
+      const lines = explained.explanations ?? explained.fromBase;
+      if (lines) feedback = withSoundExplanations(feedback, lines, asked);
+      // Only the model's own word counts as explained: the base's line leaves it to try next take.
+      if (explained.explanations) targetExplained = target !== null && weak.some((f, i) => asked[i] && isOfTarget(f, target));
     }
     return {
       status: 'ok',

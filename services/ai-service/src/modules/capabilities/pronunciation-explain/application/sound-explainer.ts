@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { AiGateway, type GatewayCall } from '../../../gateway/application/ai-gateway.js';
 import type { CallContext } from '../../../ledger/domain/ai-call.js';
 import { languageName } from '../../review-draft/domain/comment-language.js';
-import { EMPTY_SOUND_BASE, soundBaseFor, type SoundBase } from '../domain/sound-base.js';
+import { EMPTY_SOUND_BASE, explanationsFromBase, soundBaseFor, type SoundBase } from '../domain/sound-base.js';
 import { readExplanations, type SoundExplanations, type SoundToExplain } from '../domain/sound-explanations.js';
 import { pronunciationExplainRequest } from '../prompts/prompts.js';
 import { SOUND_BASE_READER, type ISoundBaseReader } from './ports/sound-base.reader.js';
@@ -27,7 +27,8 @@ export interface ExplainSounds {
  *
  * Never fails beyond the call itself. A base that cannot be read is an empty one, and the model
  * gets the inventory's notes exactly as before step 9.2. Null explanations when the model did
- * not answer usably — off, refused, failed — and the remarks keep the inventory's note.
+ * not answer usably — off, refused, failed — and then the base's lines in the learner's language,
+ * where it has them; the remarks keep the inventory's note only where it has none.
  */
 @Injectable()
 export class SoundExplainer {
@@ -38,7 +39,14 @@ export class SoundExplainer {
     @Inject(SOUND_BASE_READER) private readonly bases: ISoundBaseReader,
   ) {}
 
-  async explain(ask: ExplainSounds): Promise<{ call: GatewayCall; explanations: SoundExplanations | null }> {
+  /**
+   * `explanations` is the model's answer; `fromBase`, only when the model gave none, is the base's
+   * «how to say it» in the learner's language (null when the base has none in it). Callers show
+   * `explanations ?? fromBase`, but count only `explanations` as explained by the model.
+   */
+  async explain(
+    ask: ExplainSounds,
+  ): Promise<{ call: GatewayCall; explanations: SoundExplanations | null; fromBase: SoundExplanations | null }> {
     const base = await this.baseOf(ask.targetLanguage, ask.explanationLanguage);
     const input = {
       targetLanguage: languageName(ask.targetLanguage),
@@ -49,14 +57,19 @@ export class SoundExplainer {
     const call = await this.gateway.call(ask.capability, ask.context, (promptVersion) =>
       pronunciationExplainRequest(promptVersion, input),
     );
+    const unexplained = () => ({
+      call,
+      explanations: null,
+      fromBase: explanationsFromBase(ask.sounds, base, primarySubtag(ask.explanationLanguage)),
+    });
     if (call.routed.isFail) {
       // Off is a choice (no binding yet), not a failure worth a line per try.
       if (call.routed.error.kind !== 'disabled') this.logger.warn(`Sounds of ${ask.what} not explained: ${call.routed.error.kind}`);
-      return { call, explanations: null };
+      return unexplained();
     }
     const { output } = call.routed.value.result;
-    if (output.kind !== 'structured') return { call, explanations: null };
-    return { call, explanations: readExplanations(output.data, ask.sounds.length) };
+    if (output.kind !== 'structured') return unexplained();
+    return { call, explanations: readExplanations(output.data, ask.sounds.length), fromBase: null };
   }
 
   private async baseOf(language: string, explanationLanguage: string): Promise<SoundBase> {

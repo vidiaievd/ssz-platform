@@ -532,7 +532,9 @@ engine only when the request carried a catalog. Catalog from content-service; an
 Sound explanations (plan 86, step 9.2): `pronunciation_explain@2` (also `voice_review_explain`, same prompts) adds
 content-service's articulation base (`internal/sound-atoms`, in the explanation language) to the inventory notes;
 `commonError` only for ru/uk readers, `ukNote` only for uk; one `SoundExplainer` serves rehearsal, sentence drill and
-hand-in; any failure = inventory notes only.
+hand-in; any failure = inventory notes only. The model not answering (off, unbound, failed) → the remark is the base's
+«how to say it» in the learner's language (`explanationsFromBase`; an English base or none → the inventory's note); only the model's
+answer counts as explained in a session.
 Sound-level pronunciation (plan 88): Azure's Pronunciation Assessment times and scores each sound but leaves `nb-NO`
 symbols empty; the sounds are named by the NB Uttale lexicon (Språkbanken, CC0, østnorsk; table `pronunciation_lexicon`,
 `alignWord` fits Azure's sounds to a variant) — a word outside the lexicon or whose sounds do not count up is judged at word
