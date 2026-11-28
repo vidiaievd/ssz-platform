@@ -612,6 +612,9 @@ port `IRegistryWriter`, row under `FOR UPDATE`); journal `provider.toggled` / `m
 errorCode, latencyMs, callId, providerCode, providerModelId }`; no reason = `''` in `admin_audit`, `null` in the event); a
 journal failure never takes the answer away (the call is already made and paid) — logged only. Eval runs and runs list: see
 the evals above. Gateway `location`s for these are covered by `/api/v1/admin/ai`, except the two analytics routes below.
+Explanation language (OPEN-QUESTIONS П-10): every agent explains in the school's `defaultExplanationLanguage`, else the
+learner's `uiLocale` (user-profile `internal/profiles/:userId`), else its own default — one `ExplanationLanguage`
+(`capabilities/application/explanation-language.ts`).
 Follows Clean Architecture.
 Port: `3010`. Database: `ai_db`. Exchange: `ai.events` (`ai.call.completed`, folded by
 analytics-service into `ai_usage_daily`). Redis DB `6`, key prefix `ai:`.
