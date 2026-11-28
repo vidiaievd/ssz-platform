@@ -24,6 +24,39 @@ export type SoundBase = ReadonlyMap<string, SoundBaseEntry>;
 
 export const EMPTY_SOUND_BASE: SoundBase = new Map();
 
+/**
+ * What the learner reads when the model did not explain (off, refused, failed): the base's «how to
+ * say it» in the learner's own language, beside the sound's title (OPEN-QUESTIONS П-10, live check
+ * 28.11 — a Ukrainian reader got the inventory's English notes whenever Gemini was overloaded, and
+ * always on hand-in while `voice_review_explain` is unbound). Only an entry written in the locale
+ * asked for counts: one that fell back to English is no better than the inventory's own English
+ * note, which stays. Null when no remark gains a line; the summary is left to the caller.
+ */
+export function explanationsFromBase(
+  sounds: readonly { family: string }[],
+  base: SoundBase,
+  explanationLocale: string,
+): { explanations: string[]; summary: string } | null {
+  const locale = explanationLocale.toLowerCase();
+  if (locale === 'en') return null;
+  const explanations = new Array<string>(sounds.length);
+  let any = false;
+  sounds.forEach((sound, i) => {
+    const entry = base.get(sound.family);
+    if (!entry || entry.locale.toLowerCase() !== locale) return;
+    const how = oneLine(entry.howTo) ?? oneLine(entry.description);
+    if (how === null) return;
+    explanations[i] = `${oneLine(entry.title) ?? sound.family}: ${how}`;
+    any = true;
+  });
+  return any ? { explanations, summary: '' } : null;
+}
+
+function oneLine(text: string | null): string | null {
+  const line = (text ?? '').replace(/\s+/g, ' ').trim();
+  return line === '' ? null : line;
+}
+
 /** Locales whose speakers the base's `commonError` is written for (§4y.1, Q18). */
 const COMMON_ERROR_LOCALES: ReadonlySet<string> = new Set(['ru', 'uk']);
 

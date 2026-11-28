@@ -193,7 +193,8 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     if (sounds.length > 0) {
       const explained = await this.explainSounds(request, context, subject.targetLanguage, sounds);
       calls.push(explained.call);
-      if (explained.explanations) feedback = withSoundExplanations(feedback, explained.explanations);
+      const lines = explained.explanations ?? explained.fromBase;
+      if (lines) feedback = withSoundExplanations(feedback, lines);
     }
     return { outcome: { status: 'ok', feedback, aiCallIds: calls.map((c) => c.recorded.callId) }, ...billed() };
   }
@@ -207,7 +208,7 @@ export class PrecheckHandler implements ICommandHandler<PrecheckCommand, Prechec
     context: CallContext,
     targetLanguage: string,
     sounds: SoundToExplain[],
-  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
+  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null; fromBase: SoundExplanations | null }> {
     const school = await this.languages.of(request);
     return this.explainer.explain({
       capability: PRONUNCIATION_EXPLAIN.code,

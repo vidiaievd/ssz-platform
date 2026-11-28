@@ -60,7 +60,8 @@ export function withSoundExplanations(
     if (asked && !asked[remark++]) return item;
     return { ...item, explanation: explained.explanations[next++] ?? item.explanation };
   });
-  return { ...feedback, summary: explained.summary, items };
+  // A summary is the model's; lines from the base carry none and leave the feedback's own.
+  return { ...feedback, summary: explained.summary || feedback.summary, items };
 }
 
 interface SoundRemark {

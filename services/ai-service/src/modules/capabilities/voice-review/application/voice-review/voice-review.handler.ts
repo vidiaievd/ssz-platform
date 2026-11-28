@@ -177,6 +177,9 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
       if (explained.explanations) {
         remarks = explainedRemarks(remarks, explained.explanations);
         summary = explained.explanations.summary;
+      } else if (explained.fromBase) {
+        // The model did not answer (or is unbound): the base's lines, in the learner's language.
+        remarks = explainedRemarks(remarks, explained.fromBase);
       }
     }
 
@@ -208,7 +211,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     context: CallContext,
     targetLanguage: string,
     remarks: readonly ReadingSoundRemark[],
-  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
+  ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null; fromBase: SoundExplanations | null }> {
     const school = await this.languages.of({ schoolId, userId });
     return this.explainer.explain({
       capability: VOICE_REVIEW_EXPLAIN.code,

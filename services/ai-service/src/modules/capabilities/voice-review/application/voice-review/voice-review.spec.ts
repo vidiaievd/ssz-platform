@@ -19,6 +19,7 @@ import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../ports/voice-
 import { VoiceReviewCommand } from './voice-review.command.js';
 import { VoiceReviewHandler } from './voice-review.handler.js';
 import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
+import type { SoundBaseEntry } from '../../../pronunciation-explain/domain/sound-base.js';
 import { ExplanationLanguage } from '../../../application/explanation-language.js';
 
 // Plan 82, step 8.
@@ -100,6 +101,8 @@ interface Setup {
   schoolLanguage?: string | null | (() => Promise<string | null>);
   /** The learner's interface language — the fallback when the school set none (П-10). */
   learnerLanguage?: string | null;
+  /** content-service's articulation base, whatever locale is asked. */
+  base?: SoundBaseEntry[];
 }
 
 const NO_SOUNDS = { of: async () => null } as unknown as PassageSounds;
@@ -114,6 +117,7 @@ function setup({
   explain,
   schoolLanguage = null,
   learnerLanguage = null,
+  base = [],
 }: Setup = {}) {
   const learners = { interfaceLanguage: async () => learnerLanguage };
   const asked: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
@@ -183,7 +187,7 @@ function setup({
       { explanationLanguage: async () => (typeof schoolLanguage === 'function' ? schoolLanguage() : schoolLanguage) },
       learners,
     ),
-    new SoundExplainer(gateway, { base: async () => [] }),
+    new SoundExplainer(gateway, { base: async () => base }),
     0,
     [0, 0],
   );
@@ -424,6 +428,29 @@ describe('VoiceReviewHandler', () => {
         expect(reading.summary).toBeNull();
         expect(outcome).toMatchObject({ kind: 'ruled' });
         expect(outcome.kind === 'ruled' && outcome.aiCallIds.at(-1)).toBe('explain-off');
+      });
+
+      // Live check 28.11: `voice_review_explain` unbound on dev → a Ukrainian reader got English notes.
+      it('writes the base’s lines in the learner’s language when the agent does not answer', async () => {
+        const { handler, writes } = setup({
+          subject: subjectResult({ schoolId: SCHOOL }, withPronunciation.subject!),
+          available: true,
+          calls: twoKj(),
+          sounds: kjFirst(),
+          learnerLanguage: 'uk',
+          base: [
+            {
+              family: 'kj', locale: 'uk', title: 'Звук kj', description: null, howTo: 'Середину язика — до піднебіння.',
+              commonError: null, ukNote: null, drill: null, carrierWords: [],
+            },
+          ],
+        });
+        await handler.execute(schoolCommand());
+        const { reading } = writes[0]!;
+        if (reading.status !== 'ready') throw new Error('not ready');
+        expect(reading.remarks.length).toBeGreaterThan(0);
+        expect(reading.remarks.every((r) => r.comment === 'Звук kj: Середину язика — до піднебіння.')).toBe(true);
+        expect(reading.summary).toBeNull();
       });
 
       it('asks nothing when no sound is weak', async () => {
