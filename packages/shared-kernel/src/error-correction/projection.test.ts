@@ -131,3 +131,19 @@ describe('selfCheckFeedback', () => {
     expect(without.items[0]?.remainingTypes).toBeUndefined();
   });
 });
+
+describe('toStudentProjection — rows the author left empty', () => {
+  const withBlank = {
+    ...task({ count: true }),
+    items: [...items, { id: 'blank', wrong: '   ', ref: '', alts: [], meta: {} }],
+  };
+
+  it('leaves out a row with no sentence, so the hand-in never waits for it', () => {
+    const projection = toStudentProjection(withBlank);
+    expect(projection.items.map((item) => item.id)).toEqual(['i1', 'i2']);
+  });
+
+  it('counts the mistakes of the written rows only', () => {
+    expect(toStudentProjection(withBlank).totalErrors).toBe(toStudentProjection(task({ count: true })).totalErrors);
+  });
+});
