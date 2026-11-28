@@ -7,7 +7,7 @@ import type { SoundExplanations } from '../../../pronunciation-explain/domain/so
 import { VOICE_REVIEW_EXPLAIN } from '../../../pronunciation-explain/pronunciation-explain.capability.js';
 import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
 import type { DraftWriteMeta } from '../../../review-draft/application/ports/review-attempts.client.js';
-import { SCHOOL_LANGUAGE_READER, type ISchoolLanguageReader } from '../../../review-draft/application/ports/school-language.reader.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 import { REVIEW_QUEUE_SURFACE } from '../../../review-draft/application/draft-review/draft-review.handler.js';
 import { SchoolPayerResolver } from '../../../review-draft/application/school-payer.resolver.js';
 import { SELF_STUDY_SURFACE } from '../../../review-direct/application/direct-review/direct-review.handler.js';
@@ -101,7 +101,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     @Inject(VOICE_REVIEW_ATTEMPTS_CLIENT) private readonly attempts: IVoiceReviewAttemptsClient,
     @Inject(RECORDING_AUDIO_SOURCE) private readonly recordings: IRecordingAudioSource,
     private readonly passageSounds: PassageSounds,
-    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly languages: ExplanationLanguage,
     private readonly explainer: SoundExplainer,
     @Optional() @Inject(VOICE_WRITE_RETRY_MS) private readonly writeRetryMs: number = 1_000,
     @Optional() @Inject(VOICE_RECORDING_WAITS_MS) private readonly recordingWaitsMs: number[] = DEFAULT_RECORDING_WAITS_MS,
@@ -172,7 +172,7 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
     let summary: string | null = null;
     let explainCallId: string | null = null;
     if (remarks.length > 0) {
-      const explained = await this.explainSounds(schoolId, context, subject.targetLanguage, remarks);
+      const explained = await this.explainSounds(schoolId, found.userId, context, subject.targetLanguage, remarks);
       explainCallId = explained.call.recorded.callId;
       if (explained.explanations) {
         remarks = explainedRemarks(remarks, explained.explanations);
@@ -200,15 +200,16 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
 
   /**
    * The weak sounds explained by a model (plan 88, step 5c.2; base of plan 86, step 9.2), all in
-   * one call, in the school's language — English, the inventory's, without one.
+   * one call, in the school's language, else the learner's (П-10) — English, the inventory's, without either.
    */
   private async explainSounds(
     schoolId: string | null,
+    userId: string,
     context: CallContext,
     targetLanguage: string,
     remarks: readonly ReadingSoundRemark[],
   ): Promise<{ call: GatewayCallOf<unknown>; explanations: SoundExplanations | null }> {
-    const school = schoolId === null ? null : await this.schoolLanguage(schoolId);
+    const school = await this.languages.of({ schoolId, userId });
     return this.explainer.explain({
       capability: VOICE_REVIEW_EXPLAIN.code,
       context,
@@ -217,15 +218,6 @@ export class VoiceReviewHandler implements ICommandHandler<VoiceReviewCommand, V
       sounds: remarks.map((r) => r.finding),
       what: 'a handed-in reading',
     });
-  }
-
-  private async schoolLanguage(schoolId: string): Promise<string | null> {
-    try {
-      return await this.schools.explanationLanguage(schoolId);
-    } catch (err) {
-      this.logger.warn(`Explanation language of school ${schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
-      return null;
-    }
   }
 
   private async hear(

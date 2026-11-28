@@ -81,6 +81,7 @@ import {
 } from './grammar-atoms/application/ports/grammar-atoms.readers.js';
 import { HttpCourseAtomCatalogReader, HttpLearnerGrammarAtomsReader } from './grammar-atoms/infrastructure/http-grammar-atoms.readers.js';
 import { SoundExplainer } from './pronunciation-explain/application/sound-explainer.js';
+import { ExplanationLanguage } from './application/explanation-language.js';
 import { SOUND_BASE_READER } from './pronunciation-explain/application/ports/sound-base.reader.js';
 import { HttpSoundBaseReader } from './pronunciation-explain/infrastructure/http-sound-base.reader.js';
 import { TryTranslateReviewHandler } from './review-draft/application/try-translate-review.handler.js';
@@ -241,6 +242,7 @@ import { AdminVoiceEvalsController } from './voice-review/eval/presentation/admi
     },
     // the articulation base an explanation of weak sounds quotes (plan 86, step 9.2)
     SoundExplainer,
+    ExplanationLanguage,
     {
       provide: SOUND_BASE_READER,
       inject: [ConfigService],

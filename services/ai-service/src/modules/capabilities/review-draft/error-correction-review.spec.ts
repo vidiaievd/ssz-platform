@@ -14,6 +14,7 @@ import { toReviewDraft } from './domain/review-remarks.js';
 import { scoreCase } from './eval/domain/eval-score.js';
 import type { ReviewCase } from './eval/domain/review-case.js';
 import { reviewRequest } from './prompts/prompts.js';
+import { ExplanationLanguage } from '../application/explanation-language.js';
 
 // Plan 79, step 1.7: error_correction.
 
@@ -193,7 +194,7 @@ describe('DraftReviewHandler — error_correction', () => {
       },
       listCases: async () => ({ cases: [], skipped: {} }),
     };
-    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, { explanationLanguage: async () => 'uk' }, { forLearner: async () => [] } as never, 0);
+    const handler = new DraftReviewHandler(gateway, new SchoolPayerResolver(), attempts, new ExplanationLanguage({ explanationLanguage: async () => 'uk' }, { interfaceLanguage: async () => null }), { forLearner: async () => [] } as never, 0);
 
     const outcome = await handler.execute(new DraftReviewCommand('a1', 'learner-1', 'error_correction', 'school-1'));
 

@@ -12,10 +12,7 @@ import { lexicalWord } from '../../../../providers/domain/lexical.js';
 import { audible, recordingLevel } from '../../../../providers/domain/recording-level.js';
 import type { SpeechResult } from '../../../../providers/domain/speech-result.js';
 import { RECORDING_AUDIO_SOURCE, type IRecordingAudioSource } from '../../../voice-review/application/ports/recording-audio.source.js';
-import {
-  SCHOOL_LANGUAGE_READER,
-  type ISchoolLanguageReader,
-} from '../../../review-draft/application/ports/school-language.reader.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 import {
   judgeSoundTarget,
   soundTargetOf,
@@ -91,7 +88,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
     @Inject(SENTENCE_CHECK_LIMITER) private readonly limiter: ISentenceCheckLimiter,
     @Inject(SOUND_SESSION_LIMITER) private readonly sessions: ISoundSessionLimiter,
     private readonly passageSounds: PassageSounds,
-    @Inject(SCHOOL_LANGUAGE_READER) private readonly schools: ISchoolLanguageReader,
+    private readonly languages: ExplanationLanguage,
     private readonly explainer: SoundExplainer,
   ) {}
 
@@ -139,7 +136,7 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
         capability: PRONUNCIATION_EXPLAIN.code,
         context,
         targetLanguage: request.language,
-        explanationLanguage: await this.explanationLanguage(request),
+        explanationLanguage: request.explanationLanguage || ((await this.languages.of(request)) ?? 'en'),
         sounds: weak.filter((_, i) => asked[i]),
         what: 'a sentence',
       });
@@ -155,18 +152,6 @@ export class SentenceCheckHandler implements ICommandHandler<SentenceCheckComman
       ...(verdict ? { target: { ...verdict, explained: targetExplained } } : {}),
       aiCallIds: calls.map((c) => c.recorded.callId),
     };
-  }
-
-  /** The caller's language, else the school's, else English — a nicety, so an unreadable school is not a failure. */
-  private async explanationLanguage(request: SentenceCheckRequest): Promise<string> {
-    if (request.explanationLanguage) return request.explanationLanguage;
-    if (request.schoolId === null) return 'en';
-    try {
-      return (await this.schools.explanationLanguage(request.schoolId)) ?? 'en';
-    } catch (err) {
-      this.logger.warn(`Explanation language of school ${request.schoolId} unreadable: ${err instanceof Error ? err.message : String(err)}`);
-      return 'en';
-    }
   }
 
   /** The sentence's sounds, as a nicety: a lexicon that cannot be read leaves the words without them. */

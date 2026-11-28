@@ -19,6 +19,7 @@ import type { IVoiceReviewAttemptsClient, ReadingToWrite } from '../ports/voice-
 import { VoiceReviewCommand } from './voice-review.command.js';
 import { VoiceReviewHandler } from './voice-review.handler.js';
 import { SoundExplainer } from '../../../pronunciation-explain/application/sound-explainer.js';
+import { ExplanationLanguage } from '../../../application/explanation-language.js';
 
 // Plan 82, step 8.
 
@@ -97,6 +98,8 @@ interface Setup {
   explain?: GatewayCall;
   /** The school's explanation language; a function to make it throw. */
   schoolLanguage?: string | null | (() => Promise<string | null>);
+  /** The learner's interface language — the fallback when the school set none (П-10). */
+  learnerLanguage?: string | null;
 }
 
 const NO_SOUNDS = { of: async () => null } as unknown as PassageSounds;
@@ -110,7 +113,9 @@ function setup({
   sounds = NO_SOUNDS,
   explain,
   schoolLanguage = null,
+  learnerLanguage = null,
 }: Setup = {}) {
+  const learners = { interfaceLanguage: async () => learnerLanguage };
   const asked: Array<{ capability: string; context: CallContext; request: SpeechGatewayRequest }> = [];
   const explaining: Array<{ capability: string; context: CallContext; request: GatewayRequest }> = [];
   const availability: string[] = [];
@@ -174,9 +179,10 @@ function setup({
     attempts,
     recordings,
     sounds,
-    {
-      explanationLanguage: async () => (typeof schoolLanguage === 'function' ? schoolLanguage() : schoolLanguage),
-    },
+    new ExplanationLanguage(
+      { explanationLanguage: async () => (typeof schoolLanguage === 'function' ? schoolLanguage() : schoolLanguage) },
+      learners,
+    ),
     new SoundExplainer(gateway, { base: async () => [] }),
     0,
     [0, 0],
@@ -392,6 +398,21 @@ describe('VoiceReviewHandler', () => {
         });
         await handler.execute(schoolCommand());
         expect(explaining[0]!.request.system).toContain('in English');
+      });
+
+      // П-10: the school set no language → the learner's interface language, not English.
+      it('explains in the learner’s language when the school set none', async () => {
+        const { handler, explaining } = setup({
+          subject: subjectResult({ schoolId: SCHOOL }, withPronunciation.subject!),
+          available: true,
+          calls: twoKj(),
+          sounds: kjFirst(),
+          explain: answer,
+          schoolLanguage: null,
+          learnerLanguage: 'ru',
+        });
+        await handler.execute(schoolCommand());
+        expect(explaining[0]!.request.system).toContain('in Russian');
       });
 
       it('keeps the inventory’s notes and no summary when the agent does not answer', async () => {
